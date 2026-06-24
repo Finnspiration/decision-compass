@@ -1,29 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import DecisionLens from "@/components/DecisionLens.jsx";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "Decision Lens" },
+      { name: "description", content: "Model a decision as a small system of variables, feedback loops, and options — then simulate and compare outcomes." },
+      { property: "og:title", content: "Decision Lens" },
+      { property: "og:description", content: "Model a decision as a small system of variables, feedback loops, and options — then simulate and compare outcomes." },
     ],
   }),
-  component: Index,
+  component: DecisionLens,
 });
-
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
