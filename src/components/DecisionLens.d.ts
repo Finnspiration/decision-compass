@@ -1,4 +1,4 @@
 declare module "@/components/DecisionLens.jsx" {
-  const DecisionLens: React.ComponentType;
+  const DecisionLens: React.FC;
   export default DecisionLens;
 }
