@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2,
   Target, Network, GitBranch, Telescope, RotateCcw,
@@ -783,9 +783,47 @@ function TrajectoryChartImpl({ runs, horizon, focusId, best }) {
   const grid = [0, 25, 50, 75, 100];
   const bandRun = runs.find((r) => r.option.id === focusId) || (best && runs.find((r) => r.option.id === best.option.id));
 
+  const svgRef = useRef(null);
+  const [hoverStep, setHoverStep] = useState(null);
+
+  function handleMove(e) {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const xSvg = ((e.clientX - rect.left) / rect.width) * W;
+    const t = Math.round(((xSvg - pl) / (W - pl - pr)) * Math.max(horizon, 1));
+    const clamped = Math.max(0, Math.min(horizon, t));
+    setHoverStep(clamped);
+  }
+  function handleLeave() { setHoverStep(null); }
+
+  // Tooltip position (in SVG units)
+  const tipW = 150;
+  const tipLineH = 14;
+  const tipPad = 8;
+  const tipH = hoverStep != null ? tipPad * 2 + tipLineH * (runs.length + 1) : 0;
+  let tipX = 0, tipY = pt + 4;
+  if (hoverStep != null) {
+    const hx = ix(hoverStep);
+    tipX = hx + 10;
+    if (tipX + tipW > W - pr) tipX = hx - 10 - tipW;
+  }
+
   return (
     <div className="mt-3 rounded-xl" style={{ background: T.inset, border: "1px solid " + T.border }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Option trajectories">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        role="img"
+        aria-label="Option trajectories"
+        onMouseMove={handleMove}
+        onMouseLeave={handleLeave}
+        onTouchStart={(e) => { if (e.touches[0]) handleMove(e.touches[0]); }}
+        onTouchMove={(e) => { if (e.touches[0]) handleMove(e.touches[0]); }}
+        onTouchEnd={handleLeave}
+        style={{ touchAction: "none" }}
+      >
         {grid.map((g) => (
           <g key={g}>
             <line x1={pl} y1={iy(g)} x2={W - pr} y2={iy(g)} stroke={T.border} strokeWidth="1" />
@@ -816,8 +854,50 @@ function TrajectoryChartImpl({ runs, horizon, focusId, best }) {
           <circle key={r.option.id} cx={ix(horizon)} cy={iy(r.traj[r.traj.length - 1].idx)} r="4"
             fill={r.color} stroke={T.bgDeep} strokeWidth="2" />
         ))}
+
+        {/* Hover guide + markers + tooltip */}
+        {hoverStep != null && (
+          <g pointerEvents="none">
+            <line
+              x1={ix(hoverStep)} y1={pt} x2={ix(hoverStep)} y2={H - pb}
+              stroke={T.ink2} strokeWidth="1" strokeDasharray="3 3" opacity="0.6"
+            />
+            {runs.map((r) => {
+              const p = r.traj[hoverStep];
+              if (!p) return null;
+              return (
+                <circle key={r.option.id} cx={ix(hoverStep)} cy={iy(p.idx)} r="3.5"
+                  fill={r.color} stroke={T.bgDeep} strokeWidth="2" />
+              );
+            })}
+            <g transform={`translate(${tipX},${tipY})`}>
+              <rect width={tipW} height={tipH} rx="6" ry="6"
+                fill={T.bgDeep} stroke={T.border2} strokeWidth="1" opacity="0.96" />
+              <text x={tipPad} y={tipPad + 10} fill={T.ink} fontSize="11" fontWeight="600">
+                Step {hoverStep}
+              </text>
+              {runs.map((r, i) => {
+                const p = r.traj[hoverStep];
+                const val = p ? p.idx.toFixed(1) : "—";
+                const y = tipPad + 10 + tipLineH * (i + 1);
+                return (
+                  <g key={r.option.id}>
+                    <rect x={tipPad} y={y - 8} width="8" height="8" rx="2" fill={r.color} />
+                    <text x={tipPad + 13} y={y} fill={T.ink2} fontSize="11">
+                      {r.option.name.length > 16 ? r.option.name.slice(0, 15) + "…" : r.option.name}
+                    </text>
+                    <text x={tipW - tipPad} y={y} fill={T.ink} fontSize="11" textAnchor="end" fontWeight="600">
+                      {val}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          </g>
+        )}
       </svg>
     </div>
   );
 }
 const TrajectoryChart = React.memo(TrajectoryChartImpl);
+
