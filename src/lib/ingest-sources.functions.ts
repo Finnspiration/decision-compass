@@ -1,16 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10MB per PDF
+// base64 expands by ~4/3; cap raw string accordingly with slack
+const MAX_PDF_B64_CHARS = Math.ceil((MAX_PDF_BYTES * 4) / 3) + 1024;
+
 const FileItem = z.object({
   name: z.string().min(1).max(300),
-  dataBase64: z.string().min(1),
+  dataBase64: z.string().min(1).max(MAX_PDF_B64_CHARS, "PDF exceeds 10MB limit"),
 });
 
 const Input = z.object({
   files: z.array(FileItem).max(5).default([]),
-  urls: z.array(z.string().url()).max(8).default([]),
+  urls: z.array(z.string().url().max(2048)).max(8).default([]),
   decisionText: z.string().min(1).max(2000),
 });
+
 
 const SYSTEM_PROMPT =
   "You are a systems analyst applying world-model thinking. Given a decision and supporting source excerpts, model the decision as a compact dynamical system. Find 3–6 latent variables that actually drive the outcome (not surface facts); mark each as helping (+weight) or hurting (-weight) and where it stands today, with a one-line rationale grounded in the sources when possible. Add 2–5 influences forming at least one feedback loop, each with a rationale. Define 2–4 options that are genuinely different strategies; each option's pushes say how it nudges each variable per step. Provide a 1–2 sentence summary of what the documents told you, and list which sources you used. Return ONLY JSON.";
@@ -84,49 +89,77 @@ function htmlToText(html: string): string {
 }
 
 async function fetchUrlText(rawUrl: string): Promise<{ name: string; text: string } | null> {
-  let u: URL;
-  try { u = new URL(rawUrl); } catch { return null; }
-  if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-  if (isPrivateHost(u.hostname)) return null;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), URL_TIMEOUT_MS);
-  try {
-    const res = await fetch(u.toString(), {
-      method: "GET",
-      redirect: "follow",
-      signal: ctrl.signal,
-      headers: { "User-Agent": "DecisionLens/1.0 (+ingest)" },
-    });
-    if (!res.ok) return null;
-    // Cap body size
-    const reader = res.body?.getReader();
-    if (!reader) return null;
-    let received = 0;
-    const chunks: Uint8Array[] = [];
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      received += value.length;
-      if (received > MAX_URL_BYTES) { try { await reader.cancel(); } catch { /* */ } break; }
-      chunks.push(value);
+  // Manual redirect handling to re-validate each hop against SSRF rules.
+  let current = rawUrl;
+  for (let hop = 0; hop < 4; hop++) {
+    let u: URL;
+    try { u = new URL(current); } catch { return null; }
+    if (u.protocol !== "https:") return null; // https only
+    if (isPrivateHost(u.hostname)) return null;
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), URL_TIMEOUT_MS);
+    try {
+      const res = await fetch(u.toString(), {
+        method: "GET",
+        redirect: "manual",
+        signal: ctrl.signal,
+        headers: { "User-Agent": "DecisionLens/1.0 (+ingest)", Accept: "text/html,text/plain;q=0.9,*/*;q=0.1" },
+      });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc) return null;
+        current = new URL(loc, u).toString();
+        continue;
+      }
+      if (!res.ok) return null;
+
+      // Pre-check content-length and content-type
+      const declared = Number(res.headers.get("content-length") || "0");
+      if (declared && declared > MAX_URL_BYTES) return null;
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      if (ct && !/^(text\/|application\/(json|xml|xhtml))/.test(ct)) return null;
+
+      const reader = res.body?.getReader();
+      if (!reader) return null;
+      let received = 0;
+      const chunks: Uint8Array[] = [];
+      let aborted = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (received + value.length > MAX_URL_BYTES) {
+          try { await reader.cancel(); } catch { /* */ }
+          aborted = true;
+          break;
+        }
+        received += value.length;
+        chunks.push(value);
+      }
+      if (aborted && received === 0) return null;
+      const buf = new Uint8Array(received);
+      let off = 0;
+      for (const c of chunks) { buf.set(c, off); off += c.length; }
+      const body = new TextDecoder("utf-8", { fatal: false }).decode(buf);
+      const text = ct.includes("html") || /<\w+[\s>]/.test(body.slice(0, 200)) ? htmlToText(body) : body;
+      return { name: u.hostname + u.pathname, text };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
     }
-    const buf = new Uint8Array(received);
-    let off = 0;
-    for (const c of chunks) { buf.set(c.subarray(0, Math.min(c.length, buf.length - off)), off); off += c.length; if (off >= buf.length) break; }
-    const ct = res.headers.get("content-type") || "";
-    const body = new TextDecoder("utf-8", { fatal: false }).decode(buf);
-    const text = ct.includes("html") || /<\w+[\s>]/.test(body.slice(0, 200)) ? htmlToText(body) : body;
-    return { name: u.hostname + u.pathname, text };
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
   }
+  return null;
 }
 
 async function extractPdfText(name: string, dataBase64: string): Promise<{ name: string; text: string } | null> {
   try {
     const bytes = decodeBase64ToBytes(dataBase64);
+    if (bytes.length === 0 || bytes.length > MAX_PDF_BYTES) return null;
+    // PDF magic bytes "%PDF-"
+    if (!(bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d)) {
+      return null;
+    }
     const { extractText, getDocumentProxy } = await import("unpdf");
     const pdf = await getDocumentProxy(bytes);
     const { text } = await extractText(pdf, { mergePages: true });
@@ -137,6 +170,7 @@ async function extractPdfText(name: string, dataBase64: string): Promise<{ name:
     return null;
   }
 }
+
 
 function budgetExcerpts(
   items: Array<{ name: string; text: string; kind: "pdf" | "url" }>,
@@ -203,6 +237,9 @@ async function callGateway(
 export const ingestSources = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
   .handler(async ({ data }): Promise<IngestResult> => {
+    const { rateLimit, validateAndClampModel } = await import("./ai-guard.server");
+    rateLimit("ingestSources", { perMinute: 6 });
+
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
 
@@ -218,11 +255,13 @@ export const ingestSources = createServerFn({ method: "POST" })
     }
 
     const { labelled, sources } = budgetExcerpts(items, MAX_TOTAL_CHARS);
-    const parsed = (await callGateway(apiKey, data.decisionText, labelled, true)) as IngestResult | null;
-    const result: IngestResult = (parsed && typeof parsed === "object") ? { ...parsed } : {};
+    const parsed = await callGateway(apiKey, data.decisionText, labelled, true);
+    const safe = validateAndClampModel(parsed);
+    const result: IngestResult = { ...safe };
     if (!Array.isArray(result.sources) || result.sources.length === 0) result.sources = sources;
     return result;
   });
+
 
 export type IngestResult = {
   outcomeName?: string;
