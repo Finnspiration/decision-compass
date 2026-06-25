@@ -1794,6 +1794,40 @@ export default function DecisionLens() {
         }}
         onSkip={() => setTourStep(null)}
       />
+
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookmarkPlus size={16} className="text-primary" />
+              Save as template
+            </DialogTitle>
+            <DialogDescription>
+              Decision Lens · stores your current model in this browser for reuse.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 grid gap-2">
+            <label className="text-xs text-muted-foreground" htmlFor="dl-save-name">Template name</label>
+            <Input
+              id="dl-save-name"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") confirmSaveTemplate(); }}
+              placeholder="e.g. Q3 market entry"
+              autoFocus
+            />
+            <div className="text-[11px] text-dim">
+              Will be saved as <span className="text-foreground">{inferCurrentSource()}</span> source.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>Cancel</Button>
+            <Button onClick={confirmSaveTemplate} disabled={!saveName.trim()} className="gap-2">
+              <BookmarkPlus size={14} /> Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
