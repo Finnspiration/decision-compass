@@ -2254,134 +2254,129 @@ export default function DecisionLens() {
 
 
 
-              <div className="grid gap-5">
-                <Panel>
-                  <SectionTag icon={Target} text="Which option looks best" />
-                  <div className="mt-3 grid gap-2">
-                    {ranked.map((r, i) => (
-                      <button
-                        key={r.option.id}
-                        onMouseEnter={() => setFocusOpt(r.option.id)}
-                        onMouseLeave={() => setFocusOpt(null)}
-                        onFocus={() => setFocusOpt(r.option.id)}
-                        onBlur={() => setFocusOpt(null)}
-                        onClick={() => setFocusOpt((cur) => (cur === r.option.id ? null : r.option.id))}
-                        aria-pressed={focusOpt === r.option.id}
-                        className={
-                          "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                          (i === 0
-                            ? "border-helps/40 bg-helps/10"
-                            : "border-border bg-muted hover:bg-muted/70 hover:border-primary/30")
-                        }
-                      >
-                        <span className="w-[18px] text-sm font-semibold text-dim">{i + 1}</span>
-                        <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
-                        <span className="flex-1 text-sm">{r.option.name}</span>
-                        <span className="flex flex-col items-end leading-tight">
-                          <span className="text-sm font-semibold tabular-nums text-foreground">
-                            ~{Math.round(r.winProb * 10)} of 10
-                          </span>
-                          <span className="text-[10px] text-dim tabular-nums">
-                            Outlook {Math.round(r.score)}
-                          </span>
-                        </span>
-                        {i === 0 && <span className="text-xs font-semibold text-helps">comes out ahead in ~{Math.round(r.winProb * 10)} of 10 likely futures</span>}
-                      </button>
-                    ))}
-
-                  </div>
-
-                  {allTrendDown && (
-                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
-                      <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
-                      <span className="leading-relaxed">
-                        All options trend downward in this model — "comes out ahead" means <b className="text-foreground">loses the least</b>. To find options that <i>improve</i> the outlook, revisit the <button type="button" onClick={() => setStage("model")} className="underline underline-offset-2 hover:text-foreground">Model tab</button>.
-                      </span>
-                    </div>
+              <Panel>
+                <SectionTag icon={Telescope} text="Things to keep in mind" />
+                <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
+                  <li>
+                    <b className="text-foreground">How close is the race:</b> the gap in outlook between #1 and #2 is{" "}
+                    {Math.round((best?.score ?? 0) - (ranked[1]?.score ?? best?.score ?? 0))} points. If that's small, this is basically a tie — don't over-trust the ranking.
+                  </li>
+                  <li>
+                    <b className="text-foreground">Near term is more reliable:</b> the further out you look, the fuzzier things get. Revisit this as new information comes in.
+                  </li>
+                  <li>
+                    <b className="text-foreground">Cheapest thing to check first:</b>{" "}
+                    {suggestedProbe ? (
+                      <>get a read on <b className="text-primary">{suggestedProbe.variable.name}</b> before you commit — it affects {suggestedProbe.outDegree} other {suggestedProbe.outDegree === 1 ? "driver" : "drivers"}.</>
+                    ) : (
+                      <>get a read on whichever driver feeds the most arrows before you commit.</>
+                    )}
+                  </li>
+                  {best && best.winProb >= 0.95 && Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
+                    <li>
+                      <b className="text-foreground">Strong lead:</b> #1 comes out ahead in almost every likely future. To pressure-test it, try lowering its strongest helping driver or strengthening a knock-on effect that works against it.
+                    </li>
                   )}
+                </ul>
 
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setStage("model")}
+                  className="mt-3 gap-2"
+                >
+                  <RotateCcw size={13} /> Tweak the map
+                </Button>
+              </Panel>
 
-                  <div className="mt-4 border-t border-border pt-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Wand2 size={13} className="text-primary" />
-                        <span>Why does <b className="text-foreground">{best?.option.name ?? "this option"}</b> win?</span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={runExplain}
-                        disabled={explaining || ranked.length === 0}
-                        className="gap-1.5"
-                      >
-                        {explaining ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                        {explanation ? "Re-explain" : "Explain"}
-                      </Button>
-                    </div>
-                    {explanation && (
-                      <p className="mt-2 rounded-lg border border-border bg-muted/60 p-3 text-xs leading-relaxed text-foreground">
-                        {explanation}
-                      </p>
-                    )}
+              <Panel>
+                <SectionTag icon={Target} text="Which option looks best" />
+                <div className="mt-3 grid gap-2">
+                  {ranked.map((r, i) => (
+                    <button
+                      key={r.option.id}
+                      onMouseEnter={() => setFocusOpt(r.option.id)}
+                      onMouseLeave={() => setFocusOpt(null)}
+                      onFocus={() => setFocusOpt(r.option.id)}
+                      onBlur={() => setFocusOpt(null)}
+                      onClick={() => setFocusOpt((cur) => (cur === r.option.id ? null : r.option.id))}
+                      aria-pressed={focusOpt === r.option.id}
+                      className={
+                        "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        (i === 0
+                          ? "border-helps/40 bg-helps/10"
+                          : "border-border bg-muted hover:bg-muted/70 hover:border-primary/30")
+                      }
+                    >
+                      <span className="w-[18px] text-sm font-semibold text-dim">{i + 1}</span>
+                      <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
+                      <span className="flex-1 text-sm">{r.option.name}</span>
+                      <span className="flex flex-col items-end leading-tight">
+                        <span className="text-sm font-semibold tabular-nums text-foreground">
+                          ~{Math.round(r.winProb * 10)} of 10
+                        </span>
+                        <span className="text-[10px] text-dim tabular-nums">
+                          Outlook {Math.round(r.score)}
+                        </span>
+                      </span>
+                      {i === 0 && <span className="text-xs font-semibold text-helps">comes out ahead in ~{Math.round(r.winProb * 10)} of 10 likely futures</span>}
+                    </button>
+                  ))}
+
+                </div>
+
+                {allTrendDown && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
+                    <span className="leading-relaxed">
+                      All options trend downward in this model — "comes out ahead" means <b className="text-foreground">loses the least</b>. To find options that <i>improve</i> the outlook, revisit the <button type="button" onClick={() => setStage("model")} className="underline underline-offset-2 hover:text-foreground">Model tab</button>.
+                    </span>
                   </div>
-                </Panel>
-
-                {best && (() => {
-                  const focused = focusOpt ? ranked.find((r) => r.option.id === focusOpt) : null;
-                  const shown = focused ?? best;
-                  return (
-                    <ActionPlanReadout
-                      option={shown.option}
-                      winProb={shown.winProb}
-                      variables={variables}
-                      decision={decision}
-                      outcomeName={outcomeName}
-                      explanation={explanation}
-                      suggesting={!!actionLoading[shown.option.id]}
-                      onSuggest={() => runSuggestActions(shown.option)}
-                      onGoOptions={() => setStage("options")}
-                    />
-                  );
-                })()}
+                )}
 
 
+                <div className="mt-4 border-t border-border pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Wand2 size={13} className="text-primary" />
+                      <span>Why does <b className="text-foreground">{best?.option.name ?? "this option"}</b> win?</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={runExplain}
+                      disabled={explaining || ranked.length === 0}
+                      className="gap-1.5"
+                    >
+                      {explaining ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                      {explanation ? "Re-explain" : "Explain"}
+                    </Button>
+                  </div>
+                  {explanation && (
+                    <p className="mt-2 rounded-lg border border-border bg-muted/60 p-3 text-xs leading-relaxed text-foreground">
+                      {explanation}
+                    </p>
+                  )}
+                </div>
+              </Panel>
 
-
-                <Panel>
-                  <SectionTag icon={Telescope} text="Things to keep in mind" />
-                  <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
-                    <li>
-                      <b className="text-foreground">How close is the race:</b> the gap in outlook between #1 and #2 is{" "}
-                      {Math.round(best.score - (ranked[1]?.score ?? best.score))} points. If that's small, this is basically a tie — don't over-trust the ranking.
-                    </li>
-                    <li>
-                      <b className="text-foreground">Near term is more reliable:</b> the further out you look, the fuzzier things get. Revisit this as new information comes in.
-                    </li>
-                    <li>
-                      <b className="text-foreground">Cheapest thing to check first:</b>{" "}
-                      {suggestedProbe ? (
-                        <>get a read on <b className="text-primary">{suggestedProbe.variable.name}</b> before you commit — it affects {suggestedProbe.outDegree} other {suggestedProbe.outDegree === 1 ? "driver" : "drivers"}.</>
-                      ) : (
-                        <>get a read on whichever driver feeds the most arrows before you commit.</>
-                      )}
-                    </li>
-                    {best.winProb >= 0.95 && Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
-                      <li>
-                        <b className="text-foreground">Strong lead:</b> #1 comes out ahead in almost every likely future. To pressure-test it, try lowering its strongest helping driver or strengthening a knock-on effect that works against it.
-                      </li>
-                    )}
-                  </ul>
-
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setStage("model")}
-                    className="mt-3 gap-2"
-                  >
-                    <RotateCcw size={13} /> Tweak the map
-                  </Button>
-                </Panel>
-              </div>
+              {best && (() => {
+                const focused = focusOpt ? ranked.find((r) => r.option.id === focusOpt) : null;
+                const shown = focused ?? best;
+                return (
+                  <ActionPlanReadout
+                    option={shown.option}
+                    winProb={shown.winProb}
+                    variables={variables}
+                    decision={decision}
+                    outcomeName={outcomeName}
+                    explanation={explanation}
+                    suggesting={!!actionLoading[shown.option.id]}
+                    onSuggest={() => runSuggestActions(shown.option)}
+                    onGoOptions={() => setStage("options")}
+                  />
+                );
+              })()}
             </div>
           </TabsContent>
         </Tabs>

@@ -1,11 +1,17 @@
-Fix the unreadable red hover on lower-ranked options in the Decide tab "Which option looks best" list.
+Restructure the Decide tab from a 2-column grid into a vertical, narrative flow.
 
-## Root cause
-The non-winning option buttons use `hover:bg-accent`. In this palette `--accent` is the brand red `#A52A20` with white foreground, which makes the row text hard to read on hover (and clashes with the red used elsewhere for warnings/hurts).
+## New order (top → bottom, full width)
+1. **Chart panel** ("How each option plays out") — unchanged contents, now full width
+2. **Things to keep in mind** — moved up directly under the chart
+3. **Which option looks best** (ranked options + "Why does X win?" explain block)
+4. **Action plan — {winning option}** (`ActionPlanReadout`)
 
-## Change (src/components/DecisionLens.tsx only)
-- In the ranked options list (the `ranked.map((r, i) => …)` buttons around line 2240), replace `hover:bg-accent` with a neutral hover that matches the rest of the app's surface treatment: `hover:bg-muted/70` (and keep `bg-muted`).
-- Add `hover:border-primary/30` for a subtle brand cue without changing text color.
-- Leave the #1 (winning) row's `border-helps/40 bg-helps/10` styling untouched.
+## Changes
+- **src/components/DecisionLens.tsx** (`TabsContent value="decide"` only):
+  - Remove the inner `<div className="grid gap-5">` wrapper around the right column.
+  - Reorder Panels: Chart → Things to keep in mind → Which option looks best → ActionPlanReadout.
+  - Keep all existing props, hover/focus behavior, explain flow, and warnings intact.
+- **src/styles.css**:
+  - Change `.dl-decide` at the ≥sm breakpoint back to a single-column stack (drop the `1.2fr 0.8fr` rule) so every panel spans full width on all viewports.
 
-No engine, layout, or other changes.
+No engine, copy, or component logic changes.
