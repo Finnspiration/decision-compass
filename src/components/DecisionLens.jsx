@@ -765,6 +765,7 @@ function SystemMapImpl({ variables, influences }) {
           return (
             <path key={idx} d={`M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}`} fill="none"
               stroke={col} strokeWidth={1 + Math.abs(inf.strength) / 45} opacity="0.55"
+              strokeDasharray={inf.strength < 0 ? "4 3" : undefined}
               markerEnd={`url(#${inf.strength >= 0 ? "dl-g" : "dl-r"})`} />
           );
         })}
@@ -776,6 +777,9 @@ function SystemMapImpl({ variables, influences }) {
             <g key={v.id}>
               <circle cx={p.x} cy={p.y} r={r} fill={col + "22"} stroke={col} strokeWidth="2" />
               <circle cx={p.x} cy={p.y} r={(r - 6) * (v.value / 100)} fill={col + "44"} />
+              <text x={p.x} y={p.y + 4} fill="#ffffff" fontSize="11" textAnchor="middle" fontWeight="700">
+                {v.weight >= 0 ? "+" : "−"}
+              </text>
               <text x={p.x} y={p.y + r + 14} fill={T.ink2} fontSize="11" textAnchor="middle">
                 {v.name.length > 16 ? v.name.slice(0, 15) + "…" : v.name}
               </text>
