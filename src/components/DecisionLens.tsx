@@ -2596,6 +2596,9 @@ function ActionPlanReadout({
       )}
     </Panel>
   );
+}
+
+
 
 
 function SectionTag({ icon: Icon, text }: { icon: React.ComponentType<{ size?: number; className?: string }>; text: string }) {
