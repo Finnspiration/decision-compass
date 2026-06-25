@@ -941,19 +941,22 @@ const clampN = (n: unknown, lo: number, hi: number): number => {
   return Math.max(lo, Math.min(hi, x));
 };
 
-function validateDraftedModel(raw: any): Model | null {
+function validateDraftedModel(raw: unknown): Model | null {
   if (!raw || typeof raw !== "object") return null;
-  if (!Array.isArray(raw.variables) || raw.variables.length === 0) return null;
-  const variables: Variable[] = raw.variables
-    .map((v: any) => {
-      const id = String(v?.id ?? "").trim();
+  const field = (o: unknown, k: string) => (o as Record<string, unknown>)[k];
+  const rVars = field(raw, "variables");
+  if (!Array.isArray(rVars) || rVars.length === 0) return null;
+  const variables: Variable[] = rVars
+    .map((v: unknown) => {
+      const id = String(field(v, "id") ?? "").trim();
       if (!id) return null;
-      const rationale = typeof v?.rationale === "string" ? v.rationale.slice(0, 300) : undefined;
+      const rationaleRaw = field(v, "rationale");
+      const rationale = typeof rationaleRaw === "string" ? rationaleRaw.slice(0, 300) : undefined;
       return {
         id,
-        name: String(v?.name ?? id),
-        value: clampN(v?.value, 0, 100),
-        weight: clampN(v?.weight, -100, 100),
+        name: String(field(v, "name") ?? id),
+        value: clampN(field(v, "value"), 0, 100),
+        weight: clampN(field(v, "weight"), -100, 100),
         ...(rationale ? { rationale } : {}),
       } as Variable;
     })
@@ -961,54 +964,59 @@ function validateDraftedModel(raw: any): Model | null {
   if (variables.length === 0) return null;
   const ids = new Set(variables.map((v) => v.id));
 
-  const influences: Influence[] = (Array.isArray(raw.influences) ? raw.influences : [])
-    .map((i: any) => {
-      const rationale = typeof i?.rationale === "string" ? i.rationale.slice(0, 300) : undefined;
+  const rInf = field(raw, "influences");
+  const influences: Influence[] = (Array.isArray(rInf) ? rInf : [])
+    .map((i: unknown) => {
+      const rationaleRaw = field(i, "rationale");
+      const rationale = typeof rationaleRaw === "string" ? rationaleRaw.slice(0, 300) : undefined;
       return {
-        from: String(i?.from ?? ""),
-        to: String(i?.to ?? ""),
-        strength: clampN(i?.strength, -100, 100),
+        from: String(field(i, "from") ?? ""),
+        to: String(field(i, "to") ?? ""),
+        strength: clampN(field(i, "strength"), -100, 100),
         ...(rationale ? { rationale } : {}),
       } as Influence;
     })
     .filter((i: Influence) => ids.has(i.from) && ids.has(i.to));
 
-  const options: DecisionOption[] = (Array.isArray(raw.options) ? raw.options : []).map(
-    (o: any) => {
-      const pushes: Record<string, number> = {};
-      if (o?.pushes && typeof o.pushes === "object") {
-        for (const k of Object.keys(o.pushes)) {
-          if (!ids.has(k)) continue;
-          pushes[k] = clampN((o.pushes as any)[k], -60, 60);
-        }
+  const rOpts = field(raw, "options");
+  const options: DecisionOption[] = (Array.isArray(rOpts) ? rOpts : []).map((o: unknown) => {
+    const pushes: Record<string, number> = {};
+    const pushesRaw = field(o, "pushes");
+    if (pushesRaw && typeof pushesRaw === "object") {
+      const pObj = pushesRaw as Record<string, unknown>;
+      for (const k of Object.keys(pObj)) {
+        if (!ids.has(k)) continue;
+        pushes[k] = clampN(pObj[k], -60, 60);
       }
-      const actions = sanitizeActions(o?.actions, ids);
-      return {
-        id: uid(),
-        name: String(o?.name ?? "Option"),
-        pushes,
-        ...(actions ? { actions } : {}),
-      };
-    },
-  );
+    }
+    const actions = sanitizeActions(field(o, "actions"), ids);
+    return {
+      id: uid(),
+      name: String(field(o, "name") ?? "Option"),
+      pushes,
+      ...(actions ? { actions } : {}),
+    };
+  });
   // Synthesize a fallback option rather than rejecting the whole model
   if (options.length === 0) {
     options.push({ id: uid(), name: "Status quo", pushes: {} });
   }
 
-  const summary = typeof raw.summary === "string" ? raw.summary.slice(0, 600) : undefined;
-  const sources: ModelSource[] | undefined = Array.isArray(raw.sources)
-    ? raw.sources
-        .map((s: any) => ({
-          name: String(s?.name ?? "").slice(0, 200),
-          type: s?.type === "url" ? ("url" as const) : ("pdf" as const),
+  const summaryRaw = field(raw, "summary");
+  const summary = typeof summaryRaw === "string" ? summaryRaw.slice(0, 600) : undefined;
+  const rSources = field(raw, "sources");
+  const sources: ModelSource[] | undefined = Array.isArray(rSources)
+    ? rSources
+        .map((s: unknown) => ({
+          name: String(field(s, "name") ?? "").slice(0, 200),
+          type: field(s, "type") === "url" ? ("url" as const) : ("pdf" as const),
         }))
         .filter((s: ModelSource) => s.name)
     : undefined;
 
   return {
-    outcomeName: String(raw.outcomeName ?? "Outcome"),
-    horizon: Math.round(clampN(raw.horizon, 4, 36)),
+    outcomeName: String(field(raw, "outcomeName") ?? "Outcome"),
+    horizon: Math.round(clampN(field(raw, "horizon"), 4, 36)),
     variables,
     influences,
     options,
