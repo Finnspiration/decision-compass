@@ -1742,6 +1742,7 @@ export default function DecisionLens() {
                   ))}
                 </div>
               </Panel>
+              </div>
 
               {/* live system map — transforms as you add variables & links */}
               <Panel>
