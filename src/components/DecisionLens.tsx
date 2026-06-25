@@ -1024,7 +1024,8 @@ export default function DecisionLens() {
                   Lovable AI builds your starter system — grounded in your sources when provided, otherwise from the decision text alone.
                 </p>
               </Panel>
-                  </TabsContent>
+
+
 
 
               <div ref={templatesPanelRef}>
