@@ -1521,13 +1521,13 @@ export default function DecisionLens() {
 
       {/* =============== Main workspace =============== */}
       <main className="flex-1 min-w-0 flex flex-col bg-background">
-        <header className="sticky top-0 z-10 h-16 px-4 md:px-8 flex items-center justify-between border-b bg-white">
-          <div className="min-w-0">
+        <header className="sticky top-0 z-10 min-h-16 px-4 md:px-8 py-3 flex items-start justify-between gap-4 border-b bg-white">
+          <div className="min-w-0 flex-1">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Stage {STAGES.findIndex((s) => s.id === stage) + 1} of {STAGES.length} · {STAGES.find((s) => s.id === stage)?.label}
             </div>
             <h1
-              className="mt-0.5 text-base md:text-lg font-semibold truncate text-foreground"
+              className="mt-0.5 text-base md:text-lg font-semibold text-foreground break-words"
               style={{ fontFamily: FONT_DISPLAY }}
               title={decision}
             >
