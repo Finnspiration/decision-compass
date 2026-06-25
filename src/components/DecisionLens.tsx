@@ -1705,10 +1705,10 @@ export default function DecisionLens() {
               <Panel>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <SectionTag icon={Lightbulb} text="AI critique" />
+                    <SectionTag icon={Lightbulb} text="Second opinion" />
                     <HelpPopover
-                      title="AI critique"
-                      body="Looks for missing drivers, weak feedback loops, near-duplicate options, or a missing risk variable. Accept any suggestion to add it to your model."
+                      title="Second opinion"
+                      body="Spots things you may have missed — an important factor, a downside to consider, or two options that look too alike."
                     />
                   </div>
                   <Button
@@ -1719,7 +1719,7 @@ export default function DecisionLens() {
                     className="gap-1.5"
                   >
                     {critiquing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                    {critique ? "Re-run critique" : "Critique my model"}
+                    {critique ? "Get another second opinion" : "Get a second opinion"}
                   </Button>
                 </div>
                 {critique && critique.length > 0 && (
