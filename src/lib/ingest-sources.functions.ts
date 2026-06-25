@@ -267,7 +267,7 @@ export type IngestResult = {
   sources?: Array<{ name: string; type: "pdf" | "url" }>;
   variables?: Array<{ id?: string; name?: string; value?: number; weight?: number; rationale?: string }>;
   influences?: Array<{ from?: string; to?: string; strength?: number; rationale?: string }>;
-  options?: Array<{ name?: string; pushes?: Record<string, number> }>;
+  options?: Array<{ name?: string; pushes?: Record<string, number>; actions?: Array<{ text?: string; targets?: string[]; effort?: "low" | "med" | "high"; when?: "now" | "soon" | "ongoing" }> }>;
   skipped?: SkippedSource[];
   degraded?: boolean;
 };
