@@ -1528,10 +1528,10 @@ export default function DecisionLens() {
                           </div>
                           <div>
                             <label className="flex items-center gap-1 text-sm text-muted-foreground">
-                              Horizon: <span className="text-primary">{horizon} steps</span>
+                              How far ahead: <span className="text-primary">{horizon} steps</span>
                               <HelpPopover
-                                title="Horizon"
-                                body="How many steps forward we simulate each option. Short horizons show the immediate punch; long horizons reveal where feedback loops take you."
+                                title="How far ahead you're looking"
+                                body="A short range shows the quick wins. A longer range shows how things play out once the knock-on effects kick in."
                               />
                             </label>
                             <Slider
