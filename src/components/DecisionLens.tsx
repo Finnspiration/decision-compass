@@ -671,6 +671,35 @@ export default function DecisionLens() {
   }
   function removeUrl(idx: number) { setUrls((p) => p.filter((_, i) => i !== idx)); }
 
+  function describeAiError(err: unknown): { title: string; description: string } {
+    const msg = (err as { message?: string })?.message || "";
+    if (msg.startsWith("RATE_LIMITED")) {
+      return { title: "Too many requests", description: "Decision Lens · wait a minute and try again." };
+    }
+    if (msg.startsWith("AI_BAD_JSON")) {
+      return { title: "AI returned an unusable result", description: "Decision Lens · try again or rephrase your decision." };
+    }
+    if (msg.startsWith("AI_HTTP_ERROR")) {
+      return { title: "AI service error", description: "Decision Lens · the gateway rejected the request. Try again shortly." };
+    }
+    return { title: "Couldn't reach the AI", description: "Decision Lens · loaded a template instead." };
+  }
+
+  function describeSkipReason(reason: string): string {
+    switch (reason) {
+      case "oversized": return "too large";
+      case "not_pdf": return "not a valid PDF";
+      case "pdf_parse_failed": return "couldn't read PDF";
+      case "private_host": return "blocked (private host)";
+      case "non_https": return "must be https://";
+      case "timeout": return "timed out";
+      case "bad_content_type": return "unsupported content type";
+      case "http_error": return "fetch failed";
+      case "empty": return "no readable text";
+      default: return reason;
+    }
+  }
+
   async function runAutoDraft(text: string) {
     setDrafting(true);
     try {
@@ -678,10 +707,12 @@ export default function DecisionLens() {
       loadModel(m);
       setStage("model");
       toast.success("Model drafted", { description: "Decision Lens · AI-built your starting system." });
-    } catch {
+    } catch (err) {
+      console.error("autoDraft failed", err);
       loadModel(keywordTemplate(text));
       setStage("model");
-      toast.error("Couldn't reach the AI", { description: "Decision Lens · loaded a template instead." });
+      const { title, description } = describeAiError(err);
+      toast.error(title, { description });
     } finally {
       setDrafting(false);
     }
@@ -693,7 +724,6 @@ export default function DecisionLens() {
       return;
     }
     if (pdfFiles.length === 0 && urls.length === 0) {
-      // No sources — fall back to plain draft
       void runAutoDraft(decision);
       return;
     }
@@ -705,17 +735,30 @@ export default function DecisionLens() {
       const { ingestSources } = await import("@/lib/ingest-sources.functions");
       const raw = await ingestSources({ data: { files: filesPayload, urls, decisionText: decision } });
       const m = validateDraftedModel(raw);
-      if (!m) throw new Error("Invalid model JSON");
+      if (!m) throw new Error("AI_BAD_JSON: model failed validation");
       loadModel(m);
       setStage("model");
-      toast.success("Decision mapped", { description: "Decision Lens · grounded in your sources." });
+      const skipped = (raw as { skipped?: Array<{ name: string; reason: string }> }).skipped ?? [];
+      const degraded = (raw as { degraded?: boolean }).degraded === true;
+      if (skipped.length > 0) {
+        const lines = skipped.slice(0, 4).map((s) => `${s.name}: ${describeSkipReason(s.reason)}`).join(" · ");
+        const more = skipped.length > 4 ? ` · +${skipped.length - 4} more` : "";
+        toast.warning(degraded ? "Decision drafted (no sources used)" : "Decision mapped (some sources skipped)", {
+          description: "Decision Lens · " + lines + more,
+        });
+      } else {
+        toast.success("Decision mapped", { description: "Decision Lens · grounded in your sources." });
+      }
     } catch (err) {
       console.error("ingest failed", err);
-      toast.error("Couldn't map from sources", { description: "Decision Lens · check your files/URLs and try again." });
+      const { title, description } = describeAiError(err);
+      toast.error(title, { description });
     } finally {
       setIngesting(false);
     }
   }
+
+
 
   function loadModel(m: Model) {
     setOutcomeName(m.outcomeName);
