@@ -252,20 +252,29 @@ function winProbabilities(
   runs = 300
 ): Record<string, number> {
   if (options.length === 0) return {};
-  const SIG = 0.15;
   const wins: Record<string, number> = {};
   options.forEach((o) => (wins[o.id] = 0));
   for (let r = 0; r < runs; r++) {
-    const infNoise = influences.map(() => 1 + SIG * gaussSample());
+    // Shared per-run noise so options are compared on the same world.
+    const infNoise = influences.map(() => 1 + MC_COEF_SIG * gaussSample());
     const optPushNoise = options.map((o) => {
       const m: Record<string, number> = {};
-      if (o.pushes) for (const k of Object.keys(o.pushes)) m[k] = 1 + SIG * gaussSample();
+      if (o.pushes) for (const k of Object.keys(o.pushes)) m[k] = 1 + MC_COEF_SIG * gaussSample();
       return m;
     });
+    const initJitter: Record<string, number> = {};
+    vars.forEach((v) => (initJitter[v.id] = MC_INIT_SIG * gaussSample()));
+    // Shared per-step process shocks: same world for every option this run.
+    const shocks: Array<Record<string, number>> = [];
+    for (let t = 1; t <= horizon; t++) {
+      const s: Record<string, number> = {};
+      vars.forEach((v) => (s[v.id] = MC_PROCESS_SIG * gaussSample()));
+      shocks.push(s);
+    }
     let bestIdx = 0, bestVal = -Infinity;
     options.forEach((o, oi) => {
       const cur: Record<string, number> = {};
-      vars.forEach((v) => (cur[v.id] = v.value));
+      vars.forEach((v) => (cur[v.id] = clamp(v.value + initJitter[v.id])));
       const base = { ...cur };
       for (let t = 1; t <= horizon; t++) {
         const next: Record<string, number> = {};
@@ -279,7 +288,7 @@ function winProbabilities(
           const rawPush = (o.pushes && o.pushes[v.id]) || 0;
           const push = (rawPush * (optPushNoise[oi][v.id] ?? 1)) / 100 * 4;
           const decay = 0.08 * (cur[v.id] - base[v.id]);
-          next[v.id] = clamp(cur[v.id] + push + e - decay);
+          next[v.id] = clamp(cur[v.id] + push + e - decay + shocks[t - 1][v.id]);
         });
         Object.keys(next).forEach((k) => (cur[k] = next[k]));
       }
@@ -292,6 +301,7 @@ function winProbabilities(
   options.forEach((o) => (out[o.id] = wins[o.id] / runs));
   return out;
 }
+
 
 const MC_RUNS = 300;
 
