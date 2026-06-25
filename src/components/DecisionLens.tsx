@@ -2480,7 +2480,7 @@ function ActionPlanReadout({
           .filter(Boolean) as string[];
         const meta: string[] = [];
         if (a.effort) meta.push(`effort: ${a.effort}`);
-        if (targets.length) meta.push(`drivers: ${targets.join(", ")}`);
+        if (targets.length) meta.push(`drivers it moves: ${targets.join(", ")}`);
         lines.push(`- ${a.text}${meta.length ? `  _(${meta.join(" · ")})_` : ""}`);
       }
     });
