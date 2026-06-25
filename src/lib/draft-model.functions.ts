@@ -14,7 +14,7 @@ export type DraftedModel = {
 };
 
 const SYSTEM_PROMPT =
-  "You are a systems analyst applying world-model thinking. Given a decision, model it as a compact dynamical system. Find 3–6 latent variables that actually drive the outcome (not surface facts); mark each as helping (+weight) or hurting (-weight) and where it stands today. Add 2–5 influences forming at least one feedback loop. Define 2–4 options that are genuinely different strategies; each option's pushes say how it nudges each variable per step. Return ONLY JSON.";
+  "You are a systems analyst applying world-model thinking. Given a decision, model it as a compact dynamical system. Find 3–6 latent variables that actually drive the outcome (not surface facts); mark each as helping (+weight) or hurting (-weight) and where it stands today. Add 2–5 influences forming at least one feedback loop. Define 2–4 options that are genuinely different strategies; each option's pushes say how it nudges each variable per step. For each option, list 2–4 concrete, operational actions a team could actually execute (not restatements of the push). Tag each action with the variable id(s) it primarily moves via `targets`, set `effort` (low/med/high) and `when` (now/soon/ongoing). Return ONLY JSON.";
 
 const JSON_SHAPE_HINT = `Return ONLY a JSON object matching exactly:
 {
@@ -22,9 +22,10 @@ const JSON_SHAPE_HINT = `Return ONLY a JSON object matching exactly:
   "horizon": integer 4-36,
   "variables": [{ "id": string, "name": string, "value": number 0-100, "weight": number -100..100 }],
   "influences": [{ "from": string, "to": string, "strength": number -100..100 }],
-  "options":    [{ "name": string, "pushes": { "<variableId>": number -60..60 } }]
+  "options":    [{ "name": string, "pushes": { "<variableId>": number -60..60 },
+                   "actions": [{ "text": string (<=160 chars), "targets": [variableId, ...], "effort": "low"|"med"|"high", "when": "now"|"soon"|"ongoing" }] }]
 }
-Ids must be short lowercase slugs. All influence.from/to and pushes keys must be ids present in variables.`;
+Each option MUST include 2–4 actions. Ids must be short lowercase slugs. All influence.from/to, pushes keys, and action.targets must be ids present in variables.`;
 
 export const draftModel = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
