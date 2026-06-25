@@ -2041,7 +2041,7 @@ export default function DecisionLens() {
 
               <div className="grid gap-5">
                 <Panel>
-                  <SectionTag icon={Target} text="Ranked options" />
+                  <SectionTag icon={Target} text="Which option looks best" />
                   <div className="mt-3 grid gap-2">
                     {ranked.map((r, i) => (
                       <button
