@@ -1085,6 +1085,7 @@ export default function DecisionLens() {
   const HURT_WORDS = ["depletion", "burn", "risk", "cost", "churn", "saturation", "debt", "loss", "attrition", "drag"];
   const HELP_WORDS = ["growth", "advantage", "moat", "reach", "trust", "quality", "retention", "momentum"];
   const [sanityDismissed, setSanityDismissed] = useState(false);
+  const [coachDismissed, setCoachDismissed] = useState(false);
   const modelFindings = useMemo(() => {
     const findings: Array<{ id: string; text: React.ReactNode }> = [];
     for (const v of variables) {
