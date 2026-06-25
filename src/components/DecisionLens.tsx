@@ -1226,28 +1226,85 @@ export default function DecisionLens() {
 
               <div ref={templatesPanelRef}>
                 <Panel>
-                  <SectionTag icon={GitBranch} text="Or start from a template" />
-                  <div className="mt-3 grid gap-2">
+                  <SectionTag icon={GitBranch} text="Template gallery" />
+                  <p className="mt-2 text-xs text-dim">
+                    Pick a starting system — built-in or one of your saved models.
+                  </p>
+                  <div
+                    className="mt-3 grid gap-3"
+                    style={{ gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))" }}
+                  >
                     {TEMPLATES.map((tpl) => (
-                      <Button
+                      <button
                         key={tpl.label}
-                        variant="secondary"
-                        disabled={drafting}
-                        onClick={() => { setDecision(tpl.decision); void runAutoDraft(tpl.key[0]); }}
-                        className="h-auto justify-between bg-muted px-4 py-3 text-left text-sm font-normal"
+                        type="button"
+                        onClick={() => loadBuiltinTemplate(tpl)}
+                        className="group flex h-full flex-col gap-2 rounded-md border border-border bg-muted p-3 text-left transition-colors hover:border-primary"
                       >
-                        <span>{tpl.label}</span>
-                        <ArrowRight size={15} className="text-primary" />
-                      </Button>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Built-in
+                          </span>
+                          <ArrowRight size={14} className="text-primary opacity-60 group-hover:opacity-100" />
+                        </div>
+                        <div className="text-sm font-medium text-foreground">{tpl.label}</div>
+                        <div className="text-[11px] text-dim">Outcome · {tpl.outcomeName}</div>
+                      </button>
                     ))}
-                    <Button
-                      variant="outline"
+
+                    {userTemplates.map((t) => {
+                      const badge =
+                        t.source === "ai" ? "AI" : t.source === "documents" ? "Documents" : "Manual";
+                      return (
+                        <div
+                          key={t.id}
+                          className="group flex h-full flex-col gap-2 rounded-md border border-border bg-card p-3 text-left transition-colors hover:border-primary"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary">
+                              <Bookmark size={10} /> {badge}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => renameUserTemplate(t.id)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                                aria-label={`Rename ${t.name}`}
+                                title="Rename"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteUserTemplate(t.id)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
+                                aria-label={`Delete ${t.name}`}
+                                title="Delete"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => loadUserTemplate(t)}
+                            className="flex flex-1 flex-col gap-1 text-left"
+                          >
+                            <div className="text-sm font-medium text-foreground">{t.name}</div>
+                            <div className="text-[11px] text-dim">Outcome · {t.model.outcomeName}</div>
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      type="button"
                       onClick={() => { loadModel(blankStarter()); setStage("model"); }}
-                      className="h-auto justify-between border-dashed bg-transparent px-4 py-3 text-left text-sm font-normal text-muted-foreground"
+                      className="flex h-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border bg-transparent p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
                     >
-                      <span>Start blank</span>
-                      <Plus size={15} />
-                    </Button>
+                      <Plus size={16} />
+                      Start blank
+                    </button>
                   </div>
                 </Panel>
               </div>
