@@ -570,14 +570,15 @@ export default function DecisionLens() {
                 </div>
 
                 <Button
-                  onClick={() => { loadModel(autoDraftModel(decision)); setStage("model"); }}
+                  onClick={() => { void runAutoDraft(decision); }}
+                  disabled={drafting}
                   className="mt-5 gap-2"
                 >
-                  <Sparkles size={16} /> Auto-draft the model
+                  {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {drafting ? "Drafting…" : "Auto-draft the model"}
                 </Button>
                 <p className="mt-2 text-xs text-dim">
-                  Prototype: matches a starter template. In Lovable, wire this button to an LLM that returns the
-                  model from your decision text.
+                  Lovable AI builds a starter system from your decision text. Falls back to a template if the AI is unreachable.
                 </p>
               </Panel>
 
@@ -588,7 +589,8 @@ export default function DecisionLens() {
                     <Button
                       key={tpl.label}
                       variant="secondary"
-                      onClick={() => { setDecision(tpl.decision); loadModel(autoDraftModel(tpl.key[0])); setStage("model"); }}
+                      disabled={drafting}
+                      onClick={() => { setDecision(tpl.decision); void runAutoDraft(tpl.key[0]); }}
                       className="h-auto justify-between bg-muted px-4 py-3 text-left text-sm font-normal"
                     >
                       <span>{tpl.label}</span>
