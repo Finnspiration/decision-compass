@@ -1244,28 +1244,42 @@ export default function DecisionLens() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex flex-wrap items-center gap-2">
-                  <Button
-                    onClick={() => { void runIngest(); }}
-                    disabled={ingesting || drafting}
-                    className="gap-2"
-                  >
-                    {ingesting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                    {ingesting ? "Mapping…" : "Map my decision"}
-                  </Button>
-                  <Button
-                    onClick={() => { void runAutoDraft(decision); }}
-                    disabled={drafting || ingesting}
-                    variant="secondary"
-                    className="gap-2"
-                  >
-                    {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                    {drafting ? "Drafting…" : "Auto-draft (no sources)"}
-                  </Button>
-                </div>
-                <p className="mt-2 text-xs text-dim">
-                  Lovable AI builds your starter system — grounded in your sources when provided, otherwise from the decision text alone.
-                </p>
+                {(() => {
+                  const hasSources = pdfFiles.length > 0 || urls.length > 0;
+                  return (
+                    <>
+                      <div className="mt-5 flex flex-wrap items-center gap-2">
+                        <Button
+                          onClick={() => { void runIngest(); }}
+                          disabled={ingesting || drafting}
+                          className="gap-2"
+                        >
+                          {ingesting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                          {ingesting ? "Mapping…" : "Map my decision"}
+                        </Button>
+                        <Button
+                          onClick={() => { void runAutoDraft(decision); }}
+                          disabled={drafting || ingesting}
+                          variant="secondary"
+                          className="gap-2"
+                        >
+                          {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                          {drafting
+                            ? "Drafting…"
+                            : hasSources
+                              ? "Ignore sources & draft from text"
+                              : "Auto-draft (no sources)"}
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-xs text-dim">
+                        {hasSources
+                          ? "Decision Lens · sources attached. ‘Map my decision’ grounds the model in them; ‘Ignore sources’ drafts from your decision text alone."
+                          : "Decision Lens · Lovable AI builds your starter system — grounded in your sources when provided, otherwise from the decision text alone."}
+                      </p>
+                    </>
+                  );
+                })()}
+
               </Panel>
 
 
