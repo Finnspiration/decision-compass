@@ -40,6 +40,58 @@ type Model = {
   options: DecisionOption[];
 };
 
+/* --------------------------- URL hash codec ----------------------------- */
+function encodeModel(m: Model): string {
+  // Compact JSON; URL-safe via encodeURIComponent. Correctness over cleverness.
+  const compact = {
+    o: m.outcomeName,
+    h: m.horizon,
+    v: m.variables.map((v) => ({ i: v.id, n: v.name, v: v.value, w: v.weight })),
+    e: m.influences.map((i) => ({ f: i.from, t: i.to, s: i.strength })),
+    p: m.options.map((o) => ({ i: o.id, n: o.name, p: o.pushes })),
+  };
+  return encodeURIComponent(JSON.stringify(compact));
+}
+
+function parseHashModel(hash: string): Model | null {
+  try {
+    const m = hash.match(/[#&]m=([^&]+)/);
+    if (!m) return null;
+    const raw = JSON.parse(decodeURIComponent(m[1]));
+    if (!raw || typeof raw !== "object") return null;
+    const outcomeName = String(raw.o ?? "");
+    const horizon = Number(raw.h);
+    if (!outcomeName || !Number.isFinite(horizon) || horizon < 1 || horizon > 200) return null;
+    if (!Array.isArray(raw.v) || !Array.isArray(raw.e) || !Array.isArray(raw.p)) return null;
+    const variables: Variable[] = raw.v.map((v: any) => ({
+      id: String(v.i), name: String(v.n ?? ""),
+      value: Number(v.v), weight: Number(v.w),
+    }));
+    if (variables.some((v) => !v.id || !Number.isFinite(v.value) || !Number.isFinite(v.weight))) return null;
+    const ids = new Set(variables.map((v) => v.id));
+    const influences: Influence[] = raw.e.map((i: any) => ({
+      from: String(i.f), to: String(i.t), strength: Number(i.s),
+    }));
+    if (influences.some((i) => !ids.has(i.from) || !ids.has(i.to) || !Number.isFinite(i.strength))) return null;
+    const options: DecisionOption[] = raw.p.map((o: any) => {
+      const pushes: Record<string, number> = {};
+      if (o.p && typeof o.p === "object") {
+        for (const k of Object.keys(o.p)) {
+          if (!ids.has(k)) return null as any;
+          const n = Number((o.p as any)[k]);
+          if (!Number.isFinite(n)) return null as any;
+          pushes[k] = n;
+        }
+      }
+      return { id: String(o.i), name: String(o.n ?? ""), pushes };
+    });
+    if (options.some((o) => !o || !o.id)) return null;
+    return { outcomeName, horizon, variables, influences, options };
+  } catch {
+    return null;
+  }
+}
+
 /* --------------------------- SVG palette --------------------------------
    SystemMap and TrajectoryChart SVGs are kept "as-is" per spec.
    These hex constants drive only those two SVGs — semantic accents
