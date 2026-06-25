@@ -41,7 +41,45 @@ const ONBOARD_KEY = "dl_onboarded";
 /* --------------------------- model types -------------------------------- */
 type Variable = { id: string; name: string; value: number; weight: number; rationale?: string };
 type Influence = { from: string; to: string; strength: number; rationale?: string };
-type DecisionOption = { id: string; name: string; pushes: Record<string, number> };
+type DecisionAction = {
+  text: string;
+  targets?: string[];
+  effort?: "low" | "med" | "high";
+  when?: "now" | "soon" | "ongoing";
+};
+type DecisionOption = {
+  id: string;
+  name: string;
+  pushes: Record<string, number>;
+  actions?: DecisionAction[];
+};
+const EFFORTS = ["low", "med", "high"] as const;
+const WHENS = ["now", "soon", "ongoing"] as const;
+function sanitizeActions(raw: unknown, validIds: Set<string>): DecisionAction[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: DecisionAction[] = [];
+  for (const a of raw) {
+    if (!a || typeof a !== "object") continue;
+    const aa = a as Record<string, unknown>;
+    const text = typeof aa.text === "string" ? aa.text.trim().slice(0, 160) : "";
+    if (!text) continue;
+    const targetsSrc = Array.isArray(aa.targets) ? aa.targets : Array.isArray((aa as any).g) ? (aa as any).g : [];
+    const targets = (targetsSrc as unknown[])
+      .map((t) => String(t))
+      .filter((t) => validIds.has(t));
+    const effortRaw = (aa.effort ?? (aa as any).e) as unknown;
+    const effort = EFFORTS.includes(effortRaw as any) ? (effortRaw as DecisionAction["effort"]) : undefined;
+    const whenRaw = (aa.when ?? (aa as any).w) as unknown;
+    const when = WHENS.includes(whenRaw as any) ? (whenRaw as DecisionAction["when"]) : undefined;
+    const act: DecisionAction = { text };
+    if (targets.length) act.targets = targets;
+    if (effort) act.effort = effort;
+    if (when) act.when = when;
+    out.push(act);
+    if (out.length >= 8) break;
+  }
+  return out.length ? out : undefined;
+}
 type ModelSource = { name: string; type: "pdf" | "url" };
 type Model = {
   outcomeName: string;
