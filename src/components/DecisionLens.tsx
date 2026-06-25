@@ -1178,13 +1178,16 @@ export default function DecisionLens() {
 
   /* --------------------------- AI assistance --------------------------- */
   const callExplain = useServerFn(explainDecision);
-  const callCritique = useServerFn(critiqueModel);
+  const callImprove = useServerFn(improveModel);
   const callSuggestActions = useServerFn(suggestActions);
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
-  const [critiquing, setCritiquing] = useState(false);
-  const [critique, setCritique] = useState<CritiqueSuggestion[] | null>(null);
+  const [improvingModel, setImprovingModel] = useState(false);
+  const [improvingOptions, setImprovingOptions] = useState(false);
+  const [modelSuggestions, setModelSuggestions] = useState<ImproveSuggestion[] | null>(null);
+  const [optionSuggestions, setOptionSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+
 
   async function runSuggestActions(opt: DecisionOption) {
     setActionLoading((s) => ({ ...s, [opt.id]: true }));
