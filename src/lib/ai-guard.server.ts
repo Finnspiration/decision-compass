@@ -115,9 +115,33 @@ export function validateAndClampModel(raw: unknown): SafeModel {
       pushes[id] = clamp(val, -60, 60, 0);
       count++;
     }
+    let actions: SafeAction[] | undefined;
+    if (Array.isArray((o as any).actions)) {
+      const arr: SafeAction[] = [];
+      for (const a of (o as any).actions as unknown[]) {
+        if (!a || typeof a !== "object") continue;
+        const aa = a as Record<string, unknown>;
+        const text = sstr(aa.text, 160).trim();
+        if (!text) continue;
+        const targetsSrc = Array.isArray(aa.targets) ? aa.targets : [];
+        const targets = targetsSrc
+          .map((t) => slug(t))
+          .filter((t) => ids.has(t));
+        const effort = EFFORT_SET.has(aa.effort as string) ? (aa.effort as SafeAction["effort"]) : undefined;
+        const when = WHEN_SET.has(aa.when as string) ? (aa.when as SafeAction["when"]) : undefined;
+        const act: SafeAction = { text };
+        if (targets.length) act.targets = targets;
+        if (effort) act.effort = effort;
+        if (when) act.when = when;
+        arr.push(act);
+        if (arr.length >= 6) break;
+      }
+      if (arr.length) actions = arr;
+    }
     return {
       name: sstr(o.name ?? `Option ${i + 1}`, 80) || `Option ${i + 1}`,
       pushes,
+      ...(actions ? { actions } : {}),
     };
   });
   // Safety net: never return zero options — downstream UI requires at least one
