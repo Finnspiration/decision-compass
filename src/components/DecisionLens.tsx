@@ -2536,7 +2536,7 @@ function ActionPlanReadout({
             aria-label={`Generate actions for ${option.name}`}
           >
             {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-            Generate them
+            Suggest some
           </Button>
         </div>
       ) : (
