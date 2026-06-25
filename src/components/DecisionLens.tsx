@@ -2342,7 +2342,9 @@ export default function DecisionLens() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+        </div>
+      </main>
+
 
       <WelcomeDialog
         open={welcomeOpen}
