@@ -1,34 +1,39 @@
-## Diagnosis
+## Why you see 100 / 0 / 0
 
-The 100% / 0% / 0% split is not a UI bug — the Monte-Carlo math is doing what it's told, but the noise model is too weak to ever flip a winner.
+This isn't a UI glitch — it's the Monte Carlo doing exactly what we told it to, and the result happens to be honest for this model.
 
-Current noise in both `simulateMonteCarlo` and `winProbabilities` (DecisionLens.tsx lines 194–288):
+In `winProbabilities` (lines 247–303 of `src/components/DecisionLens.tsx`) every run **shares** its randomness across the three options:
 
-- 15% multiplicative noise on **influence strengths** (drawn once per run).
-- 15% multiplicative noise on **option pushes** (drawn once per run).
-- No noise on initial variable values.
-- No per-step (process) noise on the variable updates themselves.
+- one set of influence-strength noise (`infNoise`)
+- one set of initial-value jitter (`initJitter`)
+- one set of per-step process shocks (`shocks[t]`)
 
-Because the noise multiplies fixed coefficients drawn **once per run**, each rollout is essentially a near-deterministic trajectory shifted by a small constant. With the example model the medians are 62 / 47 / 40 — gaps of 15 and 22 points. Final-outcome variance from ±15% on coefficients is far smaller than that gap, so the same option wins all 300 runs. Hence "100% / 0% / 0%" every time the gap is wider than a couple of points.
+Only the per-option **push** noise (`optPushNoise`, ±25%) differs between options inside a run. That sharing is deliberate — it's the "common random numbers" trick, which makes paired comparisons fairer and reduces variance. The side effect: if one option is better than another in the *deterministic* model by more than push-noise can erase, it wins **every** run.
 
-This also explains why the p10–p90 fan in the chart looks like a thin ribbon hugging the median — same root cause.
+In your current model the medians are 66 / 53 / 38. Academic Bilingual beats #2 by 13 points and #3 by 28. The only thing that can flip the ranking is ±25% noise on the option's own pushes — and that's nowhere near enough to close a 13-point gap. So Academic Bilingual wins 300/300 = 100%. Mathematically correct, but useless as a confidence signal.
 
-## Fix
+The chart shows the same story: the blue p10–p90 fan widens with horizon, but the orange and green lines barely have a fan — `simulateMonteCarlo` is called once per option independently, and each option's spread doesn't overlap the others.
 
-Make the noise actually compound over the horizon so realistic uncertainty grows with time, without changing the deterministic `simulate` / `outcomeOf` engine the user asked us to leave alone.
+## Stable solution
 
-Changes confined to `simulateMonteCarlo` (≈ lines 194–234) and `winProbabilities` (≈ lines 241–288) in `src/components/DecisionLens.tsx`:
+Split the noise into two layers — keep "common random numbers" for fairness, but add **per-option idiosyncratic execution noise** so two options in the same world realize differently. This is how real decisions work: the same market conditions hit two strategies differently because execution, timing, and second-order effects vary.
 
-1. **Add per-step process noise** to each variable update: a small Gaussian shock added inside the `for (let t = ...)` loop, e.g. `cur[v.id] += PROCESS_SIG * gaussSample()` with `PROCESS_SIG ≈ 2.5` (in the same 0–100 scale `outcomeOf` operates on). This compounds across the horizon and is the dominant source of realistic spread.
-2. **Add initial-condition noise**: jitter each starting `cur[v.id]` by a small Gaussian (σ ≈ 3) so two runs don't start identically.
-3. **Bump coefficient noise** from `SIG = 0.15` to `SIG = 0.25` so influence/push uncertainty is non-trivial but still secondary to process noise.
-4. **Share the same noise scheme and constants** between `simulateMonteCarlo` (the band on the chart) and `winProbabilities` (the ranking) so the chart's fan and the win-% agree visually. Extract the three constants to module-scope so they can't drift apart.
-5. Keep `MC_RUNS = 300` and the existing `clamp` to `[0, 100]`. No changes to `simulate`, `outcomeOf`, the model shape, the chart rendering, or any UI copy.
+Changes confined to `simulateMonteCarlo` and `winProbabilities` (no engine, no UI):
 
-Expected effect on the user's current model (medians 62 / 47 / 40): the leader still wins most runs but no longer 100% — typical win shares land somewhere like ~70 / ~25 / ~5, and the p10–p90 fan visibly widens with horizon. Genuinely close models (gap ≲ 5 pts) will show near-50/50 splits as expected.
+1. **Add a per-option, per-step execution shock**: inside the variable update, add `EXEC_SIG * gauss()` drawn fresh for each `(run, option, t, variable)`. Suggested `EXEC_SIG ≈ 2.0` (same 0–100 scale).
+2. **Add per-option push-realization noise per step** (small): replace the once-per-run `optPushNoise` constant with a per-step multiplier `1 + PUSH_STEP_SIG * gauss()` (≈ 0.10) on top of the existing per-run factor. Models "this option's nudge lands harder some steps than others."
+3. **Keep** shared world noise (`infNoise`, `initJitter`, `shocks`) — that's what makes the ranking fair instead of a coin flip. Just lower `MC_PROCESS_SIG` from 2.5 → 1.5 so shared shocks don't dominate.
+4. **Use the same scheme in `simulateMonteCarlo`** so the per-option fan on the chart widens too, and the chart visually agrees with the win-%.
+5. Expose the four constants at module scope: `MC_COEF_SIG = 0.25`, `MC_INIT_SIG = 3`, `MC_PROCESS_SIG = 1.5`, `MC_EXEC_SIG = 2.0`, `MC_PUSH_STEP_SIG = 0.10`. Keep `MC_RUNS = 300`.
+
+Expected effect on your current model: Academic Bilingual still wins most runs (it genuinely dominates in the deterministic model), but typical shares land near ~80 / ~17 / ~3 instead of 100 / 0 / 0. Models with a <5-point gap will show near-50/50 splits. The orange/green fans on the chart will visibly fan out instead of hugging the line.
+
+### Honest caveat shown in the UI
+
+Even with this, a 28-point gap (yours vs. #3) *should* produce ~0% — that's the model talking. The remaining ask is to make sure the user reads "0%" as "robustly dominated in this model" rather than "the simulator is broken." The existing "Respect the model error" panel already says this, but we can tighten one line: when the leader's win-% is ≥ 95% AND the median gap to #2 is ≥ 10, add "**Robust lead:** in this model, #1 wins in essentially every plausible world. Stress-test by lowering its strongest variable weight or strengthening a competing influence."
 
 ## Files touched
 
-- `src/components/DecisionLens.tsx` — only `simulateMonteCarlo`, `winProbabilities`, and three module-scope noise constants.
+- `src/components/DecisionLens.tsx` — `simulateMonteCarlo`, `winProbabilities`, noise constants, and one extra sentence in the "Respect the model error" Card when the lead is robust.
 
-No other files, no engine changes, no UI/style changes.
+No engine changes (`simulate`, `outcomeOf` untouched), no model-shape changes, no styling changes.
