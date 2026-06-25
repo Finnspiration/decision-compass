@@ -766,11 +766,33 @@ export default function DecisionLens() {
                   What decision are you facing?
                 </label>
                 <Textarea
+                  ref={decisionTextareaRef}
                   value={decision}
                   onChange={(e) => setDecision(e.target.value)}
                   rows={3}
                   className="mt-2 resize-y bg-muted"
                 />
+
+                <div className="mt-3 flex items-center gap-2">
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept=".txt,.md,text/plain,text/markdown"
+                    className="hidden"
+                    onChange={(e) => { void handleUpload(e.target.files?.[0] ?? null); e.target.value = ""; }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => uploadInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Upload size={14} /> Upload a document
+                  </Button>
+                  <span className="text-xs text-dim">.txt or .md — we'll use its text as the decision brief.</span>
+                </div>
+
                 <div className="mt-4 dl-2">
                   <div>
                     <label className="block text-sm text-muted-foreground">
@@ -783,8 +805,12 @@ export default function DecisionLens() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-muted-foreground">
+                    <label className="flex items-center gap-1 text-sm text-muted-foreground">
                       Horizon: <span className="text-primary">{horizon} steps</span>
+                      <HelpPopover
+                        title="Horizon"
+                        body="How many steps forward we simulate each option. Short horizons show the immediate punch; long horizons reveal where feedback loops take you."
+                      />
                     </label>
                     <Slider
                       min={4}
@@ -811,31 +837,34 @@ export default function DecisionLens() {
                 </p>
               </Panel>
 
-              <Panel>
-                <SectionTag icon={GitBranch} text="Or start from a template" />
-                <div className="mt-3 grid gap-2">
-                  {TEMPLATES.map((tpl) => (
+              <div ref={templatesPanelRef}>
+                <Panel>
+                  <SectionTag icon={GitBranch} text="Or start from a template" />
+                  <div className="mt-3 grid gap-2">
+                    {TEMPLATES.map((tpl) => (
+                      <Button
+                        key={tpl.label}
+                        variant="secondary"
+                        disabled={drafting}
+                        onClick={() => { setDecision(tpl.decision); void runAutoDraft(tpl.key[0]); }}
+                        className="h-auto justify-between bg-muted px-4 py-3 text-left text-sm font-normal"
+                      >
+                        <span>{tpl.label}</span>
+                        <ArrowRight size={15} className="text-primary" />
+                      </Button>
+                    ))}
                     <Button
-                      key={tpl.label}
-                      variant="secondary"
-                      disabled={drafting}
-                      onClick={() => { setDecision(tpl.decision); void runAutoDraft(tpl.key[0]); }}
-                      className="h-auto justify-between bg-muted px-4 py-3 text-left text-sm font-normal"
+                      variant="outline"
+                      onClick={() => { loadModel(blankStarter()); setStage("model"); }}
+                      className="h-auto justify-between border-dashed bg-transparent px-4 py-3 text-left text-sm font-normal text-muted-foreground"
                     >
-                      <span>{tpl.label}</span>
-                      <ArrowRight size={15} className="text-primary" />
+                      <span>Start blank</span>
+                      <Plus size={15} />
                     </Button>
-                  ))}
-                  <Button
-                    variant="outline"
-                    onClick={() => { loadModel(blankStarter()); setStage("model"); }}
-                    className="h-auto justify-between border-dashed bg-transparent px-4 py-3 text-left text-sm font-normal text-muted-foreground"
-                  >
-                    <span>Start blank</span>
-                    <Plus size={15} />
-                  </Button>
-                </div>
-              </Panel>
+                  </div>
+                </Panel>
+              </div>
+
             </div>
           </TabsContent>
 
