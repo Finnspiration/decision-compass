@@ -1541,7 +1541,7 @@ export default function DecisionLens() {
                               value={[horizon]}
                               onValueChange={(v) => setHorizon(v[0])}
                               className="mt-4"
-                              aria-label="Horizon"
+                              aria-label="How far ahead you're looking"
                             />
                           </div>
                         </div>
