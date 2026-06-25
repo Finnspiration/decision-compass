@@ -1981,7 +1981,13 @@ export default function DecisionLens() {
                         <>measure whichever upstream variable feeds the most arrows before committing.</>
                       )}
                     </li>
+                    {best.winProb >= 0.95 && Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
+                      <li>
+                        <b className="text-foreground">Robust lead:</b> in this model, #1 wins in essentially every plausible world. Stress-test it by lowering its strongest variable weight or strengthening a competing influence.
+                      </li>
+                    )}
                   </ul>
+
                   <Button
                     size="sm"
                     variant="secondary"
