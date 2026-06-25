@@ -28,6 +28,14 @@ import fraimeworksLogo from "@/assets/fraimeworksdecision.png.asset.json";
 
 const ONBOARD_KEY = "dl_onboarded";
 
+function strengthLabel(s: number): string {
+  if (s <= -60) return "down a lot";
+  if (s < 0) return "down a little";
+  if (s === 0) return "doesn't move";
+  if (s < 60) return "up a little";
+  return "up a lot";
+}
+
 /* ============================================================================
    DECISION LENS — a generally-applicable, decision-focused world model.
 
