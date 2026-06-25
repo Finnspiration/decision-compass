@@ -744,6 +744,8 @@ export default function DecisionLens() {
   const [urlInput, setUrlInput] = useState("");
   const [ingesting, setIngesting] = useState(false);
   const [ingestStep, setIngestStep] = useState(0);
+  const [suggestingDecisions, setSuggestingDecisions] = useState(false);
+  const [decisionSuggestions, setDecisionSuggestions] = useState<Array<{ question: string; rationale: string }> | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | undefined>();
   const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
@@ -958,6 +960,51 @@ export default function DecisionLens() {
       setIngesting(false);
     }
   }
+  async function runSuggestDecisions() {
+    if (pdfFiles.length === 0 && urls.length === 0) {
+      toast.error("Add a source first", { description: "Decision Lens · drop a PDF or paste a link to suggest decisions." });
+      return;
+    }
+    setSuggestingDecisions(true);
+    try {
+      const filesPayload = await Promise.all(
+        pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) }))
+      );
+      const { suggestDecisions } = await import("@/lib/suggest-decisions.functions");
+      const res = await suggestDecisions({ data: { files: filesPayload, urls, hint: decision } });
+      if (!res.decisions.length) {
+        toast.error("No decisions suggested", { description: "Decision Lens · try adding richer sources or write your own." });
+        return;
+      }
+      setDecisionSuggestions(res.decisions);
+      if (res.degraded) {
+        toast.warning("Suggested without your sources", {
+          description: "Decision Lens · we couldn't read what you attached — these are best guesses.",
+        });
+      } else {
+        toast.success("Decision suggestions ready", { description: "Decision Lens · pick the one that fits, or write your own." });
+      }
+    } catch (err) {
+      console.error("suggestDecisions failed", err);
+      const { title, description } = describeAiError(err);
+      toast.error(title, { description });
+    } finally {
+      setSuggestingDecisions(false);
+    }
+  }
+
+  function pickSuggestedDecision(q: string) {
+    setDecision(q);
+    setDecisionSuggestions(null);
+    requestAnimationFrame(() => {
+      decisionTextareaRef.current?.focus();
+      const el = decisionTextareaRef.current;
+      if (el) el.setSelectionRange(el.value.length, el.value.length);
+    });
+    toast.success("Decision set", { description: "Decision Lens · tweak it above, then map it from your sources." });
+  }
+
+
 
 
 
@@ -1474,13 +1521,13 @@ export default function DecisionLens() {
 
       {/* =============== Main workspace =============== */}
       <main className="flex-1 min-w-0 flex flex-col bg-background">
-        <header className="sticky top-0 z-10 h-16 px-4 md:px-8 flex items-center justify-between border-b bg-white">
-          <div className="min-w-0">
+        <header className="sticky top-0 z-10 min-h-16 px-4 md:px-8 py-3 flex items-start justify-between gap-4 border-b bg-white">
+          <div className="min-w-0 flex-1">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Stage {STAGES.findIndex((s) => s.id === stage) + 1} of {STAGES.length} · {STAGES.find((s) => s.id === stage)?.label}
             </div>
             <h1
-              className="mt-0.5 text-base md:text-lg font-semibold truncate text-foreground"
+              className="mt-0.5 text-base md:text-lg font-semibold text-foreground break-words"
               style={{ fontFamily: FONT_DISPLAY }}
               title={decision}
             >
@@ -1651,7 +1698,7 @@ export default function DecisionLens() {
                 {(() => {
                   const hasSources = pdfFiles.length > 0 || urls.length > 0;
                   const nSrc = pdfFiles.length + urls.length;
-                  const busy = ingesting || drafting;
+                  const busy = ingesting || drafting || suggestingDecisions;
                   const ingestMessages = [
                     "Reading your sources…",
                     "Picking out what really matters…",
@@ -1727,6 +1774,17 @@ export default function DecisionLens() {
                               {ingesting ? "Mapping…" : "Map my decision"}
                             </Button>
                             <Button
+                              type="button"
+                              onClick={() => { void runSuggestDecisions(); }}
+                              disabled={busy}
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                            >
+                              {suggestingDecisions ? <Loader2 size={14} className="animate-spin" /> : <Lightbulb size={14} />}
+                              {suggestingDecisions ? "Reading sources…" : (decisionSuggestions ? "Suggest different decisions" : "Suggest decisions from sources")}
+                            </Button>
+                            <Button
                               onClick={() => { void runAutoDraft(decision); }}
                               disabled={busy}
                               variant="ghost"
@@ -1749,6 +1807,68 @@ export default function DecisionLens() {
                           </Button>
                         )}
                       </div>
+
+                      {/* AI-suggested decisions from sources */}
+                      {decisionSuggestions && decisionSuggestions.length > 0 && (
+                        <div className="mt-4 rounded-xl border border-border bg-card p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <Lightbulb size={15} className="text-primary" />
+                                Pick a decision to frame
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Based on what your sources keep coming back to. Pick one to drop into the question above — you can still edit it.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              aria-label="Dismiss suggestions"
+                              onClick={() => setDecisionSuggestions(null)}
+                              className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-md text-dim hover:text-foreground hover:bg-muted"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <ul className="mt-3 space-y-2">
+                            {decisionSuggestions.map((d, i) => (
+                              <li
+                                key={i}
+                                className="rounded-lg border border-border bg-background p-3 hover:border-primary/60 transition-colors"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-foreground break-words">
+                                      {d.question}
+                                    </div>
+                                    {d.rationale && (
+                                      <div className="mt-1 text-xs text-muted-foreground break-words">
+                                        {d.rationale}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => pickSuggestedDecision(d.question)}
+                                    className="shrink-0 gap-1"
+                                  >
+                                    <Check size={14} />
+                                    Use this
+                                  </Button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                          <button
+                            type="button"
+                            onClick={() => setDecisionSuggestions(null)}
+                            className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                          >
+                            Write my own instead
+                          </button>
+                        </div>
+                      )}
 
                       {/* Optional refinements */}
                       <div className="mt-6 border-t border-border pt-4">
