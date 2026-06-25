@@ -24,6 +24,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import fraimeworksLogo from "@/assets/fraimeworksdecision.png.asset.json";
 
 const ONBOARD_KEY = "dl_onboarded";
 
