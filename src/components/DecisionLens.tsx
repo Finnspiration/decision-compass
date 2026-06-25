@@ -347,20 +347,33 @@ export default function DecisionLens() {
     >
       <div className="mx-auto max-w-6xl px-5 py-8">
         {/* header */}
-        <header className="mb-5">
-          <div className="text-xs font-semibold text-primary tracking-[0.18em]">
-            DECISION LENS · WORLD-MODEL THINKING
+        <header className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold text-primary tracking-[0.18em]">
+              DECISION LENS · WORLD-MODEL THINKING
+            </div>
+            <h1
+              className="mt-1 text-3xl font-semibold tracking-tight text-foreground"
+              style={{ fontFamily: FONT_DISPLAY }}
+            >
+              Model the system. Roll the options forward. Then choose.
+            </h1>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              Any decision is a small system: a few latent variables, the feedback loops between them, and the
+              options you're weighing. Build it once, then compare trajectories instead of arguing about vibes.
+            </p>
           </div>
-          <h1
-            className="mt-1 text-3xl font-semibold tracking-tight text-foreground"
-            style={{ fontFamily: FONT_DISPLAY }}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={shareLink}
+            className="shrink-0 gap-2"
+            aria-label="Copy shareable link to this decision"
           >
-            Model the system. Roll the options forward. Then choose.
-          </h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Any decision is a small system: a few latent variables, the feedback loops between them, and the
-            options you're weighing. Build it once, then compare trajectories instead of arguing about vibes.
-          </p>
+            <Share2 size={15} />
+            Share
+          </Button>
         </header>
 
         <Tabs value={stage} onValueChange={(v) => setStage(v as Stage)} className="w-full">
