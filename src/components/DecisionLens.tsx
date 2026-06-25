@@ -960,6 +960,51 @@ export default function DecisionLens() {
       setIngesting(false);
     }
   }
+  async function runSuggestDecisions() {
+    if (pdfFiles.length === 0 && urls.length === 0) {
+      toast.error("Add a source first", { description: "Decision Lens · drop a PDF or paste a link to suggest decisions." });
+      return;
+    }
+    setSuggestingDecisions(true);
+    try {
+      const filesPayload = await Promise.all(
+        pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) }))
+      );
+      const { suggestDecisions } = await import("@/lib/suggest-decisions.functions");
+      const res = await suggestDecisions({ data: { files: filesPayload, urls, hint: decision } });
+      if (!res.decisions.length) {
+        toast.error("No decisions suggested", { description: "Decision Lens · try adding richer sources or write your own." });
+        return;
+      }
+      setDecisionSuggestions(res.decisions);
+      if (res.degraded) {
+        toast.warning("Suggested without your sources", {
+          description: "Decision Lens · we couldn't read what you attached — these are best guesses.",
+        });
+      } else {
+        toast.success("Decision suggestions ready", { description: "Decision Lens · pick the one that fits, or write your own." });
+      }
+    } catch (err) {
+      console.error("suggestDecisions failed", err);
+      const { title, description } = describeAiError(err);
+      toast.error(title, { description });
+    } finally {
+      setSuggestingDecisions(false);
+    }
+  }
+
+  function pickSuggestedDecision(q: string) {
+    setDecision(q);
+    setDecisionSuggestions(null);
+    requestAnimationFrame(() => {
+      decisionTextareaRef.current?.focus();
+      const el = decisionTextareaRef.current;
+      if (el) el.setSelectionRange(el.value.length, el.value.length);
+    });
+    toast.success("Decision set", { description: "Decision Lens · tweak it above, then map it from your sources." });
+  }
+
+
 
 
 
