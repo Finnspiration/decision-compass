@@ -1054,10 +1054,57 @@ export default function DecisionLens() {
   /* --------------------------- AI assistance --------------------------- */
   const callExplain = useServerFn(explainDecision);
   const callCritique = useServerFn(critiqueModel);
+  const callSuggestActions = useServerFn(suggestActions);
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [critiquing, setCritiquing] = useState(false);
   const [critique, setCritique] = useState<CritiqueSuggestion[] | null>(null);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+
+  async function runSuggestActions(opt: DecisionOption) {
+    setActionLoading((s) => ({ ...s, [opt.id]: true }));
+    try {
+      const res = await callSuggestActions({
+        data: {
+          decision: decisionText,
+          outcomeName,
+          variables,
+          option: { id: opt.id, name: opt.name, pushes: opt.pushes },
+        },
+      });
+      const validIds = new Set(variables.map((v) => v.id));
+      const incoming = (res.actions ?? [])
+        .map((a) => {
+          const targets = (a.targets ?? []).filter((t) => validIds.has(t));
+          const act: DecisionAction = { text: a.text.trim() };
+          if (targets.length) act.targets = targets;
+          if (a.effort) act.effort = a.effort;
+          if (a.when) act.when = a.when;
+          return act;
+        })
+        .filter((a) => a.text.length > 0);
+      const existing = opt.actions ?? [];
+      const seen = new Set(existing.map((a) => a.text.trim().toLowerCase()));
+      const merged = [...existing];
+      for (const a of incoming) {
+        const key = a.text.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(a);
+        if (merged.length >= 8) break;
+      }
+      updOpt(opt.id, { actions: merged });
+      toast.success("Decision Lens · suggested actions", {
+        description: `Added ${merged.length - existing.length} new action${merged.length - existing.length === 1 ? "" : "s"} to ${opt.name}.`,
+      });
+    } catch (e) {
+      toast.error("Decision Lens · couldn't suggest actions", {
+        description: e instanceof Error ? e.message : "AI unavailable.",
+      });
+    } finally {
+      setActionLoading((s) => ({ ...s, [opt.id]: false }));
+    }
+  }
 
   // Invalidate stale AI output when the model changes
   useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
