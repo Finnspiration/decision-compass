@@ -1236,8 +1236,6 @@ export default function DecisionLens() {
 
   // Invalidate stale AI output when the model changes
   useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
-  useEffect(() => { setModelSuggestions(null); }, [variables, influences]);
-  useEffect(() => { setOptionSuggestions(null); }, [options, variables]);
 
   // Cycle staged loading messages during ingest
   useEffect(() => {

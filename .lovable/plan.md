@@ -1,17 +1,19 @@
-Restructure the Decide tab from a 2-column grid into a vertical, narrative flow.
+## Bug
+In `src/components/DecisionLens.tsx` (lines 1239–1240):
 
-## New order (top → bottom, full width)
-1. **Chart panel** ("How each option plays out") — unchanged contents, now full width
-2. **Things to keep in mind** — moved up directly under the chart
-3. **Which option looks best** (ranked options + "Why does X win?" explain block)
-4. **Action plan — {winning option}** (`ActionPlanReadout`)
+```ts
+useEffect(() => { setModelSuggestions(null); }, [variables, influences]);
+useEffect(() => { setOptionSuggestions(null); }, [options, variables]);
+```
 
-## Changes
-- **src/components/DecisionLens.tsx** (`TabsContent value="decide"` only):
-  - Remove the inner `<div className="grid gap-5">` wrapper around the right column.
-  - Reorder Panels: Chart → Things to keep in mind → Which option looks best → ActionPlanReadout.
-  - Keep all existing props, hover/focus behavior, explain flow, and warnings intact.
-- **src/styles.css**:
-  - Change `.dl-decide` at the ≥sm breakpoint back to a single-column stack (drop the `1.2fr 0.8fr` rule) so every panel spans full width on all viewports.
+These effects wipe the entire suggestion list whenever the underlying model changes. Accepting a suggestion mutates `variables` / `influences` / `options`, which triggers these effects and clears every remaining card — even though `acceptSuggestion` already removes just the accepted item from the list.
 
-No engine, copy, or component logic changes.
+## Fix
+Remove those two auto-clear `useEffect`s. Suggestion list lifecycle is already correctly handled by:
+- `acceptSuggestion` — filters out the accepted suggestion.
+- `dismissSuggestion` — filters out the dismissed one.
+- `improveModel` fetch — overwrites the list with a fresh batch when the user clicks "Get more suggestions".
+
+After accepting a driver, the remaining suggestions stay visible. Stale suggestions referencing now-existing drivers/influences/options are already guarded inside `acceptSuggestion` (duplicate checks emit a neutral toast).
+
+No engine, AI prompt, or saved-model changes. Single-file edit, ~2 lines removed.
