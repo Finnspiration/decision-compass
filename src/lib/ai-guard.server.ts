@@ -3,14 +3,22 @@ import { getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 
 // --------- Rate limit (per-IP sliding window, in-memory) ---------
 // Note: per-instance only. Adequate as a soft guard, not a hard quota.
-type Bucket = { hits: number[]; };
+type Bucket = { hits: number[] };
 const buckets = new Map<string, Bucket>();
 
 export function rateLimit(name: string, opts: { perMinute: number }): void {
   let ip = "unknown";
-  try { ip = getRequestIP({ xForwardedFor: true }) || "unknown"; } catch { /* */ }
+  try {
+    ip = getRequestIP({ xForwardedFor: true }) || "unknown";
+  } catch {
+    /* */
+  }
   if (ip === "unknown") {
-    try { ip = getRequestHeader("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"; } catch { /* */ }
+    try {
+      ip = getRequestHeader("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    } catch {
+      /* */
+    }
   }
   const key = `${name}:${ip}`;
   const now = Date.now();
@@ -39,11 +47,16 @@ const clamp = (n: unknown, lo: number, hi: number, dflt = 0): number => {
 };
 const sstr = (s: unknown, max: number): string => {
   if (typeof s !== "string") return "";
+  // eslint-disable-next-line no-control-regex -- intentionally strips control chars
   return s.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max);
 };
 const slug = (s: unknown): string => {
   const raw = typeof s === "string" ? s : "";
-  return raw.toLowerCase().replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
 };
 
 export type SafeAction = {
@@ -65,15 +78,16 @@ const EFFORT_SET = new Set(["low", "med", "high"]);
 const WHEN_SET = new Set(["now", "soon", "ongoing"]);
 
 export function validateAndClampModel(raw: unknown): SafeModel {
-  const r = (raw && typeof raw === "object") ? (raw as Record<string, unknown>) : {};
+  const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
 
   const variablesIn = Array.isArray(r.variables) ? r.variables.slice(0, 8) : [];
   const seenIds = new Set<string>();
   const variables = variablesIn.map((v, i) => {
-    const o = (v && typeof v === "object") ? (v as Record<string, unknown>) : {};
+    const o = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
     let id = slug(o.id ?? o.name ?? `v${i + 1}`);
     if (!id) id = `v${i + 1}`;
-    let uniq = id, k = 2;
+    let uniq = id,
+      k = 2;
     while (seenIds.has(uniq)) uniq = `${id}_${k++}`;
     seenIds.add(uniq);
     return {
@@ -90,12 +104,13 @@ export function validateAndClampModel(raw: unknown): SafeModel {
   const influencesIn = Array.isArray(r.influences) ? r.influences.slice(0, 16) : [];
   const influences = influencesIn
     .map((v) => {
-      const o = (v && typeof v === "object") ? (v as Record<string, unknown>) : {};
+      const o = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
       const from = slug(o.from);
       const to = slug(o.to);
       if (!ids.has(from) || !ids.has(to)) return null;
       return {
-        from, to,
+        from,
+        to,
         strength: clamp(o.strength, -100, 100, 0),
         rationale: sstr(o.rationale, 300) || undefined,
       };
@@ -104,8 +119,9 @@ export function validateAndClampModel(raw: unknown): SafeModel {
 
   const optionsIn = Array.isArray(r.options) ? r.options.slice(0, 6) : [];
   const options = optionsIn.map((v, i) => {
-    const o = (v && typeof v === "object") ? (v as Record<string, unknown>) : {};
-    const pushesIn = (o.pushes && typeof o.pushes === "object") ? o.pushes as Record<string, unknown> : {};
+    const o = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+    const pushesIn =
+      o.pushes && typeof o.pushes === "object" ? (o.pushes as Record<string, unknown>) : {};
     const pushes: Record<string, number> = {};
     let count = 0;
     for (const [k, val] of Object.entries(pushesIn)) {
@@ -116,18 +132,19 @@ export function validateAndClampModel(raw: unknown): SafeModel {
       count++;
     }
     let actions: SafeAction[] | undefined;
-    if (Array.isArray((o as any).actions)) {
+    const actionsRaw = (o as Record<string, unknown>).actions;
+    if (Array.isArray(actionsRaw)) {
       const arr: SafeAction[] = [];
-      for (const a of (o as any).actions as unknown[]) {
+      for (const a of actionsRaw as unknown[]) {
         if (!a || typeof a !== "object") continue;
         const aa = a as Record<string, unknown>;
         const text = sstr(aa.text, 160).trim();
         if (!text) continue;
         const targetsSrc = Array.isArray(aa.targets) ? aa.targets : [];
-        const targets = targetsSrc
-          .map((t) => slug(t))
-          .filter((t) => ids.has(t));
-        const effort = EFFORT_SET.has(aa.effort as string) ? (aa.effort as SafeAction["effort"]) : undefined;
+        const targets = targetsSrc.map((t) => slug(t)).filter((t) => ids.has(t));
+        const effort = EFFORT_SET.has(aa.effort as string)
+          ? (aa.effort as SafeAction["effort"])
+          : undefined;
         const when = WHEN_SET.has(aa.when as string) ? (aa.when as SafeAction["when"]) : undefined;
         const act: SafeAction = { text };
         if (targets.length) act.targets = targets;
@@ -152,7 +169,7 @@ export function validateAndClampModel(raw: unknown): SafeModel {
   const sourcesIn = Array.isArray(r.sources) ? r.sources.slice(0, 16) : [];
   const sources = sourcesIn
     .map((v) => {
-      const o = (v && typeof v === "object") ? (v as Record<string, unknown>) : {};
+      const o = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
       const type = o.type === "pdf" || o.type === "url" ? o.type : "url";
       const name = sstr(o.name, 200);
       return name ? { name, type: type as "pdf" | "url" } : null;
@@ -174,4 +191,3 @@ export function validateAndClampModel(raw: unknown): SafeModel {
 export function modelIsUsable(m: SafeModel): boolean {
   return m.variables.length > 0 && m.options.length > 0;
 }
-

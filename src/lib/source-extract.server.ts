@@ -84,7 +84,11 @@ export async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string
   let lastName = rawUrl;
   for (let hop = 0; hop < 4; hop++) {
     let u: URL;
-    try { u = new URL(current); } catch { throw new SkipError("non_https", "invalid URL"); }
+    try {
+      u = new URL(current);
+    } catch {
+      throw new SkipError("non_https", "invalid URL");
+    }
     if (u.protocol !== "https:") throw new SkipError("non_https");
     if (isPrivateHost(u.hostname)) throw new SkipError("private_host");
     lastName = u.hostname + u.pathname;
@@ -96,7 +100,10 @@ export async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string
         method: "GET",
         redirect: "manual",
         signal: ctrl.signal,
-        headers: { "User-Agent": "DecisionLens/1.0 (+ingest)", Accept: "text/html,text/plain;q=0.9,*/*;q=0.1" },
+        headers: {
+          "User-Agent": "DecisionLens/1.0 (+ingest)",
+          Accept: "text/html,text/plain;q=0.9,*/*;q=0.1",
+        },
       });
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get("location");
@@ -109,7 +116,8 @@ export async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string
       const declared = Number(res.headers.get("content-length") || "0");
       if (declared && declared > MAX_URL_BYTES) throw new SkipError("oversized");
       const ct = (res.headers.get("content-type") || "").toLowerCase();
-      if (ct && !/^(text\/|application\/(json|xml|xhtml))/.test(ct)) throw new SkipError("bad_content_type", ct);
+      if (ct && !/^(text\/|application\/(json|xml|xhtml))/.test(ct))
+        throw new SkipError("bad_content_type", ct);
 
       const reader = res.body?.getReader();
       if (!reader) throw new SkipError("empty");
@@ -120,7 +128,11 @@ export async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string
         const { done, value } = await reader.read();
         if (done) break;
         if (received + value.length > MAX_URL_BYTES) {
-          try { await reader.cancel(); } catch { /* */ }
+          try {
+            await reader.cancel();
+          } catch {
+            /* */
+          }
           overflowed = true;
           break;
         }
@@ -130,9 +142,13 @@ export async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string
       if (overflowed && received === 0) throw new SkipError("oversized");
       const buf = new Uint8Array(received);
       let off = 0;
-      for (const c of chunks) { buf.set(c, off); off += c.length; }
+      for (const c of chunks) {
+        buf.set(c, off);
+        off += c.length;
+      }
       const body = new TextDecoder("utf-8", { fatal: false }).decode(buf);
-      const text = ct.includes("html") || /<\w+[\s>]/.test(body.slice(0, 200)) ? htmlToText(body) : body;
+      const text =
+        ct.includes("html") || /<\w+[\s>]/.test(body.slice(0, 200)) ? htmlToText(body) : body;
       if (!text.trim()) throw new SkipError("empty");
       return { name: lastName, text };
     } catch (e) {
@@ -146,13 +162,27 @@ export async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string
   throw new SkipError("http_error", "too many redirects");
 }
 
-export async function extractPdfTextStrict(name: string, dataBase64: string): Promise<{ name: string; text: string }> {
+export async function extractPdfTextStrict(
+  name: string,
+  dataBase64: string,
+): Promise<{ name: string; text: string }> {
   let bytes: Uint8Array;
-  try { bytes = decodeBase64ToBytes(dataBase64); }
-  catch { throw new SkipError("not_pdf", "invalid base64"); }
+  try {
+    bytes = decodeBase64ToBytes(dataBase64);
+  } catch {
+    throw new SkipError("not_pdf", "invalid base64");
+  }
   if (bytes.length === 0) throw new SkipError("empty");
   if (bytes.length > MAX_PDF_BYTES) throw new SkipError("oversized");
-  if (!(bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d)) {
+  if (
+    !(
+      bytes[0] === 0x25 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x44 &&
+      bytes[3] === 0x46 &&
+      bytes[4] === 0x2d
+    )
+  ) {
     throw new SkipError("not_pdf");
   }
   try {

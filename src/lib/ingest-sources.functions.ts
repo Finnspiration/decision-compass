@@ -16,7 +16,6 @@ const Input = z.object({
   decisionText: z.string().min(1).max(2000),
 });
 
-
 const SYSTEM_PROMPT =
   "You are a systems analyst applying world-model thinking. Given a decision and supporting source excerpts, model the decision as a compact dynamical system. Find 3–6 latent variables that actually drive the outcome (not surface facts); mark each as helping (+weight) or hurting (-weight) and where it stands today, with a one-line rationale grounded in the sources when possible. Add 2–5 influences forming at least one feedback loop, each with a rationale. Define 2–4 options that are genuinely different strategies; each option's pushes say how it nudges each variable per step. For each option, list 2–4 concrete, operational actions a team could actually execute (not restatements of the push). Tag each action with the variable id(s) it primarily moves via `targets`, set `effort` (low/med/high) and `when` (now/soon/ongoing). When sources are provided, ground actions in them. Provide a 1–2 sentence summary of what the documents told you, and list which sources you used. Return ONLY JSON.\n\nWRITING STYLE: Write every human-readable field (summary, rationale, explanation, message) in plain, concrete language for a decision-maker with no math or modelling background. Never use the words: latent, variable, feedback loop, influence, coefficient, weight, simulate, Monte-Carlo, probability distribution, trajectory, push. Instead say: driver / what's driving this; knock-on effect; helps or hurts your goal; how it plays out; how often it comes out best. Keep it short and specific, and always say what it means for the decision. Each variable rationale should be one short sentence in everyday words that says why this driver matters to THIS decision (e.g. 'How much your team trusts the plan — if it drops, execution slows'). The summary should sound like a plain-English brief, not an analyst's notes.";
 
@@ -104,7 +103,10 @@ export type SkippedSource = { name: string; reason: SkipReason };
 
 class SkipError extends Error {
   reason: SkipReason;
-  constructor(reason: SkipReason, msg?: string) { super(msg || reason); this.reason = reason; }
+  constructor(reason: SkipReason, msg?: string) {
+    super(msg || reason);
+    this.reason = reason;
+  }
 }
 
 async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string; text: string }> {
@@ -112,7 +114,11 @@ async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string; text:
   let lastName = rawUrl;
   for (let hop = 0; hop < 4; hop++) {
     let u: URL;
-    try { u = new URL(current); } catch { throw new SkipError("non_https", "invalid URL"); }
+    try {
+      u = new URL(current);
+    } catch {
+      throw new SkipError("non_https", "invalid URL");
+    }
     if (u.protocol !== "https:") throw new SkipError("non_https");
     if (isPrivateHost(u.hostname)) throw new SkipError("private_host");
     lastName = u.hostname + u.pathname;
@@ -124,7 +130,10 @@ async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string; text:
         method: "GET",
         redirect: "manual",
         signal: ctrl.signal,
-        headers: { "User-Agent": "DecisionLens/1.0 (+ingest)", Accept: "text/html,text/plain;q=0.9,*/*;q=0.1" },
+        headers: {
+          "User-Agent": "DecisionLens/1.0 (+ingest)",
+          Accept: "text/html,text/plain;q=0.9,*/*;q=0.1",
+        },
       });
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get("location");
@@ -137,7 +146,8 @@ async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string; text:
       const declared = Number(res.headers.get("content-length") || "0");
       if (declared && declared > MAX_URL_BYTES) throw new SkipError("oversized");
       const ct = (res.headers.get("content-type") || "").toLowerCase();
-      if (ct && !/^(text\/|application\/(json|xml|xhtml))/.test(ct)) throw new SkipError("bad_content_type", ct);
+      if (ct && !/^(text\/|application\/(json|xml|xhtml))/.test(ct))
+        throw new SkipError("bad_content_type", ct);
 
       const reader = res.body?.getReader();
       if (!reader) throw new SkipError("empty");
@@ -148,7 +158,11 @@ async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string; text:
         const { done, value } = await reader.read();
         if (done) break;
         if (received + value.length > MAX_URL_BYTES) {
-          try { await reader.cancel(); } catch { /* */ }
+          try {
+            await reader.cancel();
+          } catch {
+            /* */
+          }
           overflowed = true;
           break;
         }
@@ -158,9 +172,13 @@ async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string; text:
       if (overflowed && received === 0) throw new SkipError("oversized");
       const buf = new Uint8Array(received);
       let off = 0;
-      for (const c of chunks) { buf.set(c, off); off += c.length; }
+      for (const c of chunks) {
+        buf.set(c, off);
+        off += c.length;
+      }
       const body = new TextDecoder("utf-8", { fatal: false }).decode(buf);
-      const text = ct.includes("html") || /<\w+[\s>]/.test(body.slice(0, 200)) ? htmlToText(body) : body;
+      const text =
+        ct.includes("html") || /<\w+[\s>]/.test(body.slice(0, 200)) ? htmlToText(body) : body;
       if (!text.trim()) throw new SkipError("empty");
       return { name: lastName, text };
     } catch (e) {
@@ -174,13 +192,27 @@ async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string; text:
   throw new SkipError("http_error", "too many redirects");
 }
 
-async function extractPdfTextStrict(name: string, dataBase64: string): Promise<{ name: string; text: string }> {
+async function extractPdfTextStrict(
+  name: string,
+  dataBase64: string,
+): Promise<{ name: string; text: string }> {
   let bytes: Uint8Array;
-  try { bytes = decodeBase64ToBytes(dataBase64); }
-  catch { throw new SkipError("not_pdf", "invalid base64"); }
+  try {
+    bytes = decodeBase64ToBytes(dataBase64);
+  } catch {
+    throw new SkipError("not_pdf", "invalid base64");
+  }
   if (bytes.length === 0) throw new SkipError("empty");
   if (bytes.length > MAX_PDF_BYTES) throw new SkipError("oversized");
-  if (!(bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d)) {
+  if (
+    !(
+      bytes[0] === 0x25 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x44 &&
+      bytes[3] === 0x46 &&
+      bytes[4] === 0x2d
+    )
+  ) {
     throw new SkipError("not_pdf");
   }
   try {
@@ -196,10 +228,9 @@ async function extractPdfTextStrict(name: string, dataBase64: string): Promise<{
   }
 }
 
-
 function budgetExcerpts(
   items: Array<{ name: string; text: string; kind: "pdf" | "url" }>,
-  totalBudget: number
+  totalBudget: number,
 ): { labelled: string; sources: Array<{ name: string; type: "pdf" | "url" }> } {
   const sources: Array<{ name: string; type: "pdf" | "url" }> = [];
   const nonEmpty = items.filter((i) => i.text.trim().length > 0);
@@ -220,7 +251,7 @@ async function callGateway(
   apiKey: string,
   decisionText: string,
   labelled: string,
-  retry: boolean
+  retry: boolean,
 ): Promise<unknown> {
   const userContent = labelled
     ? `Decision: ${decisionText}\n\nSource excerpts:\n${labelled}`
@@ -253,7 +284,11 @@ async function callGateway(
   } catch {
     const m = content.match(/\{[\s\S]*\}/);
     if (m) {
-      try { return JSON.parse(m[0]); } catch { /* fallthrough */ }
+      try {
+        return JSON.parse(m[0]);
+      } catch {
+        /* fallthrough */
+      }
     }
     if (retry) return callGateway(apiKey, decisionText, labelled, false);
     throw new Error("AI_BAD_JSON: gateway returned non-JSON content");
@@ -265,9 +300,24 @@ export type IngestResult = {
   horizon?: number;
   summary?: string;
   sources?: Array<{ name: string; type: "pdf" | "url" }>;
-  variables?: Array<{ id?: string; name?: string; value?: number; weight?: number; rationale?: string }>;
+  variables?: Array<{
+    id?: string;
+    name?: string;
+    value?: number;
+    weight?: number;
+    rationale?: string;
+  }>;
   influences?: Array<{ from?: string; to?: string; strength?: number; rationale?: string }>;
-  options?: Array<{ name?: string; pushes?: Record<string, number>; actions?: Array<{ text?: string; targets?: string[]; effort?: "low" | "med" | "high"; when?: "now" | "soon" | "ongoing" }> }>;
+  options?: Array<{
+    name?: string;
+    pushes?: Record<string, number>;
+    actions?: Array<{
+      text?: string;
+      targets?: string[];
+      effort?: "low" | "med" | "high";
+      when?: "now" | "soon" | "ongoing";
+    }>;
+  }>;
   skipped?: SkippedSource[];
   degraded?: boolean;
 };
@@ -291,7 +341,11 @@ export const ingestSources = createServerFn({ method: "POST" })
         items.push({ name: r.name, text: r.text, kind: "pdf" });
       } catch (e) {
         const reason = e instanceof SkipError ? e.reason : "pdf_parse_failed";
-        console.error("ingestSources pdf skipped", { name: f.name, reason, msg: (e as Error)?.message });
+        console.error("ingestSources pdf skipped", {
+          name: f.name,
+          reason,
+          msg: (e as Error)?.message,
+        });
         skipped.push({ name: f.name, reason });
       }
     }
@@ -303,7 +357,11 @@ export const ingestSources = createServerFn({ method: "POST" })
         items.push({ name: r.value.name, text: r.value.text, kind: "url" });
       } else {
         const reason = r.reason instanceof SkipError ? r.reason.reason : "http_error";
-        console.error("ingestSources url skipped", { url: rawName, reason, msg: (r.reason as Error)?.message });
+        console.error("ingestSources url skipped", {
+          url: rawName,
+          reason,
+          msg: (r.reason as Error)?.message,
+        });
         skipped.push({ name: rawName, reason });
       }
     });
@@ -322,4 +380,3 @@ export const ingestSources = createServerFn({ method: "POST" })
     }
     return result;
   });
-
