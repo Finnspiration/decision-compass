@@ -29,6 +29,9 @@ Ids must be short lowercase slugs. All influence.from/to and pushes keys must be
 export const draftModel = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
   .handler(async ({ data }) => {
+    const { rateLimit, validateAndClampModel } = await import("./ai-guard.server");
+    rateLimit("draftModel", { perMinute: 10 });
+
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
 
@@ -59,13 +62,14 @@ export const draftModel = createServerFn({ method: "POST" })
     const content = json.choices?.[0]?.message?.content;
     if (!content) throw new Error("AI gateway returned no content");
 
-    let parsed: DraftedModel;
+    let parsed: unknown;
     try {
-      parsed = JSON.parse(content) as DraftedModel;
+      parsed = JSON.parse(content);
     } catch {
       const m = content.match(/\{[\s\S]*\}/);
       if (!m) throw new Error("AI gateway returned non-JSON content");
-      parsed = JSON.parse(m[0]) as DraftedModel;
+      parsed = JSON.parse(m[0]);
     }
-    return parsed;
+    return validateAndClampModel(parsed) as DraftedModel;
   });
+
