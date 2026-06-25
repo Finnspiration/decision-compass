@@ -2016,11 +2016,9 @@ export default function DecisionLens() {
           <TabsContent value="decide" className="mt-0">
             <div className="dl-decide">
               <Panel>
-                <SectionTag icon={Telescope} text={"Rollout · " + outcomeName} />
+                <SectionTag icon={Telescope} text={"How each option plays out · " + outcomeName} />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Each line is one option's {outcomeName.toLowerCase()} over {horizon} steps. The shaded fan on the
-                  focused option is the p10–p90 range from Monte-Carlo rollouts — it widens as model noise
-                  compounds, so trust the near term.
+                  Each line shows how an option is likely to affect {outcomeName.toLowerCase()} over time. The shaded area is the range of how things could go — we're more confident about the near term than far ahead.
                 </p>
                 <TrajectoryChart
                   runs={runs}
