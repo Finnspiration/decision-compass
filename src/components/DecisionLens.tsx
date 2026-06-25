@@ -1698,7 +1698,7 @@ export default function DecisionLens() {
                 {(() => {
                   const hasSources = pdfFiles.length > 0 || urls.length > 0;
                   const nSrc = pdfFiles.length + urls.length;
-                  const busy = ingesting || drafting;
+                  const busy = ingesting || drafting || suggestingDecisions;
                   const ingestMessages = [
                     "Reading your sources…",
                     "Picking out what really matters…",
