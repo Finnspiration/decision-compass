@@ -3068,13 +3068,14 @@ const SystemMap = React.memo(SystemMapImpl);
 /* ----------------------- trajectory chart (SVG) -------------------------- */
 type Run = { option: DecisionOption; color: string; traj: TrajPoint[] };
 function TrajectoryChartImpl({
-  runs, horizon, focusId, best, mcBands,
+  runs, horizon, focusId, best, mcBands, fill = false,
 }: {
   runs: Run[];
   horizon: number;
   focusId: string | null;
   best?: Run & { score: number };
   mcBands?: Record<string, MCBand[]>;
+  fill?: boolean;
 }) {
   const W = 620, H = 320, pl = 36, pr = 14, pt = 14, pb = 26;
   const ix = (t: number) => pl + (t * (W - pl - pr)) / Math.max(horizon, 1);
@@ -3108,11 +3109,16 @@ function TrajectoryChartImpl({
   }
 
   return (
-    <div className="mt-3 rounded-xl" style={{ background: SVG.inset, border: "1px solid " + SVG.border }}>
+    <div
+      className={fill ? "h-full w-full rounded-xl" : "mt-3 rounded-xl"}
+      style={{ background: SVG.inset, border: "1px solid " + SVG.border }}
+    >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
+        height={fill ? "100%" : undefined}
+        preserveAspectRatio={fill ? "xMidYMid meet" : undefined}
         role="img"
         aria-label="Option trajectories"
         onMouseMove={handleMove}
@@ -3120,7 +3126,7 @@ function TrajectoryChartImpl({
         onTouchStart={(e) => { if (e.touches[0]) handleMove(e.touches[0]); }}
         onTouchMove={(e) => { if (e.touches[0]) handleMove(e.touches[0]); }}
         onTouchEnd={handleLeave}
-        style={{ touchAction: "none" }}
+        style={fill ? { touchAction: "none", display: "block" } : { touchAction: "none" }}
       >
         {grid.map((g) => (
           <g key={g}>
