@@ -2308,14 +2308,13 @@ function ActionPlanEditor({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-amber-500"
-                        aria-label="Action targets a variable this option doesn't push"
+                        aria-label="This action affects a driver the option doesn't move"
                       >
                         <AlertTriangle size={14} />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent side="top" className="w-64 text-xs">
-                      This action targets a variable the option's sliders don't move. Either
-                      adjust the pushes above or remove the unrelated target.
+                      This action affects a driver the option's sliders don't move. Either adjust the sliders above or drop the unrelated driver.
                     </PopoverContent>
                   </Popover>
                 )}
