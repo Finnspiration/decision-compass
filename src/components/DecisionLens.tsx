@@ -36,6 +36,51 @@ function strengthLabel(s: number): string {
   return "up a lot";
 }
 
+function pushLabel(n: number): string {
+  if (n <= -40) return "strongly lowers";
+  if (n < 0) return "lowers";
+  if (n === 0) return "no effect";
+  if (n < 40) return "boosts";
+  return "strongly boosts";
+}
+
+/** One-line plain-language summary of an option's pushes. */
+function summarizeOption(
+  pushes: Record<string, number>,
+  variables: Array<{ id: string; name: string }>
+): string {
+  const named = variables
+    .map((v) => ({ name: v.name, val: pushes[v.id] || 0 }))
+    .filter((x) => x.val !== 0);
+  if (named.length === 0) return "No effects set yet.";
+  const pos = named.filter((x) => x.val > 0).sort((a, b) => b.val - a.val);
+  const neg = named.filter((x) => x.val < 0).sort((a, b) => a.val - b.val);
+  const join = (arr: Array<{ name: string }>) =>
+    arr.length <= 2
+      ? arr.map((x) => x.name).join(" & ")
+      : arr.slice(0, 2).map((x) => x.name).join(" & ") + ` +${arr.length - 2}`;
+  const parts: string[] = [];
+  if (pos.length) parts.push(`Boosts ${join(pos)}`);
+  if (neg.length) parts.push(`costs ${join(neg)}`);
+  return parts.join(" · ");
+}
+
+/** Cosine similarity over shared variable ids. */
+function pushSimilarity(
+  a: Record<string, number>,
+  b: Record<string, number>,
+  variables: Array<{ id: string }>
+): number {
+  let dot = 0, na = 0, nb = 0;
+  for (const v of variables) {
+    const x = a[v.id] || 0, y = b[v.id] || 0;
+    dot += x * y; na += x * x; nb += y * y;
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / Math.sqrt(na * nb);
+}
+
+
 /* ============================================================================
    DECISION LENS — a generally-applicable, decision-focused world model.
 
@@ -2231,13 +2276,38 @@ export default function DecisionLens() {
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Each option is a choice you could make. For each driver, say whether this option boosts it or lowers it.
+                  Each option is a different play. Show how it moves each driver — most good options boost some and cost others.
                 </p>
                 {options.every((o) => Object.values(o.pushes).every((p) => !p)) && (
                   <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                    <b className="text-foreground">Nothing set yet.</b> Move at least one slider per option — that's how each option stands apart when we look ahead.
+                    <b className="text-foreground">No effects set yet.</b> Move at least one slider per option — that's how each option stands apart when we look ahead.
                   </div>
                 )}
+                {(() => {
+                  const pairs: Array<[string, string]> = [];
+                  for (let i = 0; i < options.length; i++) {
+                    for (let j = i + 1; j < options.length; j++) {
+                      const a = options[i], b = options[j];
+                      const aHas = Object.values(a.pushes).some((p) => p);
+                      const bHas = Object.values(b.pushes).some((p) => p);
+                      if (!aHas || !bHas) continue;
+                      if (pushSimilarity(a.pushes, b.pushes, variables) >= 0.95) {
+                        pairs.push([a.name || "Option", b.name || "Option"]);
+                      }
+                    }
+                  }
+                  if (!pairs.length) return null;
+                  return (
+                    <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                      {pairs.map(([a, b], k) => (
+                        <div key={k}>
+                          <b className="text-foreground">‘{a}’ and ‘{b}’</b> look almost the same — make them genuinely different choices, or drop one.
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
 
 
                 <div
@@ -2246,6 +2316,10 @@ export default function DecisionLens() {
                 >
                   {options.map((o, i) => {
                     const color = OPT_COLORS[i % OPT_COLORS.length];
+                    const pushVals = variables.map((v) => o.pushes[v.id] || 0);
+                    const hasAny = pushVals.some((p) => p !== 0);
+                    const onlyPositive = hasAny && pushVals.every((p) => p >= 0);
+                    const summary = summarizeOption(o.pushes, variables);
                     return (
                       <div
                         key={o.id}
@@ -2275,30 +2349,47 @@ export default function DecisionLens() {
                             </Button>
                           )}
                         </div>
+                        <div
+                          className="mt-2 rounded-md bg-background/60 px-2 py-1 text-[11px] text-muted-foreground"
+                          aria-live="polite"
+                        >
+                          {summary}
+                        </div>
+                        {onlyPositive && (
+                          <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[11px] text-muted-foreground">
+                            <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-500" />
+                            <span>This option has no downside set — real strategies usually cost something. Consider what it trades away.</span>
+                          </div>
+                        )}
                         <div className="mt-3 grid gap-2">
-                          {variables.map((v) => (
-                            <div key={v.id} className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground" style={{ width: 92 }}>
-                                {v.name}
-                              </span>
-                              <Slider
-                                min={-60} max={60} step={1}
-                                value={[o.pushes[v.id] || 0]}
-                                onValueChange={(val) =>
-                                  updOpt(o.id, { pushes: { ...o.pushes, [v.id]: val[0] } })
-                                }
-                                className="flex-1"
-                                aria-label={o.name + (((o.pushes[v.id] || 0) > 0) ? " boosts " : ((o.pushes[v.id] || 0) < 0) ? " lowers " : " — no effect on ") + v.name}
-                              />
-                              <span
-                                className={"text-[10px] font-semibold uppercase tracking-wide text-right " + ((o.pushes[v.id] || 0) > 0 ? "text-helps" : (o.pushes[v.id] || 0) < 0 ? "text-hurts" : "text-dim")}
-                                style={{ width: 48 }}
-                                title={(o.pushes[v.id] || 0) > 0 ? "This option boosts " + v.name : (o.pushes[v.id] || 0) < 0 ? "This option lowers " + v.name : "This option doesn't move " + v.name}
-                              >
-                                {(o.pushes[v.id] || 0) > 0 ? "▲ boosts" : (o.pushes[v.id] || 0) < 0 ? "▼ lowers" : "—"}
-                              </span>
-                            </div>
-                          ))}
+                          {variables.map((v) => {
+                            const n = o.pushes[v.id] || 0;
+                            const label = pushLabel(n);
+                            const tone = n > 0 ? "text-helps" : n < 0 ? "text-hurts" : "text-dim";
+                            return (
+                              <div key={v.id} className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground" style={{ width: 92 }}>
+                                  {v.name}
+                                </span>
+                                <Slider
+                                  min={-60} max={60} step={1}
+                                  value={[n]}
+                                  onValueChange={(val) =>
+                                    updOpt(o.id, { pushes: { ...o.pushes, [v.id]: val[0] } })
+                                  }
+                                  className="flex-1"
+                                  aria-label={o.name + " " + label + " " + v.name + " (" + n + ")"}
+                                />
+                                <span
+                                  className={"text-[10px] font-semibold uppercase tracking-wide text-right " + tone}
+                                  style={{ width: 96 }}
+                                  title={o.name + " " + label + " " + v.name}
+                                >
+                                  {label}{n !== 0 ? " " + (n > 0 ? "+" : "") + n : ""}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                         <ActionPlanEditor
                           option={o}
@@ -2310,6 +2401,7 @@ export default function DecisionLens() {
                       </div>
                     );
                   })}
+
                 </div>
                 <div className="mt-4 flex justify-between">
                   <NavBtn dir="back" onClick={() => setStage("model")}>Back to the map</NavBtn>
