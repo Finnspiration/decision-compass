@@ -246,6 +246,56 @@ export default function DecisionLens() {
     setFocusOpt(null);
   }
 
+  const model: Model = useMemo(
+    () => ({ outcomeName, horizon, variables, influences, options }),
+    [outcomeName, horizon, variables, influences, options]
+  );
+
+  // Load model from #m= on first mount
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    if (typeof window === "undefined") return;
+    const m = parseHashModel(window.location.hash);
+    if (m) loadModel(m);
+  }, []);
+
+  // Debounced write of model to #m=
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handle = window.setTimeout(() => {
+      try {
+        const encoded = encodeModel(model);
+        const newHash = "#m=" + encoded;
+        if (window.location.hash !== newHash) {
+          window.history.replaceState(null, "", window.location.pathname + window.location.search + newHash);
+        }
+      } catch {
+        /* noop */
+      }
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [model]);
+
+  async function shareLink() {
+    try {
+      const encoded = encodeModel(model);
+      const url = `${window.location.origin}${window.location.pathname}${window.location.search}#m=${encoded}`;
+      window.history.replaceState(null, "", url);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = url; document.body.appendChild(ta); ta.select();
+        document.execCommand("copy"); document.body.removeChild(ta);
+      }
+      toast.success("Copied!", { description: "Decision Lens · share link ready to paste." });
+    } catch {
+      toast.error("Couldn't copy link", { description: "Decision Lens · try copying the URL manually." });
+    }
+  }
+
   const runs = useMemo(
     () =>
       options.map((o, i) => ({
