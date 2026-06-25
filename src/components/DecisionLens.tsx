@@ -1875,7 +1875,7 @@ export default function DecisionLens() {
                         min={-100} max={100} step={1} value={[inf.strength]}
                         onValueChange={(val) => updInf(idx, { strength: val[0] })}
                         className="flex-1 min-w-[60px]"
-                        aria-label="Influence strength"
+                        aria-label="Knock-on effect strength"
                       />
                       <Button
                         variant="ghost"
