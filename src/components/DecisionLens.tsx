@@ -587,6 +587,7 @@ export default function DecisionLens() {
   const [urls, setUrls] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState("");
   const [ingesting, setIngesting] = useState(false);
+  const [ingestStep, setIngestStep] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | undefined>();
   const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
