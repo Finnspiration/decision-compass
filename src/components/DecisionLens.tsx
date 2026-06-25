@@ -1161,10 +1161,10 @@ export default function DecisionLens() {
       let id = s.variable.id || uid();
       while (ids.has(id)) id = id + "_" + Math.random().toString(36).slice(2, 4);
       setVariables([...variables, { ...s.variable, id }]);
-      toast.success("Variable added", { description: "Decision Lens · " + s.variable.name });
+      toast.success("Driver added", { description: "Decision Lens · " + s.variable.name });
     } else if (s.kind === "add_influence" && s.influence) {
       setInfluences([...influences, s.influence]);
-      toast.success("Influence added", { description: "Decision Lens · linked drivers." });
+      toast.success("Knock-on effect added", { description: "Decision Lens · linked two drivers." });
     }
     setCritique((cur) => (cur ? cur.filter((x) => x !== s) : cur));
   }
