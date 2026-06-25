@@ -2195,7 +2195,7 @@ export default function DecisionLens() {
               Save as template
             </DialogTitle>
             <DialogDescription>
-              Decision Lens · stores your current model in this browser for reuse.
+              Decision Lens · saves your current map in this browser so you can reuse it.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2 grid gap-2">
