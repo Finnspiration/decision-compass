@@ -839,15 +839,18 @@ function loadUserTemplatesFromStorage(): UserTemplate[] {
     if (!raw) return [];
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return [];
-    return arr.filter(
-      (t: any) =>
-        t &&
-        typeof t.id === "string" &&
-        typeof t.name === "string" &&
-        t.model &&
-        Array.isArray(t.model.variables) &&
-        Array.isArray(t.model.options),
-    );
+    return arr.filter((t: unknown): t is UserTemplate => {
+      if (!t || typeof t !== "object") return false;
+      const o = t as Record<string, unknown>;
+      const m = o.model as Record<string, unknown> | undefined;
+      return (
+        typeof o.id === "string" &&
+        typeof o.name === "string" &&
+        !!m &&
+        Array.isArray(m.variables) &&
+        Array.isArray(m.options)
+      );
+    });
   } catch {
     return [];
   }
