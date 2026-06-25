@@ -1467,7 +1467,7 @@ export default function DecisionLens() {
                           <div>
                             <div className="text-sm font-medium text-foreground">Two ways to start</div>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Upload PDFs or paste links above and Decision Lens will read them to build your decision landscape — or skip sources and let AI draft from your question alone.
+                              Upload PDFs or paste links above and Decision Lens will read them to map your decision — or skip sources and let AI draft from your question alone.
                             </p>
                           </div>
                         )}
