@@ -1653,7 +1653,7 @@ export default function DecisionLens() {
                     <p className="mt-2 text-sm text-foreground">{aiSummary}</p>
                   )}
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Built from your sources — review and adjust anything below, then move to Options → Decide.
+                    Built from your sources — tweak anything below, then move on to Options → Decide.
                   </p>
                   {aiAttachedCount > 0 && (
                     <p className="mt-2 text-xs text-foreground">
@@ -1679,7 +1679,7 @@ export default function DecisionLens() {
                     </div>
                   )}
                   <p className="mt-3 text-xs text-dim">
-                    Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each variable to see why the AI included it.
+                    Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each driver to see why the AI included it.
                   </p>
                   <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <Button
