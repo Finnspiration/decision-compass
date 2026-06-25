@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { useServerFn } from "@tanstack/react-start";
-import { explainDecision, critiqueModel, suggestActions, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
+import { explainDecision, improveModel, suggestActions, type ImproveSuggestion } from "@/lib/ai-assist.functions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
