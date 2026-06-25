@@ -873,7 +873,13 @@ export default function DecisionLens() {
             <div className="dl-model">
               <Panel>
                 <div className="flex items-center justify-between">
-                  <SectionTag icon={Network} text="State variables" />
+                  <div className="flex items-center gap-1">
+                    <SectionTag icon={Network} text="State variables" />
+                    <HelpPopover
+                      title="Latent variable"
+                      body="A small number of underlying forces that actually drive the outcome — not symptoms. Examples: trust, demand, runway."
+                    />
+                  </div>
                   <Button
                     size="sm"
                     variant="secondary"
@@ -919,6 +925,10 @@ export default function DecisionLens() {
                           val={v.weight} min={-100} max={100}
                           tone={v.weight >= 0 ? "helps" : "hurts"}
                           onChange={(x) => updVar(v.id, { weight: x })}
+                          help={{
+                            title: "Weight (helps / hurts)",
+                            body: "How strongly this variable lifts (positive) or drags (negative) the outcome. Bigger magnitude = bigger swing.",
+                          }}
                         />
                       </div>
                     </div>
@@ -926,7 +936,13 @@ export default function DecisionLens() {
                 </div>
 
                 <div className="mt-5 flex items-center justify-between">
-                  <SectionTag icon={GitBranch} text="Influences (the loops)" />
+                  <div className="flex items-center gap-1">
+                    <SectionTag icon={GitBranch} text="Influences (the loops)" />
+                    <HelpPopover
+                      title="Influence (feedback loop)"
+                      body="A directed link saying one variable nudges another up or down each step. Chain a few together and you get a feedback loop — the engine of long-run behavior."
+                    />
+                  </div>
                   <Button
                     size="sm"
                     variant="secondary"
@@ -938,10 +954,11 @@ export default function DecisionLens() {
                 </div>
                 <div className="mt-3 grid gap-2">
                   {influences.length === 0 && (
-                    <p className="text-xs text-dim">
-                      No links yet. Add how one variable pushes another — that's what creates feedback loops.
-                    </p>
+                    <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                      <b className="text-foreground">No links yet.</b> Add how one variable pushes another — this is what creates the feedback loops that make outcomes diverge over time.
+                    </div>
                   )}
+
                   {influences.map((inf, idx) => (
                     <div key={idx} className="flex items-center gap-2 rounded-xl border border-border bg-muted p-2">
                       <VarSelect value={inf.from} vars={variables} onChange={(val) => updInf(idx, { from: val })} />
