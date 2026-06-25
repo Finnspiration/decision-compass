@@ -1894,13 +1894,13 @@ export default function DecisionLens() {
 
               {/* live system map — transforms as you add variables & links */}
               <Panel>
-                <SectionTag icon={Network} text="System map" />
+                <SectionTag icon={Network} text="Decision map" />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Your model, live. Nodes are state variables (green helps, red hurts); arrows are influences.
+                  Your map, live. Bubbles are the drivers (green helps your goal, red hurts it); arrows are the knock-on effects between them.
                 </p>
                 <SystemMap variables={variables} influences={influences} />
                 <div className="mt-3 flex justify-end">
-                  <NavBtn dir="next" onClick={() => setStage("options")}>Define options</NavBtn>
+                  <NavBtn dir="next" onClick={() => setStage("options")}>Set up your options</NavBtn>
                 </div>
               </Panel>
             </div>
