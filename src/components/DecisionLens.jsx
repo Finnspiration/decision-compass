@@ -270,41 +270,8 @@ export default function DecisionLens() {
   const best = ranked[0];
 
   /* --------------------------- shared UI bits --------------------------- */
-  const Panel = ({ children, className = "" }) => (
-    <div
-      className={"rounded-2xl border p-5 " + className}
-      style={{ background: `linear-gradient(180deg,${T.surface1},${T.surface2})`, borderColor: T.border }}
-    >
-      {children}
-    </div>
-  );
 
-  const Stepper = () => (
-    <div className="flex items-center gap-2 flex-wrap">
-      {STAGES.map((s, i) => {
-        const Icon = s.icon;
-        const active = stage === s.id;
-        const done = STAGES.findIndex((x) => x.id === stage) > i;
-        return (
-          <React.Fragment key={s.id}>
-            <button
-              onClick={() => setStage(s.id)}
-              className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium"
-              style={{
-                background: active ? T.primary : T.surface2,
-                color: active ? T.bgDeep : done ? T.ink : T.muted,
-                border: "1px solid " + (active ? T.primary : T.border),
-              }}
-            >
-              <Icon size={15} />
-              {s.label}
-            </button>
-            {i < STAGES.length - 1 && <ArrowRight size={14} style={{ color: T.border2 }} />}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
+
 
   /* ============================== render =============================== */
   return (
