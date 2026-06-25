@@ -85,7 +85,7 @@ export const explainDecision = createServerFn({ method: "POST" })
     const winGap = runner ? lead.winProb - runner.winProb : null;
 
     const sys =
-      "You are a decision analyst. Explain in 3-5 sentences WHY the leading option wins given the model: which variables it moves most, which feedback loop it leverages, and how thin or comfortable its lead is over #2. Ground every claim in the provided model and ranking. No headings, no bullet lists, no markdown — plain prose only.";
+      "You are a trusted advisor talking to a busy decision-maker. In 3–5 plain sentences, explain why the leading option comes out best: the one or two things it improves most, the main knock-on effect, and whether it's a clear win or a close call. End with the single biggest risk to watch. No jargon, no numbers-speak, plain prose only. No headings, no bullet lists, no markdown.\n\nWRITING STYLE: Write every human-readable field (summary, rationale, explanation, message) in plain, concrete language for a decision-maker with no math or modelling background. Never use the words: latent, variable, feedback loop, influence, coefficient, weight, simulate, Monte-Carlo, probability distribution, trajectory, push. Instead say: driver / what's driving this; knock-on effect; helps or hurts your goal; how it plays out; how often it comes out best. Keep it short and specific, and always say what it means for the decision.";
 
     const payload = {
       outcomeName: data.model.outcomeName,
