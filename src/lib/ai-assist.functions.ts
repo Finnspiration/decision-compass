@@ -170,3 +170,70 @@ export const critiqueModel = createServerFn({ method: "POST" })
     }
     return { suggestions: out };
   });
+
+/* ---------------------------- suggestActions ----------------------------- */
+
+const EFFORTS_S = ["low", "med", "high"] as const;
+const WHENS_S = ["now", "soon", "ongoing"] as const;
+const ActionSchema = z.object({
+  text: z.string(),
+  targets: z.array(z.string()).optional(),
+  effort: z.enum(EFFORTS_S).optional(),
+  when: z.enum(WHENS_S).optional(),
+});
+export type SuggestedAction = z.infer<typeof ActionSchema>;
+
+const SuggestActionsInput = z.object({
+  decision: z.string().default(""),
+  outcomeName: z.string().default(""),
+  variables: z.array(VariableSchema),
+  option: OptionSchema,
+});
+
+export const suggestActions = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => SuggestActionsInput.parse(data))
+  .handler(async ({ data }): Promise<{ actions: SuggestedAction[] }> => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+
+    const sys =
+      "You are a decision-execution coach. Given a decision, its outcome, the latent variables in play, and ONE option (with the pushes it applies per step), propose 2–4 concrete, operational actions a team could actually execute this quarter to realise that option. Do not restate the pushes — translate them into actions. Tag each action with the variable id(s) it primarily moves via `targets` (only ids that exist in `variables`, preferably ones the option actually pushes). Set `effort` to one of 'low'|'med'|'high' and `when` to 'now'|'soon'|'ongoing'. Keep each `text` under 140 characters. Return ONLY JSON: { \"actions\": [{ text, targets, effort, when }] }.";
+
+    const payload = {
+      decision: data.decision,
+      outcomeName: data.outcomeName,
+      variables: data.variables.map((v) => ({ id: v.id, name: v.name, weight: v.weight, value: v.value })),
+      option: { name: data.option.name, pushes: data.option.pushes },
+    };
+
+    const content = await callGateway(apiKey, sys, "Context:\n" + JSON.stringify(payload), true);
+    const parsed = parseJson<{ actions?: unknown }>(content);
+    const validIds = new Set(data.variables.map((v) => v.id));
+    const out: SuggestedAction[] = [];
+    if (Array.isArray(parsed.actions)) {
+      for (const a of parsed.actions) {
+        if (!a || typeof a !== "object") continue;
+        const aa = a as Record<string, unknown>;
+        const text = typeof aa.text === "string" ? aa.text.trim().slice(0, 160) : "";
+        if (!text) continue;
+        const targetsSrc = Array.isArray(aa.targets) ? aa.targets : [];
+        const targets = (targetsSrc as unknown[])
+          .map((t) => String(t))
+          .filter((t) => validIds.has(t));
+        const effort = (EFFORTS_S as readonly string[]).includes(aa.effort as string)
+          ? (aa.effort as SuggestedAction["effort"])
+          : undefined;
+        const when = (WHENS_S as readonly string[]).includes(aa.when as string)
+          ? (aa.when as SuggestedAction["when"])
+          : undefined;
+        const act: SuggestedAction = { text };
+        if (targets.length) act.targets = targets;
+        if (effort) act.effort = effort;
+        if (when) act.when = when;
+        out.push(act);
+        if (out.length >= 4) break;
+      }
+    }
+    if (!out.length) throw new Error("Decision Lens AI returned no actions");
+    return { actions: out };
+  });
