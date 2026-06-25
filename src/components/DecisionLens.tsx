@@ -2271,7 +2271,7 @@ export default function DecisionLens() {
                           "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                           (i === 0
                             ? "border-helps/40 bg-helps/10"
-                            : "border-border bg-muted hover:bg-accent")
+                            : "border-border bg-muted hover:bg-muted/70 hover:border-primary/30")
                         }
                       >
                         <span className="w-[18px] text-sm font-semibold text-dim">{i + 1}</span>
