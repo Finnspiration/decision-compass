@@ -2936,7 +2936,7 @@ function WelcomeDialog({
             Welcome to Decision Lens
           </DialogTitle>
           <DialogDescription>
-            Turn a messy decision into a clear model. Upload your documents or describe the decision, and AI maps the forces at play — then simulate your options and see which one wins most often.
+            Turn a messy decision into a clear, operational plan. Upload your documents or describe the decision, AI maps the forces and options, Monte-Carlo simulates each one — and you walk away with a sequenced action plan for the winning strategy.
           </DialogDescription>
         </DialogHeader>
 
@@ -2944,11 +2944,13 @@ function WelcomeDialog({
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">How it works</div>
           <ol className="mt-2 grid gap-1 text-sm text-foreground">
             <li><b className="text-primary">1. Add your material</b> — drop PDFs or paste links (or just describe it).</li>
-            <li><b className="text-primary">2. AI builds the landscape</b> — the variables, feedback loops, and options.</li>
-            <li><b className="text-primary">3. Tune & critique</b> — adjust anything; ask AI to critique your model.</li>
-            <li><b className="text-primary">4. Decide</b> — roll options forward and compare win-probabilities.</li>
+            <li><b className="text-primary">2. AI maps the landscape</b> — variables, feedback loops, options, and concrete actions.</li>
+            <li><b className="text-primary">3. Tune & critique</b> — adjust anything; ask AI to critique what's missing.</li>
+            <li><b className="text-primary">4. Decide with Monte-Carlo</b> — 300 simulated rollouts give each option a win-probability.</li>
+            <li><b className="text-primary">5. Get an action plan</b> — sequenced Now / Soon / Ongoing steps you can export as Markdown.</li>
           </ol>
         </div>
+
 
         <div className="grid gap-2">
           <Button onClick={onDocs} size="lg" className="justify-start gap-2">
