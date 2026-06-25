@@ -1825,13 +1825,13 @@ export default function DecisionLens() {
                           onChange={(x) => updVar(v.id, { value: x })}
                         />
                         <SliderRow
-                          label={v.weight >= 0 ? "Helps outcome" : "Hurts outcome"}
+                          label={v.weight >= 0 ? "Helps your goal" : "Hurts your goal"}
                           val={v.weight} min={-100} max={100}
                           tone={v.weight >= 0 ? "helps" : "hurts"}
                           onChange={(x) => updVar(v.id, { weight: x })}
                           help={{
-                            title: "Weight (helps / hurts)",
-                            body: "How strongly this variable lifts (positive) or drags (negative) the outcome. Bigger magnitude = bigger swing.",
+                            title: "Helps or hurts your goal",
+                            body: "How strongly this driver pushes the outcome up (helps) or pulls it down (hurts). Bigger number = bigger swing.",
                           }}
                         />
                       </div>
