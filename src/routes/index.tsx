@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import DecisionLens from "@/components/DecisionLens.jsx";
+import DecisionLens from "@/components/DecisionLens";
 
 export const Route = createFileRoute("/")({
   head: () => ({

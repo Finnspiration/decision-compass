@@ -5,17 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * Design system — "Midnight Signal" palette mapped to shadcn tokens.
+ * Dark values come straight from the Decision Lens theme; light values
+ * are derived analogs so both modes work. Semantic accents (helps/hurts)
+ * are intentionally theme-independent.
  */
 
 @theme inline {
@@ -46,6 +39,14 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
+  --color-helps: var(--helps);
+  --color-hurts: var(--hurts);
+  --color-surface-deep: var(--surface-deep);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-ink-2: var(--ink-2);
+  --color-dim: var(--dim);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -61,75 +62,120 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Light theme — Midnight Signal, daylight variant */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --radius: 0.75rem;
+
+  --background: #f6f8fb;
+  --foreground: #0f1117;
+
+  --card: #ffffff;
+  --card-foreground: #0f1117;
+
+  --popover: #ffffff;
+  --popover-foreground: #0f1117;
+
+  --primary: #3168db;
+  --primary-foreground: #ffffff;
+
+  --secondary: #eef1f6;
+  --secondary-foreground: #0f1117;
+
+  --muted: #eef1f6;
+  --muted-foreground: #5a6478;
+
+  --accent: #eef1f6;
+  --accent-foreground: #0f1117;
+
+  --destructive: #d6354c;
+  --destructive-foreground: #ffffff;
+
+  --border: #d8dde6;
+  --input: #d8dde6;
+  --ring: #3168db;
+
+  /* Semantic accents — theme-independent */
+  --helps: #2ea043;
+  --hurts: #d6354c;
+
+  /* Surfaces & inks (light analogs) */
+  --surface-deep: #f6f8fb;
+  --surface-inset: #eef1f6;
+  --surface-1: #ffffff;
+  --surface-2: #f3f5f9;
+  --ink-2: #2c3447;
+  --dim: #6b7589;
+
+  --chart-1: #3168db;
+  --chart-2: #2ea043;
+  --chart-3: #d2812a;
+  --chart-4: #d6354c;
+  --chart-5: #7b59d6;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f1117;
+  --sidebar-primary: #3168db;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef1f6;
+  --sidebar-accent-foreground: #0f1117;
+  --sidebar-border: #d8dde6;
+  --sidebar-ring: #3168db;
 }
 
+/* Dark theme — Midnight Signal (canonical) */
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --background: #0f1117;
+  --foreground: #e9ecf3;
+
+  --card: #161a23;
+  --card-foreground: #e9ecf3;
+
+  --popover: #1d222e;
+  --popover-foreground: #e9ecf3;
+
+  --primary: #6ea8fe;
+  --primary-foreground: #0f1117;
+
+  --secondary: #1d222e;
+  --secondary-foreground: #e9ecf3;
+
+  --muted: #11141c;
+  --muted-foreground: #9aa3b5;
+
+  --accent: #1d222e;
+  --accent-foreground: #e9ecf3;
+
+  --destructive: #ff6b81;
+  --destructive-foreground: #0f1117;
+
+  --border: #2a3140;
+  --input: #11141c;
+  --ring: #6ea8fe;
+
+  --helps: #7ee787;
+  --hurts: #ff6b81;
+
+  --surface-deep: #0f1117;
+  --surface-inset: #11141c;
+  --surface-1: #161a23;
+  --surface-2: #1d222e;
+  --ink-2: #cdd5e4;
+  --dim: #8b95a8;
+
+  --chart-1: #6ea8fe;
+  --chart-2: #7ee787;
+  --chart-3: #ffb454;
+  --chart-4: #ff6b81;
+  --chart-5: #9d7bff;
+
+  --sidebar: #161a23;
+  --sidebar-foreground: #e9ecf3;
+  --sidebar-primary: #6ea8fe;
+  --sidebar-primary-foreground: #0f1117;
+  --sidebar-accent: #1d222e;
+  --sidebar-accent-foreground: #e9ecf3;
+  --sidebar-border: #2a3140;
+  --sidebar-ring: #6ea8fe;
 }
 
 @layer base {
@@ -143,11 +189,7 @@
   }
 }
 
-/* DecisionLens component styles (moved from inline <style> for SSR correctness) */
-.dl-root {
-  --dl-border: #2a3140;
-  --dl-primary: #6ea8fe;
-}
+/* DecisionLens responsive grid (no longer themes inputs — shadcn handles that). */
 .dl-frame, .dl-model, .dl-decide, .dl-2 { display: grid; gap: 20px; grid-template-columns: 1fr; }
 .dl-2 { gap: 14px; }
 @media (min-width: 560px) { .dl-2 { grid-template-columns: 1fr 1fr; } }
@@ -156,8 +198,3 @@
   .dl-model { grid-template-columns: 0.95fr 1.05fr; }
   .dl-decide { grid-template-columns: 1.2fr 0.8fr; }
 }
-.dl-root input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 6px; background: var(--dl-border); outline: none; }
-.dl-root input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--dl-primary); border: none; cursor: pointer; box-shadow: 0 0 0 4px rgba(110, 168, 254, 0.16); }
-.dl-root input[type=range]::-moz-range-thumb { width: 15px; height: 15px; border: none; border-radius: 50%; background: var(--dl-primary); cursor: pointer; }
-.dl-root button:focus-visible, .dl-root input:focus-visible, .dl-root textarea:focus-visible, .dl-root select:focus-visible { outline: 2px solid var(--dl-primary); outline-offset: 2px; }
-
