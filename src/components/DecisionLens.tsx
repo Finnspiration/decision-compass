@@ -153,6 +153,129 @@ function simulate(
   return traj;
 }
 
+/* ----------------------------- Monte Carlo ------------------------------- */
+// Standard-normal sample via Box-Muller. Used to perturb pushes & influences.
+function gaussSample(): number {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function quantile(sortedAsc: number[], q: number): number {
+  if (sortedAsc.length === 0) return 0;
+  const pos = (sortedAsc.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  if (lo === hi) return sortedAsc[lo];
+  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (pos - lo);
+}
+
+export type MCBand = { t: number; p10: number; p50: number; p90: number };
+
+/**
+ * Monte-Carlo rollout for one option. Reuses the same per-step math as `simulate`,
+ * but perturbs influence strengths and option pushes by Gaussian noise with
+ * sigma = 15% of their value on each run. Returns p10/p50/p90 of the outcome
+ * index at every timestep across `runs` rollouts.
+ */
+function simulateMonteCarlo(
+  vars: Variable[],
+  influences: Influence[],
+  pushes: Record<string, number> | undefined,
+  horizon: number,
+  runs = 300
+): MCBand[] {
+  const samples: number[][] = Array.from({ length: horizon + 1 }, () => []);
+  const SIG = 0.15;
+  for (let r = 0; r < runs; r++) {
+    const infNoise = influences.map(() => 1 + SIG * gaussSample());
+    const pushNoise: Record<string, number> = {};
+    if (pushes) for (const k of Object.keys(pushes)) pushNoise[k] = 1 + SIG * gaussSample();
+
+    const cur: Record<string, number> = {};
+    vars.forEach((v) => (cur[v.id] = v.value));
+    const base = { ...cur };
+    samples[0].push(outcomeOf(vars, cur));
+    for (let t = 1; t <= horizon; t++) {
+      const next: Record<string, number> = {};
+      vars.forEach((v) => {
+        let e = 0;
+        influences.forEach((i, ii) => {
+          if (i.to !== v.id) return;
+          const s = i.strength * infNoise[ii];
+          e += (s / 100) * ((cur[i.from] - 50) / 50) * 6;
+        });
+        const rawPush = (pushes && pushes[v.id]) || 0;
+        const push = (rawPush * (pushNoise[v.id] ?? 1)) / 100 * 4;
+        const decay = 0.08 * (cur[v.id] - base[v.id]);
+        next[v.id] = clamp(cur[v.id] + push + e - decay);
+      });
+      Object.keys(next).forEach((k) => (cur[k] = next[k]));
+      samples[t].push(outcomeOf(vars, cur));
+    }
+  }
+  return samples.map((arr, t) => {
+    const s = [...arr].sort((a, b) => a - b);
+    return { t, p10: quantile(s, 0.1), p50: quantile(s, 0.5), p90: quantile(s, 0.9) };
+  });
+}
+
+/**
+ * Joint Monte-Carlo across all options sharing per-run noise, so we can
+ * count "wins" — the share of runs where each option has the highest final
+ * outcome index. Same noise model as `simulateMonteCarlo`.
+ */
+function winProbabilities(
+  vars: Variable[],
+  influences: Influence[],
+  options: DecisionOption[],
+  horizon: number,
+  runs = 300
+): Record<string, number> {
+  if (options.length === 0) return {};
+  const SIG = 0.15;
+  const wins: Record<string, number> = {};
+  options.forEach((o) => (wins[o.id] = 0));
+  for (let r = 0; r < runs; r++) {
+    const infNoise = influences.map(() => 1 + SIG * gaussSample());
+    const optPushNoise = options.map((o) => {
+      const m: Record<string, number> = {};
+      if (o.pushes) for (const k of Object.keys(o.pushes)) m[k] = 1 + SIG * gaussSample();
+      return m;
+    });
+    let bestIdx = 0, bestVal = -Infinity;
+    options.forEach((o, oi) => {
+      const cur: Record<string, number> = {};
+      vars.forEach((v) => (cur[v.id] = v.value));
+      const base = { ...cur };
+      for (let t = 1; t <= horizon; t++) {
+        const next: Record<string, number> = {};
+        vars.forEach((v) => {
+          let e = 0;
+          influences.forEach((i, ii) => {
+            if (i.to !== v.id) return;
+            const s = i.strength * infNoise[ii];
+            e += (s / 100) * ((cur[i.from] - 50) / 50) * 6;
+          });
+          const rawPush = (o.pushes && o.pushes[v.id]) || 0;
+          const push = (rawPush * (optPushNoise[oi][v.id] ?? 1)) / 100 * 4;
+          const decay = 0.08 * (cur[v.id] - base[v.id]);
+          next[v.id] = clamp(cur[v.id] + push + e - decay);
+        });
+        Object.keys(next).forEach((k) => (cur[k] = next[k]));
+      }
+      const finalIdx = outcomeOf(vars, cur);
+      if (finalIdx > bestVal) { bestVal = finalIdx; bestIdx = oi; }
+    });
+    wins[options[bestIdx].id]++;
+  }
+  const out: Record<string, number> = {};
+  options.forEach((o) => (out[o.id] = wins[o.id] / runs));
+  return out;
+}
+
+const MC_RUNS = 300;
+
 /* --------------------------- starter templates --------------------------- */
 const TEMPLATES = [
   {
