@@ -1219,12 +1219,13 @@ const SystemMap = React.memo(SystemMapImpl);
 /* ----------------------- trajectory chart (SVG) -------------------------- */
 type Run = { option: DecisionOption; color: string; traj: TrajPoint[] };
 function TrajectoryChartImpl({
-  runs, horizon, focusId, best,
+  runs, horizon, focusId, best, mcBands,
 }: {
   runs: Run[];
   horizon: number;
   focusId: string | null;
   best?: Run & { score: number };
+  mcBands?: Record<string, MCBand[]>;
 }) {
   const W = 620, H = 320, pl = 36, pr = 14, pt = 14, pb = 26;
   const ix = (t: number) => pl + (t * (W - pl - pr)) / Math.max(horizon, 1);
