@@ -99,7 +99,19 @@ function encodeModel(m: Model): string {
     h: m.horizon,
     v: m.variables.map((v) => ({ i: v.id, n: v.name, v: v.value, w: v.weight })),
     e: m.influences.map((i) => ({ f: i.from, t: i.to, s: i.strength })),
-    p: m.options.map((o) => ({ i: o.id, n: o.name, p: o.pushes })),
+    p: m.options.map((o) => {
+      const base: any = { i: o.id, n: o.name, p: o.pushes };
+      if (o.actions && o.actions.length) {
+        base.a = o.actions.map((a) => {
+          const x: any = { x: a.text };
+          if (a.targets && a.targets.length) x.g = a.targets;
+          if (a.effort) x.e = a.effort;
+          if (a.when) x.w = a.when;
+          return x;
+        });
+      }
+      return base;
+    }),
   };
   return encodeURIComponent(JSON.stringify(compact));
 }
