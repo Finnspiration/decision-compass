@@ -36,15 +36,18 @@ const ONBOARD_KEY = "dl_onboarded";
 ============================================================================ */
 
 /* --------------------------- model types -------------------------------- */
-type Variable = { id: string; name: string; value: number; weight: number };
-type Influence = { from: string; to: string; strength: number };
+type Variable = { id: string; name: string; value: number; weight: number; rationale?: string };
+type Influence = { from: string; to: string; strength: number; rationale?: string };
 type DecisionOption = { id: string; name: string; pushes: Record<string, number> };
+type ModelSource = { name: string; type: "pdf" | "url" };
 type Model = {
   outcomeName: string;
   horizon: number;
   variables: Variable[];
   influences: Influence[];
   options: DecisionOption[];
+  summary?: string;
+  sources?: ModelSource[];
 };
 
 /* --------------------------- URL hash codec ----------------------------- */
@@ -406,23 +409,29 @@ function validateDraftedModel(raw: any): Model | null {
     .map((v: any) => {
       const id = String(v?.id ?? "").trim();
       if (!id) return null;
+      const rationale = typeof v?.rationale === "string" ? v.rationale.slice(0, 300) : undefined;
       return {
         id,
         name: String(v?.name ?? id),
         value: clampN(v?.value, 0, 100),
         weight: clampN(v?.weight, -100, 100),
-      };
+        ...(rationale ? { rationale } : {}),
+      } as Variable;
     })
     .filter(Boolean) as Variable[];
   if (variables.length === 0) return null;
   const ids = new Set(variables.map((v) => v.id));
 
   const influences: Influence[] = (Array.isArray(raw.influences) ? raw.influences : [])
-    .map((i: any) => ({
-      from: String(i?.from ?? ""),
-      to: String(i?.to ?? ""),
-      strength: clampN(i?.strength, -100, 100),
-    }))
+    .map((i: any) => {
+      const rationale = typeof i?.rationale === "string" ? i.rationale.slice(0, 300) : undefined;
+      return {
+        from: String(i?.from ?? ""),
+        to: String(i?.to ?? ""),
+        strength: clampN(i?.strength, -100, 100),
+        ...(rationale ? { rationale } : {}),
+      } as Influence;
+    })
     .filter((i: Influence) => ids.has(i.from) && ids.has(i.to));
 
   const options: DecisionOption[] = (Array.isArray(raw.options) ? raw.options : [])
@@ -438,12 +447,24 @@ function validateDraftedModel(raw: any): Model | null {
     });
   if (options.length === 0) return null;
 
+  const summary = typeof raw.summary === "string" ? raw.summary.slice(0, 600) : undefined;
+  const sources: ModelSource[] | undefined = Array.isArray(raw.sources)
+    ? raw.sources
+        .map((s: any) => ({
+          name: String(s?.name ?? "").slice(0, 200),
+          type: s?.type === "url" ? "url" as const : "pdf" as const,
+        }))
+        .filter((s: ModelSource) => s.name)
+    : undefined;
+
   return {
     outcomeName: String(raw.outcomeName ?? "Outcome"),
     horizon: Math.round(clampN(raw.horizon, 4, 36)),
     variables,
     influences,
     options,
+    ...(summary ? { summary } : {}),
+    ...(sources && sources.length ? { sources } : {}),
   };
 }
 
@@ -458,6 +479,19 @@ async function autoDraftModel(decisionText: string): Promise<Model> {
     console.error("autoDraftModel failed", err);
     throw err;
   }
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || "");
+      const comma = s.indexOf(",");
+      resolve(comma >= 0 ? s.slice(comma + 1) : s);
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
 }
 
 /* ------------------------------- palette --------------------------------
@@ -486,12 +520,22 @@ export default function DecisionLens() {
   const [focusOpt, setFocusOpt] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(false);
 
+  // Document ingest state
+  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
+  const [urls, setUrls] = useState<string[]>([]);
+  const [urlInput, setUrlInput] = useState("");
+  const [ingesting, setIngesting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | undefined>();
+  const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
+
   // Onboarding state
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [dontShow, setDontShow] = useState(false);
   const decisionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  const dropzoneRef = useRef<HTMLDivElement | null>(null);
   const templatesPanelRef = useRef<HTMLDivElement | null>(null);
   const stepperRefs = useRef<Array<HTMLButtonElement | null>>([null, null, null, null]);
 
@@ -514,7 +558,10 @@ export default function DecisionLens() {
   function startFromDocs() {
     closeWelcome(dontShow);
     setStage("frame");
-    requestAnimationFrame(() => uploadInputRef.current?.click());
+    requestAnimationFrame(() => {
+      dropzoneRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      pdfInputRef.current?.click();
+    });
   }
   function startFromText() {
     closeWelcome(dontShow);
@@ -537,21 +584,41 @@ export default function DecisionLens() {
     setStage(STAGES[0].id);
   }
 
-  async function handleUpload(file: File | null) {
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const trimmed = text.trim().slice(0, 4000);
-      if (trimmed) {
-        setDecision(trimmed);
-        toast.success("Document loaded", { description: "Decision Lens · ready to auto-draft." });
-        decisionTextareaRef.current?.focus();
+  function addPdfFiles(incoming: File[]) {
+    const errors: string[] = [];
+    const accepted: File[] = [];
+    for (const f of incoming) {
+      if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
+        errors.push(`${f.name}: not a PDF`); continue;
       }
-    } catch {
-      toast.error("Couldn't read file", { description: "Decision Lens · try a .txt or .md file." });
+      if (f.size > 10 * 1024 * 1024) { errors.push(`${f.name}: over 10 MB`); continue; }
+      accepted.push(f);
     }
+    setPdfFiles((prev) => {
+      const merged = [...prev];
+      for (const f of accepted) {
+        if (merged.length >= 5) { errors.push(`${f.name}: max 5 files`); continue; }
+        if (!merged.some((x) => x.name === f.name && x.size === f.size)) merged.push(f);
+      }
+      return merged;
+    });
+    if (errors.length) toast.error("Some files were skipped", { description: "Decision Lens · " + errors.join(" · ") });
   }
+  function removePdf(idx: number) { setPdfFiles((p) => p.filter((_, i) => i !== idx)); }
 
+  function tryAddUrl(raw: string) {
+    const v = raw.trim();
+    if (!v) return;
+    let u: URL | null = null;
+    try { u = new URL(v.includes("://") ? v : "https://" + v); } catch { /* */ }
+    if (!u || (u.protocol !== "http:" && u.protocol !== "https:")) {
+      toast.error("Invalid URL", { description: "Decision Lens · use http(s) URLs only." });
+      return;
+    }
+    setUrls((prev) => (prev.includes(u!.toString()) || prev.length >= 8 ? prev : [...prev, u!.toString()]));
+    setUrlInput("");
+  }
+  function removeUrl(idx: number) { setUrls((p) => p.filter((_, i) => i !== idx)); }
 
   async function runAutoDraft(text: string) {
     setDrafting(true);
@@ -569,6 +636,36 @@ export default function DecisionLens() {
     }
   }
 
+  async function runIngest() {
+    if (!decision.trim()) {
+      toast.error("Add your decision first", { description: "Decision Lens · we need a question to map." });
+      return;
+    }
+    if (pdfFiles.length === 0 && urls.length === 0) {
+      // No sources — fall back to plain draft
+      void runAutoDraft(decision);
+      return;
+    }
+    setIngesting(true);
+    try {
+      const filesPayload = await Promise.all(
+        pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) }))
+      );
+      const { ingestSources } = await import("@/lib/ingest-sources.functions");
+      const raw = await ingestSources({ data: { files: filesPayload, urls, decisionText: decision } });
+      const m = validateDraftedModel(raw);
+      if (!m) throw new Error("Invalid model JSON");
+      loadModel(m);
+      setStage("model");
+      toast.success("Decision mapped", { description: "Decision Lens · grounded in your sources." });
+    } catch (err) {
+      console.error("ingest failed", err);
+      toast.error("Couldn't map from sources", { description: "Decision Lens · check your files/URLs and try again." });
+    } finally {
+      setIngesting(false);
+    }
+  }
+
   function loadModel(m: Model) {
     setOutcomeName(m.outcomeName);
     setHorizon(m.horizon);
@@ -576,6 +673,8 @@ export default function DecisionLens() {
     setInfluences(m.influences);
     setOptions(m.options);
     setFocusOpt(null);
+    setAiSummary(m.summary);
+    setAiSources(m.sources);
   }
 
   const model: Model = useMemo(
@@ -773,24 +872,102 @@ export default function DecisionLens() {
                   className="mt-2 resize-y bg-muted"
                 />
 
-                <div className="mt-3 flex items-center gap-2">
+                {/* Sources: PDFs + URLs */}
+                <div className="mt-4">
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    Sources (optional)
+                    <HelpPopover
+                      title="Sources"
+                      body="Drop PDFs or paste URLs. We extract their text on the server and ground the AI model in their content."
+                    />
+                  </div>
                   <input
-                    ref={uploadInputRef}
+                    ref={pdfInputRef}
                     type="file"
-                    accept=".txt,.md,text/plain,text/markdown"
+                    accept="application/pdf,.pdf"
+                    multiple
                     className="hidden"
-                    onChange={(e) => { void handleUpload(e.target.files?.[0] ?? null); e.target.value = ""; }}
+                    onChange={(e) => {
+                      const list = e.target.files ? Array.from(e.target.files) : [];
+                      if (list.length) addPdfFiles(list);
+                      e.target.value = "";
+                    }}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => uploadInputRef.current?.click()}
-                    className="gap-2"
+                  <div
+                    ref={dropzoneRef}
+                    onClick={() => pdfInputRef.current?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault(); setDragOver(false);
+                      const list = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+                      if (list.length) addPdfFiles(list);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") pdfInputRef.current?.click(); }}
+                    className={
+                      "mt-2 cursor-pointer rounded-xl border-2 border-dashed p-4 text-center text-xs transition-colors " +
+                      (dragOver
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-muted/40 text-muted-foreground hover:border-primary/60")
+                    }
                   >
-                    <Upload size={14} /> Upload a document
-                  </Button>
-                  <span className="text-xs text-dim">.txt or .md — we'll use its text as the decision brief.</span>
+                    <Upload size={16} className="mx-auto mb-1 text-primary" />
+                    <div>
+                      <b className="text-foreground">Drop PDFs here</b> or click to browse — up to 5 files, 10 MB each.
+                    </div>
+                  </div>
+                  {pdfFiles.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {pdfFiles.map((f, i) => (
+                        <span key={f.name + i} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground">
+                          <FileText size={12} className="text-primary" />
+                          <span className="max-w-[180px] truncate">{f.name}</span>
+                          <span className="text-dim">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                          <button
+                            type="button"
+                            aria-label={"Remove " + f.name}
+                            onClick={(e) => { e.stopPropagation(); removePdf(i); }}
+                            className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-dim hover:text-foreground"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-3">
+                    <Input
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); tryAddUrl(urlInput); }
+                      }}
+                      onBlur={() => { if (urlInput.trim()) tryAddUrl(urlInput); }}
+                      placeholder="Paste a URL and press Enter"
+                      className="bg-muted"
+                      aria-label="Source URL"
+                    />
+                    {urls.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {urls.map((u, i) => (
+                          <span key={u + i} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground">
+                            <span className="max-w-[220px] truncate">{u}</span>
+                            <button
+                              type="button"
+                              aria-label={"Remove " + u}
+                              onClick={() => removeUrl(i)}
+                              className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-dim hover:text-foreground"
+                            >
+                              <X size={11} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-4 dl-2">
@@ -824,18 +1001,32 @@ export default function DecisionLens() {
                   </div>
                 </div>
 
-                <Button
-                  onClick={() => { void runAutoDraft(decision); }}
-                  disabled={drafting}
-                  className="mt-5 gap-2"
-                >
-                  {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                  {drafting ? "Drafting…" : "Auto-draft the model"}
-                </Button>
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => { void runIngest(); }}
+                    disabled={ingesting || drafting}
+                    className="gap-2"
+                  >
+                    {ingesting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                    {ingesting ? "Mapping…" : "Map my decision"}
+                  </Button>
+                  <Button
+                    onClick={() => { void runAutoDraft(decision); }}
+                    disabled={drafting || ingesting}
+                    variant="secondary"
+                    className="gap-2"
+                  >
+                    {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                    {drafting ? "Drafting…" : "Auto-draft (no sources)"}
+                  </Button>
+                </div>
                 <p className="mt-2 text-xs text-dim">
-                  Lovable AI builds a starter system from your decision text. Falls back to a template if the AI is unreachable.
+                  Lovable AI builds your starter system — grounded in your sources when provided, otherwise from the decision text alone.
                 </p>
               </Panel>
+
+
+
 
               <div ref={templatesPanelRef}>
                 <Panel>
@@ -870,7 +1061,35 @@ export default function DecisionLens() {
 
           {/* ---------------------------- MODEL ---------------------------- */}
           <TabsContent value="model" className="mt-0">
+            {(aiSummary || (aiSources && aiSources.length > 0)) && (
+              <div className="mb-5">
+                <Panel>
+                  <SectionTag icon={Sparkles} text="What the AI found" />
+                  {aiSummary && (
+                    <p className="mt-2 text-sm text-foreground">{aiSummary}</p>
+                  )}
+                  {aiSources && aiSources.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {aiSources.map((s, i) => (
+                        <span
+                          key={s.name + i}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"
+                        >
+                          {s.type === "pdf" ? <FileText size={11} className="text-primary" /> : <Upload size={11} className="text-primary" />}
+                          <span className="max-w-[220px] truncate">{s.name}</span>
+                          <span className="text-dim uppercase tracking-wider">{s.type}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-3 text-xs text-dim">
+                    Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each variable to see why the AI included it.
+                  </p>
+                </Panel>
+              </div>
+            )}
             <div className="dl-model">
+
               <Panel>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
@@ -905,6 +1124,9 @@ export default function DecisionLens() {
                           className="flex-1 h-9 bg-transparent text-sm font-medium"
                           aria-label={"Variable name: " + v.name}
                         />
+                        {v.rationale && (
+                          <HelpPopover title="Why this variable" body={v.rationale} />
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
