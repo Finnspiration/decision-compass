@@ -4,10 +4,10 @@ import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
   HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
-  BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle,
+  BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle, AlertTriangle, Check,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { explainDecision, critiqueModel, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
+import { explainDecision, critiqueModel, suggestActions, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1054,10 +1054,57 @@ export default function DecisionLens() {
   /* --------------------------- AI assistance --------------------------- */
   const callExplain = useServerFn(explainDecision);
   const callCritique = useServerFn(critiqueModel);
+  const callSuggestActions = useServerFn(suggestActions);
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [critiquing, setCritiquing] = useState(false);
   const [critique, setCritique] = useState<CritiqueSuggestion[] | null>(null);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+
+  async function runSuggestActions(opt: DecisionOption) {
+    setActionLoading((s) => ({ ...s, [opt.id]: true }));
+    try {
+      const res = await callSuggestActions({
+        data: {
+          decision,
+          outcomeName,
+          variables,
+          option: { id: opt.id, name: opt.name, pushes: opt.pushes },
+        },
+      });
+      const validIds = new Set(variables.map((v) => v.id));
+      const incoming = (res.actions ?? [])
+        .map((a) => {
+          const targets = (a.targets ?? []).filter((t) => validIds.has(t));
+          const act: DecisionAction = { text: a.text.trim() };
+          if (targets.length) act.targets = targets;
+          if (a.effort) act.effort = a.effort;
+          if (a.when) act.when = a.when;
+          return act;
+        })
+        .filter((a) => a.text.length > 0);
+      const existing = opt.actions ?? [];
+      const seen = new Set(existing.map((a) => a.text.trim().toLowerCase()));
+      const merged = [...existing];
+      for (const a of incoming) {
+        const key = a.text.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(a);
+        if (merged.length >= 8) break;
+      }
+      updOpt(opt.id, { actions: merged });
+      toast.success("Decision Lens · suggested actions", {
+        description: `Added ${merged.length - existing.length} new action${merged.length - existing.length === 1 ? "" : "s"} to ${opt.name}.`,
+      });
+    } catch (e) {
+      toast.error("Decision Lens · couldn't suggest actions", {
+        description: e instanceof Error ? e.message : "AI unavailable.",
+      });
+    } finally {
+      setActionLoading((s) => ({ ...s, [opt.id]: false }));
+    }
+  }
 
   // Invalidate stale AI output when the model changes
   useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
@@ -1947,6 +1994,13 @@ export default function DecisionLens() {
                             </div>
                           ))}
                         </div>
+                        <ActionPlanEditor
+                          option={o}
+                          variables={variables}
+                          onChange={(actions) => updOpt(o.id, { actions })}
+                          onSuggest={() => runSuggestActions(o)}
+                          suggesting={!!actionLoading[o.id]}
+                        />
                       </div>
                     );
                   })}
@@ -2156,6 +2210,197 @@ export default function DecisionLens() {
 }
 
 /* ----------------------------- small parts ------------------------------- */
+const EFFORT_OPTS: DecisionAction["effort"][] = ["low", "med", "high"];
+const WHEN_OPTS: DecisionAction["when"][] = ["now", "soon", "ongoing"];
+
+function ActionPlanEditor({
+  option, variables, onChange, onSuggest, suggesting,
+}: {
+  option: DecisionOption;
+  variables: Variable[];
+  onChange: (actions: DecisionAction[]) => void;
+  onSuggest: () => void;
+  suggesting: boolean;
+}) {
+  const actions = option.actions ?? [];
+  const pushedIds = new Set(
+    Object.entries(option.pushes).filter(([, v]) => v !== 0).map(([k]) => k),
+  );
+
+  function setAction(idx: number, patch: Partial<DecisionAction>) {
+    const next = actions.map((a, i) => (i === idx ? { ...a, ...patch } : a));
+    onChange(next);
+  }
+  function removeAction(idx: number) {
+    onChange(actions.filter((_, i) => i !== idx));
+  }
+  function addAction() {
+    onChange([...actions, { text: "" }]);
+  }
+  function toggleTarget(idx: number, varId: string) {
+    const cur = actions[idx]?.targets ?? [];
+    const has = cur.includes(varId);
+    const next = has ? cur.filter((t) => t !== varId) : [...cur, varId];
+    setAction(idx, { targets: next.length ? next : undefined });
+  }
+
+  return (
+    <div className="mt-4 border-t border-border/60 pt-3">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Action plan
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onSuggest}
+          disabled={suggesting}
+          className="h-7 gap-1 text-xs"
+          aria-label={`Suggest actions for ${option.name}`}
+        >
+          {suggesting ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+          Suggest actions
+        </Button>
+      </div>
+
+      {actions.length === 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          No actions yet. Add a step the team would execute, or let AI suggest some.
+        </p>
+      )}
+
+      <div className="mt-2 grid gap-2">
+        {actions.map((a, i) => {
+          const targets = a.targets ?? [];
+          const inconsistent = targets.some((t) => !pushedIds.has(t));
+          return (
+            <div
+              key={i}
+              className="rounded-lg border border-border/60 bg-background/40 p-2"
+            >
+              <div className="flex items-start gap-2">
+                <Input
+                  value={a.text}
+                  onChange={(e) => setAction(i, { text: e.target.value })}
+                  placeholder="e.g. Ship MVP to 3 lighthouse customers within 30 days"
+                  className="h-8 flex-1 bg-transparent text-xs"
+                  aria-label={`Action ${i + 1} for ${option.name}`}
+                />
+                {inconsistent && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-amber-500"
+                        aria-label="Action targets a variable this option doesn't push"
+                      >
+                        <AlertTriangle size={14} />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" className="w-64 text-xs">
+                      This action targets a variable the option's sliders don't move. Either
+                      adjust the pushes above or remove the unrelated target.
+                    </PopoverContent>
+                  </Popover>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeAction(i)}
+                  className="h-8 w-8 text-muted-foreground"
+                  aria-label={`Remove action ${i + 1}`}
+                >
+                  <Trash2 size={13} />
+                </Button>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {variables.map((v) => {
+                  const on = targets.includes(v.id);
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => toggleTarget(i, v.id)}
+                      aria-pressed={on}
+                      aria-label={`Target ${v.name}`}
+                      className={
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors " +
+                        (on
+                          ? "border-primary/60 bg-primary/15 text-foreground"
+                          : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      {on && <Check size={10} />}
+                      {v.name}
+                    </button>
+                  );
+                })}
+
+                <span className="mx-1 h-3 w-px bg-border" aria-hidden />
+
+                {EFFORT_OPTS.map((e) => {
+                  const on = a.effort === e;
+                  return (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setAction(i, { effort: on ? undefined : e })}
+                      aria-pressed={on}
+                      aria-label={`Effort ${e}`}
+                      className={
+                        "rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors " +
+                        (on
+                          ? "border-foreground/40 bg-foreground/10 text-foreground"
+                          : "border-border bg-transparent text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      {e}
+                    </button>
+                  );
+                })}
+
+                <span className="mx-1 h-3 w-px bg-border" aria-hidden />
+
+                {WHEN_OPTS.map((w) => {
+                  const on = a.when === w;
+                  return (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => setAction(i, { when: on ? undefined : w })}
+                      aria-pressed={on}
+                      aria-label={`When ${w}`}
+                      className={
+                        "rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors " +
+                        (on
+                          ? "border-foreground/40 bg-foreground/10 text-foreground"
+                          : "border-border bg-transparent text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      {w}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={addAction}
+        className="mt-2 h-7 gap-1 text-xs text-muted-foreground"
+      >
+        <Plus size={12} /> Add action
+      </Button>
+    </div>
+  );
+}
+
 function SectionTag({ icon: Icon, text }: { icon: React.ComponentType<{ size?: number; className?: string }>; text: string }) {
   return (
     <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
