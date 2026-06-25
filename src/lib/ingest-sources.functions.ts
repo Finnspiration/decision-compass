@@ -18,7 +18,7 @@ const Input = z.object({
 
 
 const SYSTEM_PROMPT =
-  "You are a systems analyst applying world-model thinking. Given a decision and supporting source excerpts, model the decision as a compact dynamical system. Find 3–6 latent variables that actually drive the outcome (not surface facts); mark each as helping (+weight) or hurting (-weight) and where it stands today, with a one-line rationale grounded in the sources when possible. Add 2–5 influences forming at least one feedback loop, each with a rationale. Define 2–4 options that are genuinely different strategies; each option's pushes say how it nudges each variable per step. Provide a 1–2 sentence summary of what the documents told you, and list which sources you used. Return ONLY JSON.";
+  "You are a systems analyst applying world-model thinking. Given a decision and supporting source excerpts, model the decision as a compact dynamical system. Find 3–6 latent variables that actually drive the outcome (not surface facts); mark each as helping (+weight) or hurting (-weight) and where it stands today, with a one-line rationale grounded in the sources when possible. Add 2–5 influences forming at least one feedback loop, each with a rationale. Define 2–4 options that are genuinely different strategies; each option's pushes say how it nudges each variable per step. For each option, list 2–4 concrete, operational actions a team could actually execute (not restatements of the push). Tag each action with the variable id(s) it primarily moves via `targets`, set `effort` (low/med/high) and `when` (now/soon/ongoing). When sources are provided, ground actions in them. Provide a 1–2 sentence summary of what the documents told you, and list which sources you used. Return ONLY JSON.";
 
 const JSON_SHAPE_HINT = `Return ONLY a JSON object matching exactly:
 {
@@ -28,9 +28,10 @@ const JSON_SHAPE_HINT = `Return ONLY a JSON object matching exactly:
   "sources": [{ "name": string, "type": "pdf" | "url" }],
   "variables":  [{ "id": string, "name": string, "value": number 0-100, "weight": number -100..100, "rationale": string }],
   "influences": [{ "from": string, "to": string, "strength": number -100..100, "rationale": string }],
-  "options":    [{ "name": string, "pushes": { "<variableId>": number -60..60 } }]
+  "options":    [{ "name": string, "pushes": { "<variableId>": number -60..60 },
+                   "actions": [{ "text": string (<=160 chars), "targets": [variableId, ...], "effort": "low"|"med"|"high", "when": "now"|"soon"|"ongoing" }] }]
 }
-Ids must be short lowercase slugs. All influence.from/to and pushes keys must be ids present in variables.`;
+Each option MUST include 2–4 actions. Ids must be short lowercase slugs. All influence.from/to, pushes keys, and action.targets must be ids present in variables.`;
 
 const MAX_TOTAL_CHARS = 60_000;
 const MAX_URL_BYTES = 2 * 1024 * 1024;
