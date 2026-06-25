@@ -1776,10 +1776,10 @@ export default function DecisionLens() {
               <Panel>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <SectionTag icon={Network} text="State variables" />
+                    <SectionTag icon={Network} text="What's driving this decision" />
                     <HelpPopover
-                      title="Latent variable"
-                      body="A small number of underlying forces that actually drive the outcome — not symptoms. Examples: trust, demand, runway."
+                      title="What's a driver?"
+                      body="The handful of things that genuinely move your outcome — like trust, demand, or cash on hand. Not surface details."
                     />
                   </div>
                   <Button
@@ -1794,8 +1794,7 @@ export default function DecisionLens() {
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  The few things that actually drive {outcomeName.toLowerCase()}. Set where each stands today and
-                  whether it helps or hurts.
+                  The few things that actually move {outcomeName.toLowerCase()}. Set where each stands today and whether it helps or hurts your goal.
                 </p>
                 <div className="mt-3 grid gap-3">
                   {variables.map((v) => (
