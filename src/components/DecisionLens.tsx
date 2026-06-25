@@ -388,9 +388,21 @@ const TEMPLATES = [
       { from: "moat", to: "demand", strength: 30 },
     ],
     options: [
-      { id: uid(), name: "Enter now", pushes: { demand: 30, moat: 20, runway: -40, focus: -30, risk: 40 } },
-      { id: uid(), name: "Wait & build", pushes: { demand: -5, moat: 35, runway: 10, focus: 25, risk: -20 } },
-      { id: uid(), name: "Partner in", pushes: { demand: 20, moat: 40, runway: -10, focus: 10, risk: -10 } },
+      { id: uid(), name: "Enter now", pushes: { demand: 30, moat: 20, runway: -40, focus: -30, risk: 40 }, actions: [
+        { text: "Ship MVP to 3 lighthouse customers within 30 days", targets: ["demand"], effort: "high", when: "now" },
+        { text: "Hire 2 senior engineers to staff launch team", targets: ["focus", "runway"], effort: "high", when: "now" },
+        { text: "Run weekly competitive teardown to defend positioning", targets: ["moat", "risk"], effort: "med", when: "ongoing" },
+      ] },
+      { id: uid(), name: "Wait & build", pushes: { demand: -5, moat: 35, runway: 10, focus: 25, risk: -20 }, actions: [
+        { text: "Spend a quarter hardening core IP before any go-to-market", targets: ["moat"], effort: "high", when: "now" },
+        { text: "Run 5 customer-discovery interviews per week", targets: ["demand"], effort: "low", when: "ongoing" },
+        { text: "Defer new hires; reallocate two engineers to platform", targets: ["runway", "focus"], effort: "med", when: "soon" },
+      ] },
+      { id: uid(), name: "Partner in", pushes: { demand: 20, moat: 40, runway: -10, focus: 10, risk: -10 }, actions: [
+        { text: "Shortlist 3 distribution partners and open term-sheet talks", targets: ["demand", "moat"], effort: "med", when: "now" },
+        { text: "Negotiate revenue-share to cap downside on runway", targets: ["runway", "risk"], effort: "med", when: "soon" },
+        { text: "Embed a joint product-marketing pod with the partner", targets: ["focus"], effort: "low", when: "ongoing" },
+      ] },
     ],
   },
   {
