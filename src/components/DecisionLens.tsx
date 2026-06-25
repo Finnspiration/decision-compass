@@ -720,16 +720,28 @@ export default function DecisionLens() {
     }
   }
 
+  function triggerAiHighlight() {
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setAiHighlight(false); return; }
+    setAiHighlight(true);
+    window.setTimeout(() => setAiHighlight(false), 2200);
+  }
+
   async function runAutoDraft(text: string) {
     setDrafting(true);
     try {
       const m = await autoDraftModel(text);
       loadModel(m);
+      setAiAttachedCount(0);
+      setAiSkippedCount(0);
       setStage("model");
+      triggerAiHighlight();
       toast.success("Model drafted", { description: "Decision Lens · AI-built your starting system." });
     } catch (err) {
       console.error("autoDraft failed", err);
       loadModel(keywordTemplate(text));
+      setAiAttachedCount(0);
+      setAiSkippedCount(0);
       setStage("model");
       const { title, description } = describeAiError(err);
       toast.error(title, { description });
@@ -748,6 +760,7 @@ export default function DecisionLens() {
       return;
     }
     setIngesting(true);
+    const attached = pdfFiles.length + urls.length;
     try {
       const filesPayload = await Promise.all(
         pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) }))
@@ -757,9 +770,12 @@ export default function DecisionLens() {
       const m = validateDraftedModel(raw);
       if (!m) throw new Error("AI_BAD_JSON: model failed validation");
       loadModel(m);
-      setStage("model");
       const skipped = (raw as { skipped?: Array<{ name: string; reason: string }> }).skipped ?? [];
       const degraded = (raw as { degraded?: boolean }).degraded === true;
+      setAiAttachedCount(attached);
+      setAiSkippedCount(skipped.length);
+      setStage("model");
+      triggerAiHighlight();
       if (skipped.length > 0) {
         const lines = skipped.slice(0, 4).map((s) => `${s.name}: ${describeSkipReason(s.reason)}`).join(" · ");
         const more = skipped.length > 4 ? ` · +${skipped.length - 4} more` : "";
