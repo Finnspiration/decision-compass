@@ -1051,6 +1051,67 @@ export default function DecisionLens() {
   );
   const best = ranked[0];
 
+  // Per-option start/end of the most-likely (p50) outlook path.
+  const deltas = useMemo(() => {
+    const out: Record<string, { start: number; end: number; delta: number }> = {};
+    for (const o of options) {
+      const band = mc.bands[o.id];
+      if (!band || band.length === 0) continue;
+      const start = band[0].p50;
+      const end = band[band.length - 1].p50;
+      out[o.id] = { start, end, delta: end - start };
+    }
+    return out;
+  }, [mc, options]);
+  const allTrendDown = useMemo(
+    () => options.length > 0 && options.every((o) => {
+      const d = deltas[o.id];
+      return d ? d.end < d.start : false;
+    }),
+    [deltas, options]
+  );
+
+  // Model-sanity checks: surface obvious modelling mistakes.
+  const HURT_WORDS = ["depletion", "burn", "risk", "cost", "churn", "saturation", "debt", "loss", "attrition", "drag"];
+  const HELP_WORDS = ["growth", "advantage", "moat", "reach", "trust", "quality", "retention", "momentum"];
+  const [sanityDismissed, setSanityDismissed] = useState(false);
+  const modelFindings = useMemo(() => {
+    const findings: Array<{ id: string; text: React.ReactNode }> = [];
+    for (const v of variables) {
+      const lower = v.name.toLowerCase();
+      const hurt = HURT_WORDS.some((w) => lower.includes(w));
+      const help = HELP_WORDS.some((w) => lower.includes(w));
+      if (hurt && v.weight > 0) {
+        findings.push({
+          id: "sign:" + v.id,
+          text: <>'<b className="text-foreground">{v.name}</b>' is set as <b>helping</b> your goal — does that match reality?</>,
+        });
+      } else if (help && v.weight < 0) {
+        findings.push({
+          id: "sign:" + v.id,
+          text: <>'<b className="text-foreground">{v.name}</b>' is set as <b>hurting</b> your goal — does that match reality?</>,
+        });
+      }
+    }
+    if (variables.length > 0 && options.length > 0) {
+      const dominant = [...variables].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))[0];
+      const noOneMoves = options.every((o) => Math.abs((o.pushes?.[dominant.id] ?? 0)) < 5);
+      if (noOneMoves) {
+        findings.push({
+          id: "dominant:" + dominant.id,
+          text: <>No option meaningfully moves '<b className="text-foreground">{dominant.name}</b>', which is the strongest driver in your model.</>,
+        });
+      }
+    }
+    if (allTrendDown) {
+      findings.push({
+        id: "trend-down",
+        text: <>Every option's outlook gets worse over time. Either a driver's sign is wrong, or no option pushes hard enough on what matters.</>,
+      });
+    }
+    return findings;
+  }, [variables, options, allTrendDown]);
+
   /* --------------------------- AI assistance --------------------------- */
   const callExplain = useServerFn(explainDecision);
   const callCritique = useServerFn(critiqueModel);
@@ -1645,6 +1706,32 @@ export default function DecisionLens() {
 
           {/* ---------------------------- MODEL ---------------------------- */}
           <TabsContent value="model" className="mt-0">
+            {modelFindings.length > 0 && !sanityDismissed && (
+              <div className="mb-5">
+                <Panel className="border-hurts/30 bg-hurts/5">
+                  <div className="flex items-start justify-between gap-3">
+                    <SectionTag icon={AlertTriangle} text="Worth a second look" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSanityDismissed(true)}
+                      className="-mt-1 h-7 px-2 text-xs text-muted-foreground"
+                      aria-label="Dismiss model warnings"
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                  <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
+                    {modelFindings.map((f) => (
+                      <li key={f.id} className="flex items-start gap-2">
+                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
+                        <span className="leading-relaxed">{f.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Panel>
+              </div>
+            )}
             {(aiSummary || (aiSources && aiSources.length > 0)) && (
               <div className="mb-5">
                 <Panel>
@@ -2020,6 +2107,9 @@ export default function DecisionLens() {
                 <p className="mt-2 text-xs text-muted-foreground">
                   Each line shows how an option is likely to affect {outcomeName.toLowerCase()} over time. The shaded area is the range of how things could go — we're more confident about the near term than far ahead.
                 </p>
+                <p className="mt-1 text-xs text-dim">
+                  Higher on the chart = better outlook. The ranking on the right is <b className="text-muted-foreground">relative</b> — it shows which option does best compared to the others, not whether things improve overall.
+                </p>
                 <TrajectoryChart
                   runs={runs}
                   horizon={horizon}
@@ -2036,7 +2126,26 @@ export default function DecisionLens() {
                   ))}
                   <span className="ml-auto text-dim">based on {MC_RUNS} possible futures</span>
                 </div>
+                <div className="mt-3 grid gap-1.5 border-t border-border pt-3">
+                  {runs.map((r) => {
+                    const d = deltas[r.option.id];
+                    if (!d) return null;
+                    const delta = Math.round(d.delta);
+                    const tone = delta >= 2 ? "text-helps" : delta <= -2 ? "text-hurts" : "text-dim";
+                    const glyph = delta >= 2 ? "▲" : delta <= -2 ? "▼" : "→";
+                    const sign = delta > 0 ? "+" : "";
+                    return (
+                      <div key={r.option.id} className="flex items-center gap-2 text-xs">
+                        <span className="inline-block h-2 w-2 rounded" style={{ background: r.color }} />
+                        <span className="flex-1 truncate text-muted-foreground">{r.option.name}</span>
+                        <span className="tabular-nums text-dim">starts {Math.round(d.start)} → ends {Math.round(d.end)}</span>
+                        <span className={"tabular-nums font-semibold w-14 text-right " + tone}>{glyph} {sign}{delta}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </Panel>
+
 
 
               <div className="grid gap-5">
@@ -2075,6 +2184,16 @@ export default function DecisionLens() {
                     ))}
 
                   </div>
+
+                  {allTrendDown && (
+                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
+                      <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
+                      <span className="leading-relaxed">
+                        All options trend downward in this model — "comes out ahead" means <b className="text-foreground">loses the least</b>. To find options that <i>improve</i> the outlook, revisit the <button type="button" onClick={() => setStage("model")} className="underline underline-offset-2 hover:text-foreground">Model tab</button>.
+                      </span>
+                    </div>
+                  )}
+
 
                   <div className="mt-4 border-t border-border pt-3">
                     <div className="flex items-center justify-between gap-2">

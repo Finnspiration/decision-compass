@@ -1,39 +1,45 @@
-## Why you see 100 / 0 / 0
+# Make outlook trajectories readable + flag suspicious model setup
 
-This isn't a UI glitch — it's the Monte Carlo doing exactly what we told it to, and the result happens to be honest for this model.
+Two UI-only changes in `src/components/DecisionLens.tsx`. No engine, type, or server-function changes.
 
-In `winProbabilities` (lines 247–303 of `src/components/DecisionLens.tsx`) every run **shares** its randomness across the three options:
+## 1. Self-explanatory chart on the Decide tab
 
-- one set of influence-strength noise (`infNoise`)
-- one set of initial-value jitter (`initJitter`)
-- one set of per-step process shocks (`shocks[t]`)
+Goal: a non-technical reader instantly understands *which direction is good*, *where each option starts and ends*, and that the ranking is **relative**.
 
-Only the per-option **push** noise (`optPushNoise`, ±25%) differs between options inside a run. That sharing is deliberate — it's the "common random numbers" trick, which makes paired comparisons fairer and reduces variance. The side effect: if one option is better than another in the *deterministic* model by more than push-noise can erase, it wins **every** run.
+Changes to the "How each option plays out" panel:
 
-In your current model the medians are 66 / 53 / 38. Academic Bilingual beats #2 by 13 points and #3 by 28. The only thing that can flip the ranking is ±25% noise on the option's own pushes — and that's nowhere near enough to close a 13-point gap. So Academic Bilingual wins 300/300 = 100%. Mathematically correct, but useless as a confidence signal.
+- **Y-axis label** on the left edge of the SVG: "Outlook score (higher = better)". Small, muted.
+- **Caption line** under the existing description: "Lines show the most likely path. Shaded bands show the range of plausible futures."
+- **Per-option delta chips** rendered under the legend, one per option:
+  - Format: `<color dot> {Option name} — starts {S}, ends {E} ({±Δ})`
+  - Δ rendered with ▲/▼ glyph and a status color (green if Δ ≥ +2, red if Δ ≤ −2, muted otherwise).
+  - Source: first and last point of each option's p50 series already computed in `simulateMonteCarlo`.
+- **Relative-ranking note** beneath the win-probability list (right column), shown only when the top option's end value is below its start value:
+  - "All options trend downward in this model — 'comes out ahead' means **loses the least**. To find options that *improve* the outlook, revisit the Model tab."
+  - Render as a small `Alert`-style block with the existing warning token.
 
-The chart shows the same story: the blue p10–p90 fan widens with horizon, but the orange and green lines barely have a fan — `simulateMonteCarlo` is called once per option independently, and each option's spread doesn't overlap the others.
+All copy uses the established plain-language glossary (driver / outlook / how it plays out). No new tokens.
 
-## Stable solution
+## 2. Flag suspicious model setup on the Model tab
 
-Split the noise into two layers — keep "common random numbers" for fairness, but add **per-option idiosyncratic execution noise** so two options in the same world realize differently. This is how real decisions work: the same market conditions hit two strategies differently because execution, timing, and second-order effects vary.
+Goal: surface obvious modelling mistakes that produce misleading Decide-tab results — without prescribing answers.
 
-Changes confined to `simulateMonteCarlo` and `winProbabilities` (no engine, no UI):
+Add a single `ModelSanityPanel` rendered at the top of the Model tab when any check fires. Each finding is one short sentence + the driver/option it refers to. Checks (pure functions over the current model, recomputed via `useMemo`):
 
-1. **Add a per-option, per-step execution shock**: inside the variable update, add `EXEC_SIG * gauss()` drawn fresh for each `(run, option, t, variable)`. Suggested `EXEC_SIG ≈ 2.0` (same 0–100 scale).
-2. **Add per-option push-realization noise per step** (small): replace the once-per-run `optPushNoise` constant with a per-step multiplier `1 + PUSH_STEP_SIG * gauss()` (≈ 0.10) on top of the existing per-run factor. Models "this option's nudge lands harder some steps than others."
-3. **Keep** shared world noise (`infNoise`, `initJitter`, `shocks`) — that's what makes the ranking fair instead of a coin flip. Just lower `MC_PROCESS_SIG` from 2.5 → 1.5 so shared shocks don't dominate.
-4. **Use the same scheme in `simulateMonteCarlo`** so the per-option fan on the chart widens too, and the chart visually agrees with the win-%.
-5. Expose the four constants at module scope: `MC_COEF_SIG = 0.25`, `MC_INIT_SIG = 3`, `MC_PROCESS_SIG = 1.5`, `MC_EXEC_SIG = 2.0`, `MC_PUSH_STEP_SIG = 0.10`. Keep `MC_RUNS = 300`.
+- **Counter-intuitive weight sign**: a driver whose name contains hurt-words (depletion, burn, risk, cost, churn, saturation, debt, loss, attrition, drag) has a **positive** weight, OR a driver whose name contains help-words (growth, advantage, moat, reach, trust, quality, retention, momentum) has a **negative** weight. Message: "'{name}' is set as **helping** your goal — does that match reality?" (or *hurting* in the inverse case).
+- **No option moves the dominant driver**: identify the driver with the largest `|weight|`. If every option's push on it is `|push| < 5`, flag: "No option meaningfully moves '{name}', which is the strongest driver in your model."
+- **All options trend down**: if every option's p50 end < p50 start (computed from the same `simulateMonteCarlo` results the Decide tab already uses, lifted via `useMemo` so it isn't recomputed), flag: "Every option's outlook gets worse over time. Either a driver's sign is wrong, or no option pushes hard enough on what matters."
 
-Expected effect on your current model: Academic Bilingual still wins most runs (it genuinely dominates in the deterministic model), but typical shares land near ~80 / ~17 / ~3 instead of 100 / 0 / 0. Models with a <5-point gap will show near-50/50 splits. The orange/green fans on the chart will visibly fan out instead of hugging the line.
-
-### Honest caveat shown in the UI
-
-Even with this, a 28-point gap (yours vs. #3) *should* produce ~0% — that's the model talking. The remaining ask is to make sure the user reads "0%" as "robustly dominated in this model" rather than "the simulator is broken." The existing "Respect the model error" panel already says this, but we can tighten one line: when the leader's win-% is ≥ 95% AND the median gap to #2 is ≥ 10, add "**Robust lead:** in this model, #1 wins in essentially every plausible world. Stress-test by lowering its strongest variable weight or strengthening a competing influence."
+Panel UI:
+- shadcn `Card` with a muted-warning surface (reuse the existing warning token, do not introduce new colors).
+- Heading: "Worth a second look".
+- List of findings, each with a small `AlertTriangle` icon and the offending driver/option name highlighted.
+- Dismissable per-session (state only, no persistence).
 
 ## Files touched
 
-- `src/components/DecisionLens.tsx` — `simulateMonteCarlo`, `winProbabilities`, noise constants, and one extra sentence in the "Respect the model error" Card when the lead is robust.
+- `src/components/DecisionLens.tsx` — add `ModelSanityPanel`, delta chips, axis label, caption, relative-ranking note. Lift Monte-Carlo results so both the chart and the sanity panel read the same series (no extra simulation runs).
 
-No engine changes (`simulate`, `outcomeOf` untouched), no model-shape changes, no styling changes.
+## Out of scope
+
+- Simulation engine, types, server functions, AI prompts, share-URL codec, templates, onboarding copy — all unchanged.
