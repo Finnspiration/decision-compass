@@ -425,9 +425,21 @@ const TEMPLATES = [
       { from: "stress", to: "growth", strength: -30 },
     ],
     options: [
-      { id: uid(), name: "Stay & shape role", pushes: { growth: 15, income: 5, meaning: 20, network: 10, stress: -15 } },
-      { id: uid(), name: "Switch company", pushes: { growth: 35, income: 10, meaning: 15, network: 30, stress: 15 } },
-      { id: uid(), name: "Go independent", pushes: { growth: 40, income: -35, meaning: 35, network: 20, stress: 35 } },
+      { id: uid(), name: "Stay & shape role", pushes: { growth: 15, income: 5, meaning: 20, network: 10, stress: -15 }, actions: [
+        { text: "Pitch manager on a 20% scope shift toward a stretch project", targets: ["growth", "meaning"], effort: "low", when: "now" },
+        { text: "Set a hard boundary: no work after 7pm two nights a week", targets: ["stress"], effort: "low", when: "ongoing" },
+        { text: "Re-open compensation conversation at next cycle", targets: ["income"], effort: "med", when: "soon" },
+      ] },
+      { id: uid(), name: "Switch company", pushes: { growth: 35, income: 10, meaning: 15, network: 30, stress: 15 }, actions: [
+        { text: "Refresh CV and book 5 intro calls per week for 6 weeks", targets: ["network"], effort: "med", when: "now" },
+        { text: "Target roles in 2 adjacent domains to widen skill range", targets: ["growth"], effort: "med", when: "soon" },
+        { text: "Negotiate signing bonus to cover transition risk", targets: ["income", "stress"], effort: "low", when: "soon" },
+      ] },
+      { id: uid(), name: "Go independent", pushes: { growth: 40, income: -35, meaning: 35, network: 20, stress: 35 }, actions: [
+        { text: "Line up 2 anchor clients before quitting", targets: ["income"], effort: "high", when: "now" },
+        { text: "Build a 9-month cash buffer", targets: ["income", "stress"], effort: "high", when: "now" },
+        { text: "Publish weekly to compound an audience", targets: ["network", "meaning"], effort: "med", when: "ongoing" },
+      ] },
     ],
   },
   {
