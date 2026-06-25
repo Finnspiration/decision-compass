@@ -706,6 +706,7 @@ export default function DecisionLens() {
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [dontShow, setDontShow] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
   const decisionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const dropzoneRef = useRef<HTMLDivElement | null>(null);
@@ -2188,20 +2189,40 @@ export default function DecisionLens() {
           <TabsContent value="decide" className="mt-0">
             <div className="dl-decide">
               <Panel>
-                <SectionTag icon={Telescope} text={"How each option plays out · " + outcomeName} />
+                <div className="flex items-start justify-between gap-2">
+                  <SectionTag icon={Telescope} text={"How each option plays out · " + outcomeName} />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setChartOpen(true)}
+                    aria-label="Open larger trajectory chart"
+                    className="gap-1.5 -mt-1 -mr-1"
+                  >
+                    <Maximize2 size={14} />
+                    Expand
+                  </Button>
+                </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Each line shows how an option is likely to affect {outcomeName.toLowerCase()} over time. The shaded area is the range of how things could go — we're more confident about the near term than far ahead.
                 </p>
                 <p className="mt-1 text-xs text-dim">
                   Higher on the chart = better outlook. The ranking on the right is <b className="text-muted-foreground">relative</b> — it shows which option does best compared to the others, not whether things improve overall.
                 </p>
-                <TrajectoryChart
-                  runs={runs}
-                  horizon={horizon}
-                  focusId={focusOpt}
-                  best={best}
-                  mcBands={mc.bands}
-                />
+                <button
+                  type="button"
+                  onClick={() => setChartOpen(true)}
+                  aria-label="Open larger trajectory chart"
+                  className="block w-full text-left cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <TrajectoryChart
+                    runs={runs}
+                    horizon={horizon}
+                    focusId={focusOpt}
+                    best={best}
+                    mcBands={mc.bands}
+                  />
+                </button>
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   {runs.map((r) => (
                     <span key={r.option.id} className="flex items-center gap-1.5">
@@ -2424,6 +2445,55 @@ export default function DecisionLens() {
               <BookmarkPlus size={14} /> Save
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={chartOpen} onOpenChange={setChartOpen}>
+        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] flex flex-col gap-3">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Telescope size={16} className="text-primary" />
+              How each option plays out · {outcomeName}
+            </DialogTitle>
+            <DialogDescription>
+              Higher on the chart = better outlook. The shaded band shows the range of possible futures; the line is the middle case. Ranking is relative — best vs. the other options, not vs. today.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <TrajectoryChart
+              runs={runs}
+              horizon={horizon}
+              focusId={focusOpt}
+              best={best}
+              mcBands={mc.bands}
+              fill
+            />
+          </div>
+          <div className="shrink-0 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            {runs.map((r) => {
+              const d = deltas[r.option.id];
+              const delta = d ? Math.round(d.delta) : 0;
+              const tone = delta >= 2 ? "text-helps" : delta <= -2 ? "text-hurts" : "text-dim";
+              const glyph = delta >= 2 ? "▲" : delta <= -2 ? "▼" : "→";
+              const sign = delta > 0 ? "+" : "";
+              return (
+                <span key={r.option.id} className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
+                  <span>{r.option.name}</span>
+                  {d && <span className={"tabular-nums font-semibold " + tone}>{glyph} {sign}{delta}</span>}
+                </span>
+              );
+            })}
+            <span className="ml-auto text-dim">based on {MC_RUNS} possible futures</span>
+          </div>
+          {allTrendDown && (
+            <div className="shrink-0 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
+              <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
+              <span className="leading-relaxed">
+                All options trend downward in this model — "comes out ahead" means <b className="text-foreground">loses the least</b>.
+              </span>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -2998,13 +3068,14 @@ const SystemMap = React.memo(SystemMapImpl);
 /* ----------------------- trajectory chart (SVG) -------------------------- */
 type Run = { option: DecisionOption; color: string; traj: TrajPoint[] };
 function TrajectoryChartImpl({
-  runs, horizon, focusId, best, mcBands,
+  runs, horizon, focusId, best, mcBands, fill = false,
 }: {
   runs: Run[];
   horizon: number;
   focusId: string | null;
   best?: Run & { score: number };
   mcBands?: Record<string, MCBand[]>;
+  fill?: boolean;
 }) {
   const W = 620, H = 320, pl = 36, pr = 14, pt = 14, pb = 26;
   const ix = (t: number) => pl + (t * (W - pl - pr)) / Math.max(horizon, 1);
@@ -3038,11 +3109,16 @@ function TrajectoryChartImpl({
   }
 
   return (
-    <div className="mt-3 rounded-xl" style={{ background: SVG.inset, border: "1px solid " + SVG.border }}>
+    <div
+      className={fill ? "h-full w-full rounded-xl" : "mt-3 rounded-xl"}
+      style={{ background: SVG.inset, border: "1px solid " + SVG.border }}
+    >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
+        height={fill ? "100%" : undefined}
+        preserveAspectRatio={fill ? "xMidYMid meet" : undefined}
         role="img"
         aria-label="Option trajectories"
         onMouseMove={handleMove}
@@ -3050,7 +3126,7 @@ function TrajectoryChartImpl({
         onTouchStart={(e) => { if (e.touches[0]) handleMove(e.touches[0]); }}
         onTouchMove={(e) => { if (e.touches[0]) handleMove(e.touches[0]); }}
         onTouchEnd={handleLeave}
-        style={{ touchAction: "none" }}
+        style={fill ? { touchAction: "none", display: "block" } : { touchAction: "none" }}
       >
         {grid.map((g) => (
           <g key={g}>
