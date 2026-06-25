@@ -2322,7 +2322,7 @@ export default function DecisionLens() {
 
 
 
-                {optionSuggestions === null && optionSuggestions !== undefined ? null : null}
+                
                 <SuggestionList
                   suggestions={optionSuggestions}
                   variables={variables}
