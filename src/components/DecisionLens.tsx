@@ -4,6 +4,7 @@ import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
   HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
+  BookmarkPlus, Pencil, Bookmark,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { explainDecision, critiqueModel, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
@@ -368,6 +369,45 @@ const TEMPLATES = [
   },
 ];
 
+/* --------------------------- user templates (localStorage) --------------- */
+type TemplateSource = "ai" | "documents" | "manual";
+type UserTemplate = {
+  id: string;
+  name: string;
+  source: TemplateSource;
+  model: Model;
+  createdAt: number;
+};
+const USER_TEMPLATES_KEY = "dl_templates";
+
+function loadUserTemplatesFromStorage(): UserTemplate[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(USER_TEMPLATES_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(
+      (t: any) =>
+        t && typeof t.id === "string" && typeof t.name === "string" &&
+        t.model && Array.isArray(t.model.variables) && Array.isArray(t.model.options)
+    );
+  } catch { return []; }
+}
+function saveUserTemplatesToStorage(list: UserTemplate[]) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(list)); } catch { /* noop */ }
+}
+function templateFromBuiltin(tpl: (typeof TEMPLATES)[number]): Model {
+  return {
+    outcomeName: tpl.outcomeName,
+    horizon: tpl.horizon,
+    variables: tpl.variables.map((v) => ({ ...v })),
+    influences: tpl.influences.map((i) => ({ ...i })),
+    options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes } })),
+  };
+}
+
 function blankStarter(): Model {
   return {
     outcomeName: "Outcome",
@@ -530,6 +570,11 @@ export default function DecisionLens() {
   const [dragOver, setDragOver] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | undefined>();
   const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
+
+  // User templates (gallery)
+  const [userTemplates, setUserTemplates] = useState<UserTemplate[]>(() => loadUserTemplatesFromStorage());
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
 
   // Onboarding state
   const [welcomeOpen, setWelcomeOpen] = useState(false);
@@ -729,6 +774,64 @@ export default function DecisionLens() {
     }
   }
 
+  function inferCurrentSource(): TemplateSource {
+    if (aiSources && aiSources.length > 0) return "documents";
+    if (aiSummary) return "ai";
+    return "manual";
+  }
+  function persistUserTemplates(next: UserTemplate[]) {
+    setUserTemplates(next);
+    saveUserTemplatesToStorage(next);
+  }
+  function openSaveTemplate() {
+    setSaveName(outcomeName || "My decision");
+    setSaveOpen(true);
+  }
+  function confirmSaveTemplate() {
+    const name = saveName.trim();
+    if (!name) return;
+    const entry: UserTemplate = {
+      id: uid(),
+      name,
+      source: inferCurrentSource(),
+      model: {
+        outcomeName, horizon,
+        variables: variables.map((v) => ({ ...v })),
+        influences: influences.map((i) => ({ ...i })),
+        options: options.map((o) => ({ ...o, pushes: { ...o.pushes } })),
+        summary: aiSummary,
+        sources: aiSources,
+      },
+      createdAt: Date.now(),
+    };
+    persistUserTemplates([entry, ...userTemplates]);
+    setSaveOpen(false);
+    toast.success("Template saved", { description: "Decision Lens · added to your gallery." });
+  }
+  function deleteUserTemplate(id: string) {
+    persistUserTemplates(userTemplates.filter((t) => t.id !== id));
+    toast.success("Template removed", { description: "Decision Lens · gallery updated." });
+  }
+  function renameUserTemplate(id: string) {
+    const t = userTemplates.find((x) => x.id === id);
+    if (!t) return;
+    const name = window.prompt("Rename template", t.name);
+    if (!name || !name.trim()) return;
+    persistUserTemplates(
+      userTemplates.map((x) => (x.id === id ? { ...x, name: name.trim() } : x))
+    );
+    toast.success("Template renamed", { description: "Decision Lens · gallery updated." });
+  }
+  function loadUserTemplate(t: UserTemplate) {
+    loadModel(t.model);
+    setStage("model");
+  }
+  function loadBuiltinTemplate(tpl: (typeof TEMPLATES)[number]) {
+    setDecision(tpl.decision);
+    loadModel(templateFromBuiltin(tpl));
+    setStage("model");
+  }
+
   const runs = useMemo(
     () =>
       options.map((o, i) => ({
@@ -914,6 +1017,17 @@ export default function DecisionLens() {
             >
               <Share2 size={15} />
               Share
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={openSaveTemplate}
+              className="gap-2"
+              aria-label="Save current model as a template"
+            >
+              <BookmarkPlus size={15} />
+              Save as template
             </Button>
           </div>
 
@@ -1112,28 +1226,85 @@ export default function DecisionLens() {
 
               <div ref={templatesPanelRef}>
                 <Panel>
-                  <SectionTag icon={GitBranch} text="Or start from a template" />
-                  <div className="mt-3 grid gap-2">
+                  <SectionTag icon={GitBranch} text="Template gallery" />
+                  <p className="mt-2 text-xs text-dim">
+                    Pick a starting system — built-in or one of your saved models.
+                  </p>
+                  <div
+                    className="mt-3 grid gap-3"
+                    style={{ gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))" }}
+                  >
                     {TEMPLATES.map((tpl) => (
-                      <Button
+                      <button
                         key={tpl.label}
-                        variant="secondary"
-                        disabled={drafting}
-                        onClick={() => { setDecision(tpl.decision); void runAutoDraft(tpl.key[0]); }}
-                        className="h-auto justify-between bg-muted px-4 py-3 text-left text-sm font-normal"
+                        type="button"
+                        onClick={() => loadBuiltinTemplate(tpl)}
+                        className="group flex h-full flex-col gap-2 rounded-md border border-border bg-muted p-3 text-left transition-colors hover:border-primary"
                       >
-                        <span>{tpl.label}</span>
-                        <ArrowRight size={15} className="text-primary" />
-                      </Button>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            Built-in
+                          </span>
+                          <ArrowRight size={14} className="text-primary opacity-60 group-hover:opacity-100" />
+                        </div>
+                        <div className="text-sm font-medium text-foreground">{tpl.label}</div>
+                        <div className="text-[11px] text-dim">Outcome · {tpl.outcomeName}</div>
+                      </button>
                     ))}
-                    <Button
-                      variant="outline"
+
+                    {userTemplates.map((t) => {
+                      const badge =
+                        t.source === "ai" ? "AI" : t.source === "documents" ? "Documents" : "Manual";
+                      return (
+                        <div
+                          key={t.id}
+                          className="group flex h-full flex-col gap-2 rounded-md border border-border bg-card p-3 text-left transition-colors hover:border-primary"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary">
+                              <Bookmark size={10} /> {badge}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => renameUserTemplate(t.id)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                                aria-label={`Rename ${t.name}`}
+                                title="Rename"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteUserTemplate(t.id)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
+                                aria-label={`Delete ${t.name}`}
+                                title="Delete"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => loadUserTemplate(t)}
+                            className="flex flex-1 flex-col gap-1 text-left"
+                          >
+                            <div className="text-sm font-medium text-foreground">{t.name}</div>
+                            <div className="text-[11px] text-dim">Outcome · {t.model.outcomeName}</div>
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      type="button"
                       onClick={() => { loadModel(blankStarter()); setStage("model"); }}
-                      className="h-auto justify-between border-dashed bg-transparent px-4 py-3 text-left text-sm font-normal text-muted-foreground"
+                      className="flex h-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border bg-transparent p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
                     >
-                      <span>Start blank</span>
-                      <Plus size={15} />
-                    </Button>
+                      <Plus size={16} />
+                      Start blank
+                    </button>
                   </div>
                 </Panel>
               </div>
@@ -1623,6 +1794,40 @@ export default function DecisionLens() {
         }}
         onSkip={() => setTourStep(null)}
       />
+
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookmarkPlus size={16} className="text-primary" />
+              Save as template
+            </DialogTitle>
+            <DialogDescription>
+              Decision Lens · stores your current model in this browser for reuse.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 grid gap-2">
+            <label className="text-xs text-muted-foreground" htmlFor="dl-save-name">Template name</label>
+            <Input
+              id="dl-save-name"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") confirmSaveTemplate(); }}
+              placeholder="e.g. Q3 market entry"
+              autoFocus
+            />
+            <div className="text-[11px] text-dim">
+              Will be saved as <span className="text-foreground">{inferCurrentSource()}</span> source.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>Cancel</Button>
+            <Button onClick={confirmSaveTemplate} disabled={!saveName.trim()} className="gap-2">
+              <BookmarkPlus size={14} /> Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
