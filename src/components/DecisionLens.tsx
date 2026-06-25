@@ -591,6 +591,9 @@ export default function DecisionLens() {
   const [dragOver, setDragOver] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | undefined>();
   const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
+  const [aiAttachedCount, setAiAttachedCount] = useState(0);
+  const [aiSkippedCount, setAiSkippedCount] = useState(0);
+  const [aiHighlight, setAiHighlight] = useState(false);
 
   // User templates (gallery)
   const [userTemplates, setUserTemplates] = useState<UserTemplate[]>(() => loadUserTemplatesFromStorage());
@@ -717,16 +720,28 @@ export default function DecisionLens() {
     }
   }
 
+  function triggerAiHighlight() {
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setAiHighlight(false); return; }
+    setAiHighlight(true);
+    window.setTimeout(() => setAiHighlight(false), 2200);
+  }
+
   async function runAutoDraft(text: string) {
     setDrafting(true);
     try {
       const m = await autoDraftModel(text);
       loadModel(m);
+      setAiAttachedCount(0);
+      setAiSkippedCount(0);
       setStage("model");
+      triggerAiHighlight();
       toast.success("Model drafted", { description: "Decision Lens · AI-built your starting system." });
     } catch (err) {
       console.error("autoDraft failed", err);
       loadModel(keywordTemplate(text));
+      setAiAttachedCount(0);
+      setAiSkippedCount(0);
       setStage("model");
       const { title, description } = describeAiError(err);
       toast.error(title, { description });
@@ -745,6 +760,7 @@ export default function DecisionLens() {
       return;
     }
     setIngesting(true);
+    const attached = pdfFiles.length + urls.length;
     try {
       const filesPayload = await Promise.all(
         pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) }))
@@ -754,9 +770,12 @@ export default function DecisionLens() {
       const m = validateDraftedModel(raw);
       if (!m) throw new Error("AI_BAD_JSON: model failed validation");
       loadModel(m);
-      setStage("model");
       const skipped = (raw as { skipped?: Array<{ name: string; reason: string }> }).skipped ?? [];
       const degraded = (raw as { degraded?: boolean }).degraded === true;
+      setAiAttachedCount(attached);
+      setAiSkippedCount(skipped.length);
+      setStage("model");
+      triggerAiHighlight();
       if (skipped.length > 0) {
         const lines = skipped.slice(0, 4).map((s) => `${s.name}: ${describeSkipReason(s.reason)}`).join(" · ");
         const more = skipped.length > 4 ? ` · +${skipped.length - 4} more` : "";
@@ -1480,9 +1499,21 @@ export default function DecisionLens() {
             {(aiSummary || (aiSources && aiSources.length > 0)) && (
               <div className="mb-5">
                 <Panel>
-                  <SectionTag icon={Sparkles} text="What the AI found" />
+                  <SectionTag icon={Sparkles} text="Your decision landscape" />
                   {aiSummary && (
                     <p className="mt-2 text-sm text-foreground">{aiSummary}</p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Built from your sources — review and adjust anything below, then move to Options → Decide.
+                  </p>
+                  {aiAttachedCount > 0 && (
+                    <p className="mt-2 text-xs text-foreground">
+                      Used <b>{Math.max(0, aiAttachedCount - aiSkippedCount)}</b> of <b>{aiAttachedCount}</b> source{aiAttachedCount === 1 ? "" : "s"}
+                      {aiSkippedCount > 0 && (
+                        <span className="text-muted-foreground"> ({aiSkippedCount} skipped: unreadable or too large)</span>
+                      )}
+                      .
+                    </p>
                   )}
                   {aiSources && aiSources.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -1501,6 +1532,22 @@ export default function DecisionLens() {
                   <p className="mt-3 text-xs text-dim">
                     Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each variable to see why the AI included it.
                   </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                    <Button
+                      onClick={() => setStage("options")}
+                      className="gap-2"
+                    >
+                      Looks right — set up options <ArrowRight size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStage("frame")}
+                      className="gap-1.5"
+                    >
+                      <ArrowLeft size={13} /> Re-map from sources
+                    </Button>
+                  </div>
                 </Panel>
               </div>
             )}
@@ -1576,6 +1623,7 @@ export default function DecisionLens() {
             <div className="dl-model">
 
 
+              <div className={aiHighlight ? "rounded-xl ring-2 ring-primary/70 ring-offset-2 ring-offset-background motion-safe:animate-pulse transition-shadow" : "transition-shadow"}>
               <Panel>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
@@ -1694,6 +1742,7 @@ export default function DecisionLens() {
                   ))}
                 </div>
               </Panel>
+              </div>
 
               {/* live system map — transforms as you add variables & links */}
               <Panel>
