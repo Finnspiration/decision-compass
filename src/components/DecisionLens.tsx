@@ -1266,6 +1266,37 @@ export default function DecisionLens() {
     return { variable: bestVar, outDegree: bestDeg };
   }, [variables, influences]);
 
+  // Model-health hints (plain language). Detects: no-downside, orphan drivers, no loops.
+  const modelHealth = useMemo(() => {
+    const noDownside = variables.length > 0 && !variables.some((v) => v.weight < 0);
+    const orphans = variables.filter(
+      (v) => !influences.some((i) => i.from === v.id || i.to === v.id)
+    );
+    // Cycle detection via DFS on the directed influence graph.
+    const adj = new Map<string, string[]>();
+    for (const v of variables) adj.set(v.id, []);
+    for (const i of influences) adj.get(i.from)?.push(i.to);
+    const WHITE = 0, GRAY = 1, BLACK = 2;
+    const color = new Map<string, number>();
+    for (const v of variables) color.set(v.id, WHITE);
+    let hasCycle = false;
+    const dfs = (u: string): void => {
+      if (hasCycle) return;
+      color.set(u, GRAY);
+      for (const n of adj.get(u) ?? []) {
+        const c = color.get(n) ?? WHITE;
+        if (c === GRAY) { hasCycle = true; return; }
+        if (c === WHITE) dfs(n);
+      }
+      color.set(u, BLACK);
+    };
+    for (const v of variables) if ((color.get(v.id) ?? WHITE) === WHITE) dfs(v.id);
+    const noLoops = influences.length > 0 && !hasCycle;
+    return { noDownside, orphans, noLoops };
+  }, [variables, influences]);
+
+
+
 
 
 
