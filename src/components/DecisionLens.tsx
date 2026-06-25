@@ -1499,9 +1499,21 @@ export default function DecisionLens() {
             {(aiSummary || (aiSources && aiSources.length > 0)) && (
               <div className="mb-5">
                 <Panel>
-                  <SectionTag icon={Sparkles} text="What the AI found" />
+                  <SectionTag icon={Sparkles} text="Your decision landscape" />
                   {aiSummary && (
                     <p className="mt-2 text-sm text-foreground">{aiSummary}</p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Built from your sources — review and adjust anything below, then move to Options → Decide.
+                  </p>
+                  {aiAttachedCount > 0 && (
+                    <p className="mt-2 text-xs text-foreground">
+                      Used <b>{Math.max(0, aiAttachedCount - aiSkippedCount)}</b> of <b>{aiAttachedCount}</b> source{aiAttachedCount === 1 ? "" : "s"}
+                      {aiSkippedCount > 0 && (
+                        <span className="text-muted-foreground"> ({aiSkippedCount} skipped: unreadable or too large)</span>
+                      )}
+                      .
+                    </p>
                   )}
                   {aiSources && aiSources.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -1520,6 +1532,22 @@ export default function DecisionLens() {
                   <p className="mt-3 text-xs text-dim">
                     Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each variable to see why the AI included it.
                   </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                    <Button
+                      onClick={() => setStage("options")}
+                      className="gap-2"
+                    >
+                      Looks right — set up options <ArrowRight size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStage("frame")}
+                      className="gap-1.5"
+                    >
+                      <ArrowLeft size={13} /> Re-map from sources
+                    </Button>
+                  </div>
                 </Panel>
               </div>
             )}
