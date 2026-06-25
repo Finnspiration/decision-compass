@@ -2123,28 +2123,26 @@ export default function DecisionLens() {
 
 
                 <Panel>
-                  <SectionTag icon={Telescope} text="Respect the model error" />
+                  <SectionTag icon={Telescope} text="Things to keep in mind" />
                   <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
                     <li>
-                      <b className="text-foreground">Load-bearing:</b> the gap between #1 and #2 is{" "}
-                      {Math.round(best.score - (ranked[1]?.score ?? best.score))} pts. If that's thin, this is a
-                      near-tie — don't over-trust the ranking.
+                      <b className="text-foreground">How close is the race:</b> the gap in outlook between #1 and #2 is{" "}
+                      {Math.round(best.score - (ranked[1]?.score ?? best.score))} points. If that's small, this is basically a tie — don't over-trust the ranking.
                     </li>
                     <li>
-                      <b className="text-foreground">Decays with horizon:</b> reliability falls off after a few
-                      steps. Re-run as reality comes in.
+                      <b className="text-foreground">Near term is more reliable:</b> the further out you look, the fuzzier things get. Revisit this as new information comes in.
                     </li>
                     <li>
-                      <b className="text-foreground">Cheapest probe:</b>{" "}
+                      <b className="text-foreground">Cheapest thing to check first:</b>{" "}
                       {suggestedProbe ? (
-                        <>measure <b className="text-primary">{suggestedProbe.variable.name}</b> before committing — it feeds {suggestedProbe.outDegree} downstream {suggestedProbe.outDegree === 1 ? "link" : "links"}.</>
+                        <>get a read on <b className="text-primary">{suggestedProbe.variable.name}</b> before you commit — it affects {suggestedProbe.outDegree} other {suggestedProbe.outDegree === 1 ? "driver" : "drivers"}.</>
                       ) : (
-                        <>measure whichever upstream variable feeds the most arrows before committing.</>
+                        <>get a read on whichever driver feeds the most arrows before you commit.</>
                       )}
                     </li>
                     {best.winProb >= 0.95 && Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
                       <li>
-                        <b className="text-foreground">Robust lead:</b> in this model, #1 wins in essentially every plausible world. Stress-test it by lowering its strongest variable weight or strengthening a competing influence.
+                        <b className="text-foreground">Strong lead:</b> #1 comes out ahead in almost every likely future. To pressure-test it, try lowering its strongest helping driver or strengthening a knock-on effect that works against it.
                       </li>
                     )}
                   </ul>
@@ -2155,7 +2153,7 @@ export default function DecisionLens() {
                     onClick={() => setStage("model")}
                     className="mt-3 gap-2"
                   >
-                    <RotateCcw size={13} /> Adjust the model
+                    <RotateCcw size={13} /> Tweak the map
                   </Button>
                 </Panel>
               </div>
