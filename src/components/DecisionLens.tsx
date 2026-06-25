@@ -1999,15 +1999,18 @@ export default function DecisionLens() {
       />
       <TourCoachmark
         step={tourStep}
-        anchors={stepperRefs.current}
+        anchors={[dropzoneRef.current, ...stepperRefs.current]}
         onNext={() => {
           const next = (tourStep ?? 0) + 1;
-          if (next >= STAGES.length) { setTourStep(null); return; }
+          if (next > STAGES.length) { setTourStep(null); return; }
           setTourStep(next);
-          setStage(STAGES[next].id);
+          // next=1 → Frame tab, next=2 → Model, etc.
+          const stageIdx = Math.max(0, next - 1);
+          if (stageIdx < STAGES.length) setStage(STAGES[stageIdx].id);
         }}
         onSkip={() => setTourStep(null)}
       />
+
 
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent className="max-w-md">
