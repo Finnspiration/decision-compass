@@ -2442,7 +2442,7 @@ function TourCoachmark({
   step, anchors, onNext, onSkip,
 }: {
   step: number | null;
-  anchors: Array<HTMLButtonElement | null>;
+  anchors: Array<HTMLElement | null>;
   onNext: () => void;
   onSkip: () => void;
 }) {
