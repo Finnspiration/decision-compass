@@ -1509,8 +1509,12 @@ export default function DecisionLens() {
                       steps. Re-run as reality comes in.
                     </li>
                     <li>
-                      <b className="text-foreground">Cheapest probe:</b> measure whichever upstream variable feeds
-                      the most arrows before committing.
+                      <b className="text-foreground">Cheapest probe:</b>{" "}
+                      {suggestedProbe ? (
+                        <>measure <b className="text-primary">{suggestedProbe.variable.name}</b> before committing — it feeds {suggestedProbe.outDegree} downstream {suggestedProbe.outDegree === 1 ? "link" : "links"}.</>
+                      ) : (
+                        <>measure whichever upstream variable feeds the most arrows before committing.</>
+                      )}
                     </li>
                   </ul>
                   <Button
