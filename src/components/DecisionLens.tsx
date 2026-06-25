@@ -1623,6 +1623,7 @@ export default function DecisionLens() {
             <div className="dl-model">
 
 
+              <div className={aiHighlight ? "rounded-xl ring-2 ring-primary/70 ring-offset-2 ring-offset-background motion-safe:animate-pulse transition-shadow" : "transition-shadow"}>
               <Panel>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
