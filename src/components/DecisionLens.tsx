@@ -28,6 +28,14 @@ import fraimeworksLogo from "@/assets/fraimeworksdecision.png.asset.json";
 
 const ONBOARD_KEY = "dl_onboarded";
 
+function strengthLabel(s: number): string {
+  if (s <= -60) return "down a lot";
+  if (s < 0) return "down a little";
+  if (s === 0) return "doesn't move";
+  if (s < 60) return "up a little";
+  return "up a lot";
+}
+
 /* ============================================================================
    DECISION LENS — a generally-applicable, decision-focused world model.
 
@@ -729,7 +737,12 @@ export default function DecisionLens() {
     }
   }
 
-  function openHelp() { setDontShow(false); setWelcomeOpen(true); }
+  function openHelp() {
+    setDontShow(false);
+    setWelcomeOpen(true);
+    setCoachDismissed(false);
+    setSanityDismissed(false);
+  }
 
   function startFromDocs() {
     closeWelcome(dontShow);
@@ -1080,6 +1093,7 @@ export default function DecisionLens() {
   const HURT_WORDS = ["depletion", "burn", "risk", "cost", "churn", "saturation", "debt", "loss", "attrition", "drag"];
   const HELP_WORDS = ["growth", "advantage", "moat", "reach", "trust", "quality", "retention", "momentum"];
   const [sanityDismissed, setSanityDismissed] = useState(false);
+  const [coachDismissed, setCoachDismissed] = useState(false);
   const modelFindings = useMemo(() => {
     const findings: Array<{ id: string; text: React.ReactNode }> = [];
     for (const v of variables) {
@@ -1251,6 +1265,37 @@ export default function DecisionLens() {
     }
     return { variable: bestVar, outDegree: bestDeg };
   }, [variables, influences]);
+
+  // Model-health hints (plain language). Detects: no-downside, orphan drivers, no loops.
+  const modelHealth = useMemo(() => {
+    const noDownside = variables.length > 0 && !variables.some((v) => v.weight < 0);
+    const orphans = variables.filter(
+      (v) => !influences.some((i) => i.from === v.id || i.to === v.id)
+    );
+    // Cycle detection via DFS on the directed influence graph.
+    const adj = new Map<string, string[]>();
+    for (const v of variables) adj.set(v.id, []);
+    for (const i of influences) adj.get(i.from)?.push(i.to);
+    const WHITE = 0, GRAY = 1, BLACK = 2;
+    const color = new Map<string, number>();
+    for (const v of variables) color.set(v.id, WHITE);
+    let hasCycle = false;
+    const dfs = (u: string): void => {
+      if (hasCycle) return;
+      color.set(u, GRAY);
+      for (const n of adj.get(u) ?? []) {
+        const c = color.get(n) ?? WHITE;
+        if (c === GRAY) { hasCycle = true; return; }
+        if (c === WHITE) dfs(n);
+      }
+      color.set(u, BLACK);
+    };
+    for (const v of variables) if ((color.get(v.id) ?? WHITE) === WHITE) dfs(v.id);
+    const noLoops = influences.length > 0 && !hasCycle;
+    return { noDownside, orphans, noLoops };
+  }, [variables, influences]);
+
+
 
 
 
@@ -1769,6 +1814,56 @@ export default function DecisionLens() {
 
           {/* ---------------------------- MODEL ---------------------------- */}
           <TabsContent value="model" className="mt-0">
+            {!coachDismissed && (() => {
+              const varCount = variables.length;
+              const step1Done = varCount >= 3 && varCount <= 6;
+              const step2Done = varCount > 0;
+              const step3Done = influences.length >= 2;
+              const Item = ({ done, children }: { done: boolean; children: React.ReactNode }) => (
+                <li className="flex items-start gap-2">
+                  {done ? (
+                    <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
+                  ) : (
+                    <Circle size={15} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                  )}
+                  <span className={done ? "text-foreground" : "text-muted-foreground"}>{children}</span>
+                </li>
+              );
+              return (
+                <div className="mb-5">
+                  <Panel className="border-primary/30 bg-primary/5">
+                    <div className="flex items-start justify-between gap-3">
+                      <SectionTag icon={Compass} text="Build a good model" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCoachDismissed(true)}
+                        className="-mt-1 h-7 px-2 text-xs text-muted-foreground"
+                        aria-label="Dismiss setup coach"
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                    <ul className="mt-3 grid list-none gap-2 p-0 text-sm">
+                      <Item done={step1Done}>
+                        <b>1.</b> List the few things that drive {outcomeName.toLowerCase()} (aim for 3–6)
+                        <span className="ml-1 text-xs text-muted-foreground">— {varCount} so far</span>
+                      </Item>
+                      <Item done={step2Done}>
+                        <b>2.</b> For each, set where it stands today and whether it helps or hurts.
+                      </Item>
+                      <Item done={step3Done}>
+                        <b>3.</b> Connect them with knock-on effects — aim for at least one loop.
+                        <span className="ml-1 text-xs text-muted-foreground">— {influences.length} so far</span>
+                      </Item>
+                    </ul>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Reopen anytime from the Help button in the header.
+                    </p>
+                  </Panel>
+                </div>
+              );
+            })()}
             {modelFindings.length > 0 && !sanityDismissed && (
               <div className="mb-5">
                 <Panel className="border-hurts/30 bg-hurts/5">
@@ -1989,6 +2084,13 @@ export default function DecisionLens() {
                   ))}
                 </div>
 
+                {modelHealth.noDownside && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                    <span>Every real decision has a downside — consider adding something this could hurt (a risk).</span>
+                  </div>
+                )}
+
                 <div className="mt-5 flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     <SectionTag icon={GitBranch} text="Knock-on effects" />
@@ -2013,32 +2115,67 @@ export default function DecisionLens() {
                     </div>
                   )}
 
-                  {influences.map((inf, idx) => (
-                    <div key={idx} className="flex items-center gap-2 rounded-xl border border-border bg-muted p-2">
-                      <VarSelect value={inf.from} vars={variables} onChange={(val) => updInf(idx, { from: val })} />
-                      <ArrowRight
-                        size={14}
-                        className={inf.strength >= 0 ? "text-helps" : "text-hurts"}
-                      />
-                      <VarSelect value={inf.to} vars={variables} onChange={(val) => updInf(idx, { to: val })} />
-                      <Slider
-                        min={-100} max={100} step={1} value={[inf.strength]}
-                        onValueChange={(val) => updInf(idx, { strength: val[0] })}
-                        className="flex-1 min-w-[60px]"
-                        aria-label="Knock-on effect strength"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setInfluences(influences.filter((_, i) => i !== idx))}
-                        aria-label="Remove knock-on effect"
-                        className="text-dim"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
-                  ))}
+                  {influences.map((inf, idx) => {
+                    const fromName = variables.find((v) => v.id === inf.from)?.name ?? "—";
+                    const toName = variables.find((v) => v.id === inf.to)?.name ?? "—";
+                    const label = strengthLabel(inf.strength);
+                    const tone = inf.strength >= 0 ? "text-helps" : "text-hurts";
+                    return (
+                      <div key={idx} className="rounded-xl border border-border bg-muted p-3">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
+                          <span className="text-muted-foreground">When</span>
+                          <VarSelect value={inf.from} vars={variables} onChange={(val) => updInf(idx, { from: val })} />
+                          <span className="text-muted-foreground">rises,</span>
+                          <VarSelect value={inf.to} vars={variables} onChange={(val) => updInf(idx, { to: val })} />
+                          <span className="text-muted-foreground">goes</span>
+                          <span className={"font-medium " + tone} aria-live="polite">{label}</span>
+                          {inf.rationale && (
+                            <HelpPopover title="Why this knock-on effect" body={inf.rationale} />
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setInfluences(influences.filter((_, i) => i !== idx))}
+                            aria-label={`Remove knock-on effect from ${fromName} to ${toName}`}
+                            className="ml-auto text-dim"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                        <div className="mt-2 flex items-center gap-3">
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground w-20 shrink-0">Strength</span>
+                          <Slider
+                            min={-100} max={100} step={1} value={[inf.strength]}
+                            onValueChange={(val) => updInf(idx, { strength: val[0] })}
+                            className="flex-1"
+                            aria-label={`Knock-on effect strength from ${fromName} to ${toName} — currently ${label}`}
+                          />
+                          <span className={"text-xs tabular-nums w-10 text-right " + tone}>
+                            {inf.strength > 0 ? "+" : ""}{inf.strength}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {(modelHealth.orphans.length > 0 || modelHealth.noLoops) && (
+                  <div className="mt-3 grid gap-2">
+                    {modelHealth.orphans.slice(0, 2).map((v) => (
+                      <div key={v.id} className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
+                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                        <span>‘{v.name}’ isn't connected to anything yet — does it affect, or get affected by, the others?</span>
+                      </div>
+                    ))}
+                    {modelHealth.noLoops && (
+                      <div className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
+                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                        <span>Nothing loops back yet. Decisions get interesting when one driver feeds another that feeds it back.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
               </Panel>
               </div>
 
