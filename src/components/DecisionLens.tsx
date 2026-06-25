@@ -225,16 +225,16 @@ type Model = {
 /* --------------------------- URL hash codec ----------------------------- */
 function encodeModel(m: Model): string {
   // Compact JSON; URL-safe via encodeURIComponent. Correctness over cleverness.
-  const compact = {
+  const compact: Record<string, unknown> = {
     o: m.outcomeName,
     h: m.horizon,
     v: m.variables.map((v) => ({ i: v.id, n: v.name, v: v.value, w: v.weight })),
     e: m.influences.map((i) => ({ f: i.from, t: i.to, s: i.strength })),
     p: m.options.map((o) => {
-      const base: any = { i: o.id, n: o.name, p: o.pushes };
+      const base: Record<string, unknown> = { i: o.id, n: o.name, p: o.pushes };
       if (o.actions && o.actions.length) {
         base.a = o.actions.map((a) => {
-          const x: any = { x: a.text };
+          const x: Record<string, unknown> = { x: a.text };
           if (a.targets && a.targets.length) x.g = a.targets;
           if (a.effort) x.e = a.effort;
           if (a.when) x.w = a.when;
@@ -251,41 +251,60 @@ function parseHashModel(hash: string): Model | null {
   try {
     const m = hash.match(/[#&]m=([^&]+)/);
     if (!m) return null;
-    const raw = JSON.parse(decodeURIComponent(m[1]));
+    const raw: unknown = JSON.parse(decodeURIComponent(m[1]));
     if (!raw || typeof raw !== "object") return null;
-    const outcomeName = String(raw.o ?? "");
-    const horizon = Number(raw.h);
+    const field = (o: unknown, k: string) => (o as Record<string, unknown>)[k];
+    const outcomeName = String(field(raw, "o") ?? "");
+    const horizon = Number(field(raw, "h"));
     if (!outcomeName || !Number.isFinite(horizon) || horizon < 1 || horizon > 200) return null;
-    if (!Array.isArray(raw.v) || !Array.isArray(raw.e) || !Array.isArray(raw.p)) return null;
-    const variables: Variable[] = raw.v.map((v: any) => ({
-      id: String(v.i),
-      name: String(v.n ?? ""),
-      value: Number(v.v),
-      weight: Number(v.w),
+    const vRaw = field(raw, "v");
+    const eRaw = field(raw, "e");
+    const pRaw = field(raw, "p");
+    if (!Array.isArray(vRaw) || !Array.isArray(eRaw) || !Array.isArray(pRaw)) return null;
+    const variables: Variable[] = vRaw.map((v: unknown) => ({
+      id: String(field(v, "i")),
+      name: String(field(v, "n") ?? ""),
+      value: Number(field(v, "v")),
+      weight: Number(field(v, "w")),
     }));
     if (variables.some((v) => !v.id || !Number.isFinite(v.value) || !Number.isFinite(v.weight)))
       return null;
     const ids = new Set(variables.map((v) => v.id));
-    const influences: Influence[] = raw.e.map((i: any) => ({
-      from: String(i.f),
-      to: String(i.t),
-      strength: Number(i.s),
+    const influences: Influence[] = eRaw.map((i: unknown) => ({
+      from: String(field(i, "f")),
+      to: String(field(i, "t")),
+      strength: Number(field(i, "s")),
     }));
     if (influences.some((i) => !ids.has(i.from) || !ids.has(i.to) || !Number.isFinite(i.strength)))
       return null;
-    const options: DecisionOption[] = raw.p.map((o: any) => {
+    let optionsValid = true;
+    const options: DecisionOption[] = pRaw.map((o: unknown) => {
       const pushes: Record<string, number> = {};
-      if (o.p && typeof o.p === "object") {
-        for (const k of Object.keys(o.p)) {
-          if (!ids.has(k)) return null as any;
-          const n = Number((o.p as any)[k]);
-          if (!Number.isFinite(n)) return null as any;
+      const pField = field(o, "p");
+      if (pField && typeof pField === "object") {
+        const pObj = pField as Record<string, unknown>;
+        for (const k of Object.keys(pObj)) {
+          if (!ids.has(k)) {
+            optionsValid = false;
+            break;
+          }
+          const n = Number(pObj[k]);
+          if (!Number.isFinite(n)) {
+            optionsValid = false;
+            break;
+          }
           pushes[k] = n;
         }
       }
-      const actions = sanitizeActions((o as any).a, ids);
-      return { id: String(o.i), name: String(o.n ?? ""), pushes, ...(actions ? { actions } : {}) };
+      const actions = sanitizeActions(field(o, "a"), ids);
+      return {
+        id: String(field(o, "i")),
+        name: String(field(o, "n") ?? ""),
+        pushes,
+        ...(actions ? { actions } : {}),
+      };
     });
+    if (!optionsValid) return null;
     if (options.some((o) => !o || !o.id)) return null;
     return { outcomeName, horizon, variables, influences, options };
   } catch {
