@@ -872,24 +872,102 @@ export default function DecisionLens() {
                   className="mt-2 resize-y bg-muted"
                 />
 
-                <div className="mt-3 flex items-center gap-2">
+                {/* Sources: PDFs + URLs */}
+                <div className="mt-4">
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    Sources (optional)
+                    <HelpPopover
+                      title="Sources"
+                      body="Drop PDFs or paste URLs. We extract their text on the server and ground the AI model in their content."
+                    />
+                  </div>
                   <input
-                    ref={uploadInputRef}
+                    ref={pdfInputRef}
                     type="file"
-                    accept=".txt,.md,text/plain,text/markdown"
+                    accept="application/pdf,.pdf"
+                    multiple
                     className="hidden"
-                    onChange={(e) => { void handleUpload(e.target.files?.[0] ?? null); e.target.value = ""; }}
+                    onChange={(e) => {
+                      const list = e.target.files ? Array.from(e.target.files) : [];
+                      if (list.length) addPdfFiles(list);
+                      e.target.value = "";
+                    }}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => uploadInputRef.current?.click()}
-                    className="gap-2"
+                  <div
+                    ref={dropzoneRef}
+                    onClick={() => pdfInputRef.current?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault(); setDragOver(false);
+                      const list = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+                      if (list.length) addPdfFiles(list);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") pdfInputRef.current?.click(); }}
+                    className={
+                      "mt-2 cursor-pointer rounded-xl border-2 border-dashed p-4 text-center text-xs transition-colors " +
+                      (dragOver
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-muted/40 text-muted-foreground hover:border-primary/60")
+                    }
                   >
-                    <Upload size={14} /> Upload a document
-                  </Button>
-                  <span className="text-xs text-dim">.txt or .md — we'll use its text as the decision brief.</span>
+                    <Upload size={16} className="mx-auto mb-1 text-primary" />
+                    <div>
+                      <b className="text-foreground">Drop PDFs here</b> or click to browse — up to 5 files, 10 MB each.
+                    </div>
+                  </div>
+                  {pdfFiles.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {pdfFiles.map((f, i) => (
+                        <span key={f.name + i} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground">
+                          <FileText size={12} className="text-primary" />
+                          <span className="max-w-[180px] truncate">{f.name}</span>
+                          <span className="text-dim">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                          <button
+                            type="button"
+                            aria-label={"Remove " + f.name}
+                            onClick={(e) => { e.stopPropagation(); removePdf(i); }}
+                            className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-dim hover:text-foreground"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-3">
+                    <Input
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); tryAddUrl(urlInput); }
+                      }}
+                      onBlur={() => { if (urlInput.trim()) tryAddUrl(urlInput); }}
+                      placeholder="Paste a URL and press Enter"
+                      className="bg-muted"
+                      aria-label="Source URL"
+                    />
+                    {urls.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {urls.map((u, i) => (
+                          <span key={u + i} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground">
+                            <span className="max-w-[220px] truncate">{u}</span>
+                            <button
+                              type="button"
+                              aria-label={"Remove " + u}
+                              onClick={() => removeUrl(i)}
+                              className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-dim hover:text-foreground"
+                            >
+                              <X size={11} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-4 dl-2">
@@ -923,18 +1001,31 @@ export default function DecisionLens() {
                   </div>
                 </div>
 
-                <Button
-                  onClick={() => { void runAutoDraft(decision); }}
-                  disabled={drafting}
-                  className="mt-5 gap-2"
-                >
-                  {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                  {drafting ? "Drafting…" : "Auto-draft the model"}
-                </Button>
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => { void runIngest(); }}
+                    disabled={ingesting || drafting}
+                    className="gap-2"
+                  >
+                    {ingesting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                    {ingesting ? "Mapping…" : "Map my decision"}
+                  </Button>
+                  <Button
+                    onClick={() => { void runAutoDraft(decision); }}
+                    disabled={drafting || ingesting}
+                    variant="secondary"
+                    className="gap-2"
+                  >
+                    {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                    {drafting ? "Drafting…" : "Auto-draft (no sources)"}
+                  </Button>
+                </div>
                 <p className="mt-2 text-xs text-dim">
-                  Lovable AI builds a starter system from your decision text. Falls back to a template if the AI is unreachable.
+                  Lovable AI builds your starter system — grounded in your sources when provided, otherwise from the decision text alone.
                 </p>
               </Panel>
+                  </TabsContent>
+
 
               <div ref={templatesPanelRef}>
                 <Panel>
