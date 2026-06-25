@@ -4,10 +4,10 @@ import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
   HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
-  BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle,
+  BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle, AlertTriangle, Check,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { explainDecision, critiqueModel, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
+import { explainDecision, critiqueModel, suggestActions, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
