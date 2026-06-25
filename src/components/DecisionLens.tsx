@@ -2322,10 +2322,21 @@ export default function DecisionLens() {
 
 
 
+                {optionSuggestions === null && optionSuggestions !== undefined ? null : null}
+                <SuggestionList
+                  suggestions={optionSuggestions}
+                  variables={variables}
+                  onAccept={(s) => acceptSuggestion(s, "options")}
+                  onDismiss={(s) => dismissSuggestion(s, "options")}
+                />
+
+
+
                 <div
                   className="mt-4 grid gap-4"
                   style={{ gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}
                 >
+
                   {options.map((o, i) => {
                     const color = OPT_COLORS[i % OPT_COLORS.length];
                     const pushVals = variables.map((v) => o.pushes[v.id] || 0);
