@@ -67,59 +67,59 @@
   --radius: 0.625rem;
 
   --background: #ffffff;
-  --foreground: #3D6C87;
+  --foreground: #3d6c87;
 
   --card: #ffffff;
-  --card-foreground: #3D6C87;
+  --card-foreground: #3d6c87;
 
   --popover: #ffffff;
-  --popover-foreground: #3D6C87;
+  --popover-foreground: #3d6c87;
 
-  --primary: #3D6C87;
+  --primary: #3d6c87;
   --primary-foreground: #ffffff;
 
   --secondary: #eef2f5;
-  --secondary-foreground: #3D6C87;
+  --secondary-foreground: #3d6c87;
 
   --muted: #f3f6f8;
   --muted-foreground: #6b8295;
 
-  --accent: #A52A20;
+  --accent: #a52a20;
   --accent-foreground: #ffffff;
 
-  --destructive: #A52A20;
+  --destructive: #a52a20;
   --destructive-foreground: #ffffff;
 
   --border: rgba(153, 176, 192, 0.35);
   --input: rgba(153, 176, 192, 0.45);
-  --ring: #3D6C87;
+  --ring: #3d6c87;
 
   /* Semantic accents */
   --helps: #2f7d4e;
-  --hurts: #A52A20;
+  --hurts: #a52a20;
 
   /* Surfaces & inks */
   --surface-deep: #f7f9fb;
   --surface-inset: rgba(153, 176, 192, 0.12);
   --surface-1: #ffffff;
   --surface-2: rgba(153, 176, 192, 0.08);
-  --ink-2: #3D6C87;
+  --ink-2: #3d6c87;
   --dim: #7d92a3;
 
-  --chart-1: #3D6C87;
+  --chart-1: #3d6c87;
   --chart-2: #2f7d4e;
   --chart-3: #c98a2b;
-  --chart-4: #A52A20;
+  --chart-4: #a52a20;
   --chart-5: #6c4ab8;
 
-  --sidebar: #3D6C87;
+  --sidebar: #3d6c87;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #A52A20;
+  --sidebar-primary: #a52a20;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgba(255, 255, 255, 0.08);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(153, 176, 192, 0.25);
-  --sidebar-ring: #A52A20;
+  --sidebar-ring: #a52a20;
 }
 
 @theme {
@@ -132,7 +132,8 @@
     border-color: var(--color-border);
   }
 
-  html, body {
+  html,
+  body {
     font-family: "Manrope", system-ui, sans-serif;
   }
 
@@ -141,16 +142,36 @@
     color: var(--color-foreground);
   }
 
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: "Sora", system-ui, sans-serif;
   }
 }
 
 /* DecisionLens responsive grid (no longer themes inputs — shadcn handles that). */
-.dl-frame, .dl-model, .dl-decide, .dl-2 { display: grid; gap: 20px; grid-template-columns: 1fr; }
-.dl-2 { gap: 14px; }
-@media (min-width: 560px) { .dl-2 { grid-template-columns: 1fr 1fr; } }
+.dl-frame,
+.dl-model,
+.dl-decide,
+.dl-2 {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+}
+.dl-2 {
+  gap: 14px;
+}
+@media (min-width: 560px) {
+  .dl-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
 @media (min-width: 880px) {
-  .dl-frame { grid-template-columns: 1.1fr 0.9fr; }
-  .dl-model { grid-template-columns: 0.95fr 1.05fr; }
+  .dl-frame {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+  .dl-model {
+    grid-template-columns: 0.95fr 1.05fr;
+  }
 }

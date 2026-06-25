@@ -10,7 +10,16 @@ export type DraftedModel = {
   horizon?: number;
   variables?: Array<{ id?: string; name?: string; value?: number; weight?: number }>;
   influences?: Array<{ from?: string; to?: string; strength?: number }>;
-  options?: Array<{ name?: string; pushes?: Record<string, number>; actions?: Array<{ text?: string; targets?: string[]; effort?: "low" | "med" | "high"; when?: "now" | "soon" | "ongoing" }> }>;
+  options?: Array<{
+    name?: string;
+    pushes?: Record<string, number>;
+    actions?: Array<{
+      text?: string;
+      targets?: string[];
+      effort?: "low" | "med" | "high";
+      when?: "now" | "soon" | "ongoing";
+    }>;
+  }>;
 };
 
 const SYSTEM_PROMPT =
@@ -70,9 +79,11 @@ export const draftModel = createServerFn({ method: "POST" })
     } catch {
       const m = content.match(/\{[\s\S]*\}/);
       if (!m) throw new Error("AI_BAD_JSON: gateway returned non-JSON content");
-      try { parsed = JSON.parse(m[0]); } catch { throw new Error("AI_BAD_JSON: gateway returned non-JSON content"); }
+      try {
+        parsed = JSON.parse(m[0]);
+      } catch {
+        throw new Error("AI_BAD_JSON: gateway returned non-JSON content");
+      }
     }
     return validateAndClampModel(parsed) as DraftedModel;
   });
-
-

@@ -27,7 +27,12 @@ const ModelSchema = z.object({
   options: z.array(OptionSchema),
 });
 
-async function callGateway(apiKey: string, system: string, user: string, json = true): Promise<string> {
+async function callGateway(
+  apiKey: string,
+  system: string,
+  user: string,
+  json = true,
+): Promise<string> {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
@@ -42,8 +47,12 @@ async function callGateway(apiKey: string, system: string, user: string, json = 
   });
   if (!res.ok) {
     const t = await res.text().catch(() => "");
-    if (res.status === 429) throw new Error("Decision Lens AI is rate-limited. Please try again shortly.");
-    if (res.status === 402) throw new Error("Decision Lens AI credits exhausted. Add credits in Settings → Plans & credits.");
+    if (res.status === 429)
+      throw new Error("Decision Lens AI is rate-limited. Please try again shortly.");
+    if (res.status === 402)
+      throw new Error(
+        "Decision Lens AI credits exhausted. Add credits in Settings → Plans & credits.",
+      );
     throw new Error(`Decision Lens AI error ${res.status}: ${t.slice(0, 200)}`);
   }
   const j = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -53,7 +62,11 @@ async function callGateway(apiKey: string, system: string, user: string, json = 
 }
 
 function parseJson<T>(content: string): T {
-  try { return JSON.parse(content) as T; } catch { /* fallthrough */ }
+  try {
+    return JSON.parse(content) as T;
+  } catch {
+    /* fallthrough */
+  }
   const m = content.match(/\{[\s\S]*\}/);
   if (!m) throw new Error("Decision Lens AI returned non-JSON");
   return JSON.parse(m[0]) as T;
@@ -90,7 +103,12 @@ export const explainDecision = createServerFn({ method: "POST" })
     const payload = {
       outcomeName: data.model.outcomeName,
       horizon: data.model.horizon,
-      variables: data.model.variables.map((v) => ({ id: v.id, name: v.name, value: v.value, weight: v.weight })),
+      variables: data.model.variables.map((v) => ({
+        id: v.id,
+        name: v.name,
+        value: v.value,
+        weight: v.weight,
+      })),
       influences: data.model.influences,
       options: data.model.options.map((o) => ({ name: o.name, pushes: o.pushes })),
       ranked: data.ranked,
@@ -144,7 +162,13 @@ const SYS_OPTIONS =
   STYLE_RULE;
 
 function slugifyVarId(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "").slice(0, 24) || "driver";
+  return (
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 24) || "driver"
+  );
 }
 
 export const improveModel = createServerFn({ method: "POST" })
@@ -157,7 +181,12 @@ export const improveModel = createServerFn({ method: "POST" })
     const payload = {
       outcomeName: data.model.outcomeName,
       horizon: data.model.horizon,
-      variables: data.model.variables.map((v) => ({ id: v.id, name: v.name, value: v.value, weight: v.weight })),
+      variables: data.model.variables.map((v) => ({
+        id: v.id,
+        name: v.name,
+        value: v.value,
+        weight: v.weight,
+      })),
       influences: data.model.influences,
       options: data.model.options.map((o) => ({ name: o.name, pushes: o.pushes })),
     };
@@ -184,7 +213,8 @@ export const improveModel = createServerFn({ method: "POST" })
           const name = typeof v.name === "string" ? v.name.trim().slice(0, 60) : "";
           if (!name) continue;
           let id = slugifyVarId(typeof v.id === "string" && v.id ? v.id : name);
-          while (existingIds.has(id) || usedNewIds.has(id)) id = id + "_" + Math.random().toString(36).slice(2, 4);
+          while (existingIds.has(id) || usedNewIds.has(id))
+            id = id + "_" + Math.random().toString(36).slice(2, 4);
           usedNewIds.add(id);
           out.push({
             kind: "add_driver",
@@ -233,7 +263,6 @@ export const improveModel = createServerFn({ method: "POST" })
     return { suggestions: out };
   });
 
-
 /* ---------------------------- suggestActions ----------------------------- */
 
 const EFFORTS_S = ["low", "med", "high"] as const;
@@ -265,7 +294,12 @@ export const suggestActions = createServerFn({ method: "POST" })
     const payload = {
       decision: data.decision,
       outcomeName: data.outcomeName,
-      variables: data.variables.map((v) => ({ id: v.id, name: v.name, weight: v.weight, value: v.value })),
+      variables: data.variables.map((v) => ({
+        id: v.id,
+        name: v.name,
+        weight: v.weight,
+        value: v.value,
+      })),
       option: { name: data.option.name, pushes: data.option.pushes },
     };
 

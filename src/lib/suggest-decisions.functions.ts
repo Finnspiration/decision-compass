@@ -24,15 +24,15 @@ export type SuggestDecisionsResult = {
 
 const SYSTEM_PROMPT =
   "You help a busy decision-maker pin down what they're actually deciding. Given supporting source excerpts (and optionally a rough hint from the user), propose 2–3 clearly different decisions the sources point to — the real choice in the room, not a summary of the documents. " +
-  "Each decision MUST be written as a single direct question phrased as a genuine choice (\"Should we …?\", \"Which … should we …?\", \"Do we … or …?\"), under 140 characters, in everyday words. The 2–3 questions should be meaningfully distinct — different scope, timing, or trade-off — not rewordings of each other. " +
-  "For each, give a one-sentence rationale in plain language that names the specific thing in the sources that points to this framing (e.g. \"Your sources keep coming back to falling retention in the first 30 days.\"). " +
-  "Never use the words: latent, variable, feedback loop, influence, coefficient, weight, simulate, Monte-Carlo, probability distribution, trajectory, push. Return ONLY JSON: { \"decisions\": [{ \"question\": string, \"rationale\": string }] }.";
+  'Each decision MUST be written as a single direct question phrased as a genuine choice ("Should we …?", "Which … should we …?", "Do we … or …?"), under 140 characters, in everyday words. The 2–3 questions should be meaningfully distinct — different scope, timing, or trade-off — not rewordings of each other. ' +
+  'For each, give a one-sentence rationale in plain language that names the specific thing in the sources that points to this framing (e.g. "Your sources keep coming back to falling retention in the first 30 days."). ' +
+  'Never use the words: latent, variable, feedback loop, influence, coefficient, weight, simulate, Monte-Carlo, probability distribution, trajectory, push. Return ONLY JSON: { "decisions": [{ "question": string, "rationale": string }] }.';
 
 async function callGateway(apiKey: string, hint: string, labelled: string): Promise<unknown> {
   const userContent = labelled
-    ? (hint
-        ? `Rough hint from the decision-maker (may be vague or empty): ${hint}\n\nSource excerpts:\n${labelled}`
-        : `Source excerpts:\n${labelled}`)
+    ? hint
+      ? `Rough hint from the decision-maker (may be vague or empty): ${hint}\n\nSource excerpts:\n${labelled}`
+      : `Source excerpts:\n${labelled}`
     : `Rough hint from the decision-maker: ${hint || "(none)"}`;
 
   const body = {
@@ -63,7 +63,11 @@ async function callGateway(apiKey: string, hint: string, labelled: string): Prom
   } catch {
     const m = content.match(/\{[\s\S]*\}/);
     if (m) {
-      try { return JSON.parse(m[0]); } catch { /* fallthrough */ }
+      try {
+        return JSON.parse(m[0]);
+      } catch {
+        /* fallthrough */
+      }
     }
     throw new Error("AI_BAD_JSON: gateway returned non-JSON content");
   }
@@ -78,12 +82,14 @@ function clampDecisions(raw: unknown): DecisionSuggestion[] {
   for (const item of arr) {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
-    const question = typeof o.question === "string" ? o.question.trim().replace(/\s+/g, " ").slice(0, 200) : "";
+    const question =
+      typeof o.question === "string" ? o.question.trim().replace(/\s+/g, " ").slice(0, 200) : "";
     if (!question) continue;
     const norm = question.toLowerCase();
     if (seen.has(norm)) continue;
     seen.add(norm);
-    const rationale = typeof o.rationale === "string" ? o.rationale.trim().replace(/\s+/g, " ").slice(0, 280) : "";
+    const rationale =
+      typeof o.rationale === "string" ? o.rationale.trim().replace(/\s+/g, " ").slice(0, 280) : "";
     out.push({ question, rationale });
     if (out.length >= 3) break;
   }
@@ -105,13 +111,8 @@ export const suggestDecisions = createServerFn({ method: "POST" })
       return { decisions: [], skipped: [], degraded: true };
     }
 
-    const {
-      extractPdfTextStrict,
-      fetchUrlTextStrict,
-      budgetExcerpts,
-      SkipError,
-      MAX_TOTAL_CHARS,
-    } = await import("./source-extract.server");
+    const { extractPdfTextStrict, fetchUrlTextStrict, budgetExcerpts, SkipError, MAX_TOTAL_CHARS } =
+      await import("./source-extract.server");
 
     const items: Array<{ name: string; text: string; kind: "pdf" | "url" }> = [];
     const skipped: Array<{ name: string; reason: string }> = [];

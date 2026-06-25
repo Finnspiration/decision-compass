@@ -1,15 +1,45 @@
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { toast } from "sonner";
 import {
-  Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
-  Target, Network, GitBranch, Telescope, RotateCcw,
-  HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
-  BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle, AlertTriangle, Check,
-  Maximize2, ChevronDown,
+  Plus,
+  X,
+  Sparkles,
+  ArrowRight,
+  ArrowLeft,
+  Trash2,
+  Share2,
+  Loader2,
+  Target,
+  Network,
+  GitBranch,
+  Telescope,
+  RotateCcw,
+  HelpCircle,
+  Upload,
+  FileText,
+  Compass,
+  MousePointerClick,
+  Lightbulb,
+  Wand2,
+  BookmarkPlus,
+  Pencil,
+  Bookmark,
+  CheckCircle2,
+  Circle,
+  PlayCircle,
+  AlertTriangle,
+  Check,
+  Maximize2,
+  ChevronDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { useServerFn } from "@tanstack/react-start";
-import { explainDecision, improveModel, suggestActions, type ImproveSuggestion } from "@/lib/ai-assist.functions";
+import {
+  explainDecision,
+  improveModel,
+  suggestActions,
+  type ImproveSuggestion,
+} from "@/lib/ai-assist.functions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,10 +48,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import fraimeworksLogo from "@/assets/fraimeworksdecision.png.asset.json";
@@ -47,7 +86,7 @@ function pushLabel(n: number): string {
 /** One-line plain-language summary of an option's pushes. */
 function summarizeOption(
   pushes: Record<string, number>,
-  variables: Array<{ id: string; name: string }>
+  variables: Array<{ id: string; name: string }>,
 ): string {
   const named = variables
     .map((v) => ({ name: v.name, val: pushes[v.id] || 0 }))
@@ -58,7 +97,10 @@ function summarizeOption(
   const join = (arr: Array<{ name: string }>) =>
     arr.length <= 2
       ? arr.map((x) => x.name).join(" & ")
-      : arr.slice(0, 2).map((x) => x.name).join(" & ") + ` +${arr.length - 2}`;
+      : arr
+          .slice(0, 2)
+          .map((x) => x.name)
+          .join(" & ") + ` +${arr.length - 2}`;
   const parts: string[] = [];
   if (pos.length) parts.push(`Boosts ${join(pos)}`);
   if (neg.length) parts.push(`costs ${join(neg)}`);
@@ -69,17 +111,21 @@ function summarizeOption(
 function pushSimilarity(
   a: Record<string, number>,
   b: Record<string, number>,
-  variables: Array<{ id: string }>
+  variables: Array<{ id: string }>,
 ): number {
-  let dot = 0, na = 0, nb = 0;
+  let dot = 0,
+    na = 0,
+    nb = 0;
   for (const v of variables) {
-    const x = a[v.id] || 0, y = b[v.id] || 0;
-    dot += x * y; na += x * x; nb += y * y;
+    const x = a[v.id] || 0,
+      y = b[v.id] || 0;
+    dot += x * y;
+    na += x * x;
+    nb += y * y;
   }
   if (na === 0 || nb === 0) return 0;
   return dot / Math.sqrt(na * nb);
 }
-
 
 /* ============================================================================
    DECISION LENS — a generally-applicable, decision-focused world model.
@@ -111,8 +157,28 @@ type DecisionOption = {
 };
 const EFFORTS = ["low", "med", "high"] as const;
 const WHENS = ["now", "soon", "ongoing"] as const;
-const HURT_WORDS = ["depletion", "burn", "risk", "cost", "churn", "saturation", "debt", "loss", "attrition", "drag"];
-const HELP_WORDS = ["growth", "advantage", "moat", "reach", "trust", "quality", "retention", "momentum"];
+const HURT_WORDS = [
+  "depletion",
+  "burn",
+  "risk",
+  "cost",
+  "churn",
+  "saturation",
+  "debt",
+  "loss",
+  "attrition",
+  "drag",
+];
+const HELP_WORDS = [
+  "growth",
+  "advantage",
+  "moat",
+  "reach",
+  "trust",
+  "quality",
+  "retention",
+  "momentum",
+];
 function sanitizeActions(raw: unknown, validIds: Set<string>): DecisionAction[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const out: DecisionAction[] = [];
@@ -121,12 +187,16 @@ function sanitizeActions(raw: unknown, validIds: Set<string>): DecisionAction[] 
     const aa = a as Record<string, unknown>;
     const text = typeof aa.text === "string" ? aa.text.trim().slice(0, 160) : "";
     if (!text) continue;
-    const targetsSrc = Array.isArray(aa.targets) ? aa.targets : Array.isArray((aa as any).g) ? (aa as any).g : [];
-    const targets = (targetsSrc as unknown[])
-      .map((t) => String(t))
-      .filter((t) => validIds.has(t));
+    const targetsSrc = Array.isArray(aa.targets)
+      ? aa.targets
+      : Array.isArray((aa as any).g)
+        ? (aa as any).g
+        : [];
+    const targets = (targetsSrc as unknown[]).map((t) => String(t)).filter((t) => validIds.has(t));
     const effortRaw = (aa.effort ?? (aa as any).e) as unknown;
-    const effort = EFFORTS.includes(effortRaw as any) ? (effortRaw as DecisionAction["effort"]) : undefined;
+    const effort = EFFORTS.includes(effortRaw as any)
+      ? (effortRaw as DecisionAction["effort"])
+      : undefined;
     const whenRaw = (aa.when ?? (aa as any).w) as unknown;
     const when = WHENS.includes(whenRaw as any) ? (whenRaw as DecisionAction["when"]) : undefined;
     const act: DecisionAction = { text };
@@ -185,15 +255,21 @@ function parseHashModel(hash: string): Model | null {
     if (!outcomeName || !Number.isFinite(horizon) || horizon < 1 || horizon > 200) return null;
     if (!Array.isArray(raw.v) || !Array.isArray(raw.e) || !Array.isArray(raw.p)) return null;
     const variables: Variable[] = raw.v.map((v: any) => ({
-      id: String(v.i), name: String(v.n ?? ""),
-      value: Number(v.v), weight: Number(v.w),
+      id: String(v.i),
+      name: String(v.n ?? ""),
+      value: Number(v.v),
+      weight: Number(v.w),
     }));
-    if (variables.some((v) => !v.id || !Number.isFinite(v.value) || !Number.isFinite(v.weight))) return null;
+    if (variables.some((v) => !v.id || !Number.isFinite(v.value) || !Number.isFinite(v.weight)))
+      return null;
     const ids = new Set(variables.map((v) => v.id));
     const influences: Influence[] = raw.e.map((i: any) => ({
-      from: String(i.f), to: String(i.t), strength: Number(i.s),
+      from: String(i.f),
+      to: String(i.t),
+      strength: Number(i.s),
     }));
-    if (influences.some((i) => !ids.has(i.from) || !ids.has(i.to) || !Number.isFinite(i.strength))) return null;
+    if (influences.some((i) => !ids.has(i.from) || !ids.has(i.to) || !Number.isFinite(i.strength)))
+      return null;
     const options: DecisionOption[] = raw.p.map((o: any) => {
       const pushes: Record<string, number> = {};
       if (o.p && typeof o.p === "object") {
@@ -238,7 +314,8 @@ const clamp = (x: number) => Math.max(0, Math.min(100, x));
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 function outcomeOf(vars: Variable[], vals: Record<string, number>): number {
-  let num = 0, den = 0;
+  let num = 0,
+    den = 0;
   vars.forEach((v) => {
     const w = v.weight / 100;
     den += Math.abs(w);
@@ -252,7 +329,7 @@ function simulate(
   vars: Variable[],
   influences: Influence[],
   pushes: Record<string, number> | undefined,
-  horizon: number
+  horizon: number,
 ): TrajPoint[] {
   const cur: Record<string, number> = {};
   vars.forEach((v) => (cur[v.id] = v.value));
@@ -265,7 +342,7 @@ function simulate(
       influences
         .filter((i) => i.to === v.id)
         .forEach((i) => (e += (i.strength / 100) * ((cur[i.from] - 50) / 50) * 6));
-      const push = ((pushes && pushes[v.id]) || 0) / 100 * 4;
+      const push = (((pushes && pushes[v.id]) || 0) / 100) * 4;
       const decay = 0.08 * (cur[v.id] - base[v.id]);
       next[v.id] = clamp(cur[v.id] + push + e - decay);
     });
@@ -278,7 +355,8 @@ function simulate(
 /* ----------------------------- Monte Carlo ------------------------------- */
 // Standard-normal sample via Box-Muller. Used to perturb pushes & influences.
 function gaussSample(): number {
-  let u = 0, v = 0;
+  let u = 0,
+    v = 0;
   while (u === 0) u = Math.random();
   while (v === 0) v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
@@ -287,7 +365,8 @@ function gaussSample(): number {
 function quantile(sortedAsc: number[], q: number): number {
   if (sortedAsc.length === 0) return 0;
   const pos = (sortedAsc.length - 1) * q;
-  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  const lo = Math.floor(pos),
+    hi = Math.ceil(pos);
   if (lo === hi) return sortedAsc[lo];
   return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (pos - lo);
 }
@@ -301,18 +380,18 @@ export type MCBand = { t: number; p10: number; p50: number; p90: number };
  * index at every timestep across `runs` rollouts.
  */
 /* --- Monte-Carlo noise constants (shared by band + win-probability) --- */
-const MC_COEF_SIG = 0.25;       // ±25% multiplicative noise on strengths/pushes (per run)
-const MC_INIT_SIG = 3;          // Gaussian jitter on initial variable values (0-100 scale)
-const MC_PROCESS_SIG = 1.5;     // Per-step SHARED additive shock (common world across options)
-const MC_EXEC_SIG = 2.0;        // Per-step PER-OPTION execution shock (idiosyncratic to each option)
-const MC_PUSH_STEP_SIG = 0.10;  // Per-step multiplicative jitter on option pushes
+const MC_COEF_SIG = 0.25; // ±25% multiplicative noise on strengths/pushes (per run)
+const MC_INIT_SIG = 3; // Gaussian jitter on initial variable values (0-100 scale)
+const MC_PROCESS_SIG = 1.5; // Per-step SHARED additive shock (common world across options)
+const MC_EXEC_SIG = 2.0; // Per-step PER-OPTION execution shock (idiosyncratic to each option)
+const MC_PUSH_STEP_SIG = 0.1; // Per-step multiplicative jitter on option pushes
 
 function simulateMonteCarlo(
   vars: Variable[],
   influences: Influence[],
   pushes: Record<string, number> | undefined,
   horizon: number,
-  runs = 300
+  runs = 300,
 ): MCBand[] {
   const samples: number[][] = Array.from({ length: horizon + 1 }, () => []);
   for (let r = 0; r < runs; r++) {
@@ -337,7 +416,7 @@ function simulateMonteCarlo(
         });
         const rawPush = (pushes && pushes[v.id]) || 0;
         const stepJ = 1 + MC_PUSH_STEP_SIG * gaussSample();
-        const push = (rawPush * (pushNoise[v.id] ?? 1) * stepJ) / 100 * 4;
+        const push = ((rawPush * (pushNoise[v.id] ?? 1) * stepJ) / 100) * 4;
         const decay = 0.08 * (cur[v.id] - base[v.id]);
         const exec = MC_EXEC_SIG * gaussSample();
         next[v.id] = clamp(cur[v.id] + push + e - decay + sharedShock[v.id] + exec);
@@ -352,9 +431,6 @@ function simulateMonteCarlo(
   });
 }
 
-
-
-
 /**
  * Joint Monte-Carlo across all options sharing per-run noise, so we can
  * count "wins" — the share of runs where each option has the highest final
@@ -365,7 +441,7 @@ function winProbabilities(
   influences: Influence[],
   options: DecisionOption[],
   horizon: number,
-  runs = 300
+  runs = 300,
 ): Record<string, number> {
   if (options.length === 0) return {};
   const wins: Record<string, number> = {};
@@ -387,7 +463,8 @@ function winProbabilities(
       vars.forEach((v) => (s[v.id] = MC_PROCESS_SIG * gaussSample()));
       shocks.push(s);
     }
-    let bestIdx = 0, bestVal = -Infinity;
+    let bestIdx = 0,
+      bestVal = -Infinity;
     options.forEach((o, oi) => {
       const cur: Record<string, number> = {};
       vars.forEach((v) => (cur[v.id] = clamp(v.value + initJitter[v.id])));
@@ -403,7 +480,7 @@ function winProbabilities(
           });
           const rawPush = (o.pushes && o.pushes[v.id]) || 0;
           const stepJ = 1 + MC_PUSH_STEP_SIG * gaussSample();
-          const push = (rawPush * (optPushNoise[oi][v.id] ?? 1) * stepJ) / 100 * 4;
+          const push = ((rawPush * (optPushNoise[oi][v.id] ?? 1) * stepJ) / 100) * 4;
           const decay = 0.08 * (cur[v.id] - base[v.id]);
           const exec = MC_EXEC_SIG * gaussSample();
           next[v.id] = clamp(cur[v.id] + push + e - decay + shocks[t - 1][v.id] + exec);
@@ -412,7 +489,10 @@ function winProbabilities(
       }
 
       const finalIdx = outcomeOf(vars, cur);
-      if (finalIdx > bestVal) { bestVal = finalIdx; bestIdx = oi; }
+      if (finalIdx > bestVal) {
+        bestVal = finalIdx;
+        bestIdx = oi;
+      }
     });
     wins[options[bestIdx].id]++;
   }
@@ -420,7 +500,6 @@ function winProbabilities(
   options.forEach((o) => (out[o.id] = wins[o.id] / runs));
   return out;
 }
-
 
 const MC_RUNS = 300;
 
@@ -446,21 +525,81 @@ const TEMPLATES = [
       { from: "moat", to: "demand", strength: 30 },
     ],
     options: [
-      { id: uid(), name: "Enter now", pushes: { demand: 30, moat: 20, runway: -40, focus: -30, risk: 40 }, actions: [
-        { text: "Ship MVP to 3 lighthouse customers within 30 days", targets: ["demand"], effort: "high", when: "now" },
-        { text: "Hire 2 senior engineers to staff launch team", targets: ["focus", "runway"], effort: "high", when: "now" },
-        { text: "Run weekly competitive teardown to defend positioning", targets: ["moat", "risk"], effort: "med", when: "ongoing" },
-      ] },
-      { id: uid(), name: "Wait & build", pushes: { demand: -5, moat: 35, runway: 10, focus: 25, risk: -20 }, actions: [
-        { text: "Spend a quarter hardening core IP before any go-to-market", targets: ["moat"], effort: "high", when: "now" },
-        { text: "Run 5 customer-discovery interviews per week", targets: ["demand"], effort: "low", when: "ongoing" },
-        { text: "Defer new hires; reallocate two engineers to platform", targets: ["runway", "focus"], effort: "med", when: "soon" },
-      ] },
-      { id: uid(), name: "Partner in", pushes: { demand: 20, moat: 40, runway: -10, focus: 10, risk: -10 }, actions: [
-        { text: "Shortlist 3 distribution partners and open term-sheet talks", targets: ["demand", "moat"], effort: "med", when: "now" },
-        { text: "Negotiate revenue-share to cap downside on runway", targets: ["runway", "risk"], effort: "med", when: "soon" },
-        { text: "Embed a joint product-marketing pod with the partner", targets: ["focus"], effort: "low", when: "ongoing" },
-      ] },
+      {
+        id: uid(),
+        name: "Enter now",
+        pushes: { demand: 30, moat: 20, runway: -40, focus: -30, risk: 40 },
+        actions: [
+          {
+            text: "Ship MVP to 3 lighthouse customers within 30 days",
+            targets: ["demand"],
+            effort: "high",
+            when: "now",
+          },
+          {
+            text: "Hire 2 senior engineers to staff launch team",
+            targets: ["focus", "runway"],
+            effort: "high",
+            when: "now",
+          },
+          {
+            text: "Run weekly competitive teardown to defend positioning",
+            targets: ["moat", "risk"],
+            effort: "med",
+            when: "ongoing",
+          },
+        ],
+      },
+      {
+        id: uid(),
+        name: "Wait & build",
+        pushes: { demand: -5, moat: 35, runway: 10, focus: 25, risk: -20 },
+        actions: [
+          {
+            text: "Spend a quarter hardening core IP before any go-to-market",
+            targets: ["moat"],
+            effort: "high",
+            when: "now",
+          },
+          {
+            text: "Run 5 customer-discovery interviews per week",
+            targets: ["demand"],
+            effort: "low",
+            when: "ongoing",
+          },
+          {
+            text: "Defer new hires; reallocate two engineers to platform",
+            targets: ["runway", "focus"],
+            effort: "med",
+            when: "soon",
+          },
+        ],
+      },
+      {
+        id: uid(),
+        name: "Partner in",
+        pushes: { demand: 20, moat: 40, runway: -10, focus: 10, risk: -10 },
+        actions: [
+          {
+            text: "Shortlist 3 distribution partners and open term-sheet talks",
+            targets: ["demand", "moat"],
+            effort: "med",
+            when: "now",
+          },
+          {
+            text: "Negotiate revenue-share to cap downside on runway",
+            targets: ["runway", "risk"],
+            effort: "med",
+            when: "soon",
+          },
+          {
+            text: "Embed a joint product-marketing pod with the partner",
+            targets: ["focus"],
+            effort: "low",
+            when: "ongoing",
+          },
+        ],
+      },
     ],
   },
   {
@@ -483,21 +622,81 @@ const TEMPLATES = [
       { from: "stress", to: "growth", strength: -30 },
     ],
     options: [
-      { id: uid(), name: "Stay & shape role", pushes: { growth: 15, income: 5, meaning: 20, network: 10, stress: -15 }, actions: [
-        { text: "Pitch manager on a 20% scope shift toward a stretch project", targets: ["growth", "meaning"], effort: "low", when: "now" },
-        { text: "Set a hard boundary: no work after 7pm two nights a week", targets: ["stress"], effort: "low", when: "ongoing" },
-        { text: "Re-open compensation conversation at next cycle", targets: ["income"], effort: "med", when: "soon" },
-      ] },
-      { id: uid(), name: "Switch company", pushes: { growth: 35, income: 10, meaning: 15, network: 30, stress: 15 }, actions: [
-        { text: "Refresh CV and book 5 intro calls per week for 6 weeks", targets: ["network"], effort: "med", when: "now" },
-        { text: "Target roles in 2 adjacent domains to widen skill range", targets: ["growth"], effort: "med", when: "soon" },
-        { text: "Negotiate signing bonus to cover transition risk", targets: ["income", "stress"], effort: "low", when: "soon" },
-      ] },
-      { id: uid(), name: "Go independent", pushes: { growth: 40, income: -35, meaning: 35, network: 20, stress: 35 }, actions: [
-        { text: "Line up 2 anchor clients before quitting", targets: ["income"], effort: "high", when: "now" },
-        { text: "Build a 9-month cash buffer", targets: ["income", "stress"], effort: "high", when: "now" },
-        { text: "Publish weekly to compound an audience", targets: ["network", "meaning"], effort: "med", when: "ongoing" },
-      ] },
+      {
+        id: uid(),
+        name: "Stay & shape role",
+        pushes: { growth: 15, income: 5, meaning: 20, network: 10, stress: -15 },
+        actions: [
+          {
+            text: "Pitch manager on a 20% scope shift toward a stretch project",
+            targets: ["growth", "meaning"],
+            effort: "low",
+            when: "now",
+          },
+          {
+            text: "Set a hard boundary: no work after 7pm two nights a week",
+            targets: ["stress"],
+            effort: "low",
+            when: "ongoing",
+          },
+          {
+            text: "Re-open compensation conversation at next cycle",
+            targets: ["income"],
+            effort: "med",
+            when: "soon",
+          },
+        ],
+      },
+      {
+        id: uid(),
+        name: "Switch company",
+        pushes: { growth: 35, income: 10, meaning: 15, network: 30, stress: 15 },
+        actions: [
+          {
+            text: "Refresh CV and book 5 intro calls per week for 6 weeks",
+            targets: ["network"],
+            effort: "med",
+            when: "now",
+          },
+          {
+            text: "Target roles in 2 adjacent domains to widen skill range",
+            targets: ["growth"],
+            effort: "med",
+            when: "soon",
+          },
+          {
+            text: "Negotiate signing bonus to cover transition risk",
+            targets: ["income", "stress"],
+            effort: "low",
+            when: "soon",
+          },
+        ],
+      },
+      {
+        id: uid(),
+        name: "Go independent",
+        pushes: { growth: 40, income: -35, meaning: 35, network: 20, stress: 35 },
+        actions: [
+          {
+            text: "Line up 2 anchor clients before quitting",
+            targets: ["income"],
+            effort: "high",
+            when: "now",
+          },
+          {
+            text: "Build a 9-month cash buffer",
+            targets: ["income", "stress"],
+            effort: "high",
+            when: "now",
+          },
+          {
+            text: "Publish weekly to compound an audience",
+            targets: ["network", "meaning"],
+            effort: "med",
+            when: "ongoing",
+          },
+        ],
+      },
     ],
   },
   {
@@ -521,21 +720,81 @@ const TEMPLATES = [
       { from: "capability", to: "momentum", strength: 35 },
     ],
     options: [
-      { id: uid(), name: "Co-create", pushes: { trust: 25, momentum: 15, coalition: 40, capability: 25, threat: -35 }, actions: [
-        { text: "Run a 2-day design summit with frontline reps from each team", targets: ["coalition", "trust"], effort: "med", when: "now" },
-        { text: "Publish a transparent decision log to all-hands weekly", targets: ["trust", "threat"], effort: "low", when: "ongoing" },
-        { text: "Fund a capability academy with rotating cohorts", targets: ["capability"], effort: "high", when: "soon" },
-      ] },
-      { id: uid(), name: "Mandate & push", pushes: { trust: -25, momentum: 35, coalition: -15, capability: 5, threat: 45 }, actions: [
-        { text: "CEO issues a 90-day deadline memo with named owners", targets: ["momentum"], effort: "low", when: "now" },
-        { text: "Tie 20% of leader bonuses to adoption metrics", targets: ["momentum", "coalition"], effort: "med", when: "soon" },
-        { text: "Shut down two legacy systems to force the switch", targets: ["momentum", "threat"], effort: "high", when: "soon" },
-      ] },
-      { id: uid(), name: "Quick wins first", pushes: { trust: 15, momentum: 45, coalition: 20, capability: 25, threat: -5 }, actions: [
-        { text: "Pick 3 visible pain points; ship fixes in 30 days", targets: ["momentum", "trust"], effort: "med", when: "now" },
-        { text: "Celebrate each win at all-hands with the team that shipped it", targets: ["coalition"], effort: "low", when: "ongoing" },
-        { text: "Pair every quick win with a short skills workshop", targets: ["capability"], effort: "low", when: "soon" },
-      ] },
+      {
+        id: uid(),
+        name: "Co-create",
+        pushes: { trust: 25, momentum: 15, coalition: 40, capability: 25, threat: -35 },
+        actions: [
+          {
+            text: "Run a 2-day design summit with frontline reps from each team",
+            targets: ["coalition", "trust"],
+            effort: "med",
+            when: "now",
+          },
+          {
+            text: "Publish a transparent decision log to all-hands weekly",
+            targets: ["trust", "threat"],
+            effort: "low",
+            when: "ongoing",
+          },
+          {
+            text: "Fund a capability academy with rotating cohorts",
+            targets: ["capability"],
+            effort: "high",
+            when: "soon",
+          },
+        ],
+      },
+      {
+        id: uid(),
+        name: "Mandate & push",
+        pushes: { trust: -25, momentum: 35, coalition: -15, capability: 5, threat: 45 },
+        actions: [
+          {
+            text: "CEO issues a 90-day deadline memo with named owners",
+            targets: ["momentum"],
+            effort: "low",
+            when: "now",
+          },
+          {
+            text: "Tie 20% of leader bonuses to adoption metrics",
+            targets: ["momentum", "coalition"],
+            effort: "med",
+            when: "soon",
+          },
+          {
+            text: "Shut down two legacy systems to force the switch",
+            targets: ["momentum", "threat"],
+            effort: "high",
+            when: "soon",
+          },
+        ],
+      },
+      {
+        id: uid(),
+        name: "Quick wins first",
+        pushes: { trust: 15, momentum: 45, coalition: 20, capability: 25, threat: -5 },
+        actions: [
+          {
+            text: "Pick 3 visible pain points; ship fixes in 30 days",
+            targets: ["momentum", "trust"],
+            effort: "med",
+            when: "now",
+          },
+          {
+            text: "Celebrate each win at all-hands with the team that shipped it",
+            targets: ["coalition"],
+            effort: "low",
+            when: "ongoing",
+          },
+          {
+            text: "Pair every quick win with a short skills workshop",
+            targets: ["capability"],
+            effort: "low",
+            when: "soon",
+          },
+        ],
+      },
     ],
   },
 ];
@@ -560,14 +819,24 @@ function loadUserTemplatesFromStorage(): UserTemplate[] {
     if (!Array.isArray(arr)) return [];
     return arr.filter(
       (t: any) =>
-        t && typeof t.id === "string" && typeof t.name === "string" &&
-        t.model && Array.isArray(t.model.variables) && Array.isArray(t.model.options)
+        t &&
+        typeof t.id === "string" &&
+        typeof t.name === "string" &&
+        t.model &&
+        Array.isArray(t.model.variables) &&
+        Array.isArray(t.model.options),
     );
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 function saveUserTemplatesToStorage(list: UserTemplate[]) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(list)); } catch { /* noop */ }
+  try {
+    window.localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(list));
+  } catch {
+    /* noop */
+  }
 }
 function templateFromBuiltin(tpl: (typeof TEMPLATES)[number]): Model {
   return {
@@ -575,7 +844,19 @@ function templateFromBuiltin(tpl: (typeof TEMPLATES)[number]): Model {
     horizon: tpl.horizon,
     variables: tpl.variables.map((v) => ({ ...v })),
     influences: tpl.influences.map((i) => ({ ...i })),
-    options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes }, ...((o as any).actions ? { actions: (o as any).actions.map((a: any) => ({ ...a, targets: a.targets ? [...a.targets] : undefined })) } : {}) })),
+    options: tpl.options.map((o) => ({
+      id: uid(),
+      name: o.name,
+      pushes: { ...o.pushes },
+      ...((o as any).actions
+        ? {
+            actions: (o as any).actions.map((a: any) => ({
+              ...a,
+              targets: a.targets ? [...a.targets] : undefined,
+            })),
+          }
+        : {}),
+    })),
   };
 }
 
@@ -590,9 +871,18 @@ function blankStarter(): Model {
     ],
     influences: [],
     options: [
-      { id: uid(), name: "Option 1", pushes: {}, actions: [
-        { text: "Describe the first concrete step a team would take this week", effort: "low", when: "now" },
-      ] },
+      {
+        id: uid(),
+        name: "Option 1",
+        pushes: {},
+        actions: [
+          {
+            text: "Describe the first concrete step a team would take this week",
+            effort: "low",
+            when: "now",
+          },
+        ],
+      },
       { id: uid(), name: "Option 2", pushes: {} },
     ],
   };
@@ -607,7 +897,19 @@ function keywordTemplate(decisionText: string): Model {
     horizon: tpl.horizon,
     variables: tpl.variables.map((v) => ({ ...v })),
     influences: tpl.influences.map((i) => ({ ...i })),
-    options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes }, ...((o as any).actions ? { actions: (o as any).actions.map((a: any) => ({ ...a, targets: a.targets ? [...a.targets] : undefined })) } : {}) })),
+    options: tpl.options.map((o) => ({
+      id: uid(),
+      name: o.name,
+      pushes: { ...o.pushes },
+      ...((o as any).actions
+        ? {
+            actions: (o as any).actions.map((a: any) => ({
+              ...a,
+              targets: a.targets ? [...a.targets] : undefined,
+            })),
+          }
+        : {}),
+    })),
   };
 }
 
@@ -649,8 +951,8 @@ function validateDraftedModel(raw: any): Model | null {
     })
     .filter((i: Influence) => ids.has(i.from) && ids.has(i.to));
 
-  const options: DecisionOption[] = (Array.isArray(raw.options) ? raw.options : [])
-    .map((o: any) => {
+  const options: DecisionOption[] = (Array.isArray(raw.options) ? raw.options : []).map(
+    (o: any) => {
       const pushes: Record<string, number> = {};
       if (o?.pushes && typeof o.pushes === "object") {
         for (const k of Object.keys(o.pushes)) {
@@ -659,20 +961,25 @@ function validateDraftedModel(raw: any): Model | null {
         }
       }
       const actions = sanitizeActions(o?.actions, ids);
-      return { id: uid(), name: String(o?.name ?? "Option"), pushes, ...(actions ? { actions } : {}) };
-    });
+      return {
+        id: uid(),
+        name: String(o?.name ?? "Option"),
+        pushes,
+        ...(actions ? { actions } : {}),
+      };
+    },
+  );
   // Synthesize a fallback option rather than rejecting the whole model
   if (options.length === 0) {
     options.push({ id: uid(), name: "Status quo", pushes: {} });
   }
-
 
   const summary = typeof raw.summary === "string" ? raw.summary.slice(0, 600) : undefined;
   const sources: ModelSource[] | undefined = Array.isArray(raw.sources)
     ? raw.sources
         .map((s: any) => ({
           name: String(s?.name ?? "").slice(0, 200),
-          type: s?.type === "url" ? "url" as const : "pdf" as const,
+          type: s?.type === "url" ? ("url" as const) : ("pdf" as const),
         }))
         .filter((s: ModelSource) => s.name)
     : undefined;
@@ -729,7 +1036,7 @@ type Stage = (typeof STAGES)[number]["id"];
 export default function DecisionLens() {
   const [stage, setStage] = useState<Stage>("frame");
   const [decision, setDecision] = useState(
-    "Should we enter the new market now, wait and build, or partner in?"
+    "Should we enter the new market now, wait and build, or partner in?",
   );
   // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once on mount only
   const seed = useMemo(() => keywordTemplate(decision), []); // initial demo model
@@ -748,7 +1055,10 @@ export default function DecisionLens() {
   const [ingesting, setIngesting] = useState(false);
   const [ingestStep, setIngestStep] = useState(0);
   const [suggestingDecisions, setSuggestingDecisions] = useState(false);
-  const [decisionSuggestions, setDecisionSuggestions] = useState<Array<{ question: string; rationale: string }> | null>(null);
+  const [decisionSuggestions, setDecisionSuggestions] = useState<Array<{
+    question: string;
+    rationale: string;
+  }> | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | undefined>();
   const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
@@ -757,7 +1067,9 @@ export default function DecisionLens() {
   const [aiHighlight, setAiHighlight] = useState(false);
 
   // User templates (gallery)
-  const [userTemplates, setUserTemplates] = useState<UserTemplate[]>(() => loadUserTemplatesFromStorage());
+  const [userTemplates, setUserTemplates] = useState<UserTemplate[]>(() =>
+    loadUserTemplatesFromStorage(),
+  );
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
 
@@ -777,13 +1089,19 @@ export default function DecisionLens() {
     if (typeof window === "undefined") return;
     try {
       if (!window.localStorage.getItem(ONBOARD_KEY)) setWelcomeOpen(true);
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
   }, []);
 
   function closeWelcome(persist: boolean) {
     setWelcomeOpen(false);
     if (persist && typeof window !== "undefined") {
-      try { window.localStorage.setItem(ONBOARD_KEY, "1"); } catch { /* noop */ }
+      try {
+        window.localStorage.setItem(ONBOARD_KEY, "1");
+      } catch {
+        /* noop */
+      }
     }
   }
 
@@ -830,69 +1148,116 @@ export default function DecisionLens() {
     const accepted: File[] = [];
     for (const f of incoming) {
       if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
-        errors.push(`${f.name}: not a PDF`); continue;
+        errors.push(`${f.name}: not a PDF`);
+        continue;
       }
-      if (f.size > 10 * 1024 * 1024) { errors.push(`${f.name}: over 10 MB`); continue; }
+      if (f.size > 10 * 1024 * 1024) {
+        errors.push(`${f.name}: over 10 MB`);
+        continue;
+      }
       accepted.push(f);
     }
     setPdfFiles((prev) => {
       const merged = [...prev];
       for (const f of accepted) {
-        if (merged.length >= 5) { errors.push(`${f.name}: max 5 files`); continue; }
+        if (merged.length >= 5) {
+          errors.push(`${f.name}: max 5 files`);
+          continue;
+        }
         if (!merged.some((x) => x.name === f.name && x.size === f.size)) merged.push(f);
       }
       return merged;
     });
-    if (errors.length) toast.error("Some files were skipped", { description: "Decision Lens · " + errors.join(" · ") });
+    if (errors.length)
+      toast.error("Some files were skipped", {
+        description: "Decision Lens · " + errors.join(" · "),
+      });
   }
-  function removePdf(idx: number) { setPdfFiles((p) => p.filter((_, i) => i !== idx)); }
+  function removePdf(idx: number) {
+    setPdfFiles((p) => p.filter((_, i) => i !== idx));
+  }
 
   function tryAddUrl(raw: string) {
     const v = raw.trim();
     if (!v) return;
     let u: URL | null = null;
-    try { u = new URL(v.includes("://") ? v : "https://" + v); } catch { /* */ }
+    try {
+      u = new URL(v.includes("://") ? v : "https://" + v);
+    } catch {
+      /* */
+    }
     if (!u || (u.protocol !== "http:" && u.protocol !== "https:")) {
       toast.error("Invalid URL", { description: "Decision Lens · use http(s) URLs only." });
       return;
     }
-    setUrls((prev) => (prev.includes(u!.toString()) || prev.length >= 8 ? prev : [...prev, u!.toString()]));
+    setUrls((prev) =>
+      prev.includes(u!.toString()) || prev.length >= 8 ? prev : [...prev, u!.toString()],
+    );
     setUrlInput("");
   }
-  function removeUrl(idx: number) { setUrls((p) => p.filter((_, i) => i !== idx)); }
+  function removeUrl(idx: number) {
+    setUrls((p) => p.filter((_, i) => i !== idx));
+  }
 
   function describeAiError(err: unknown): { title: string; description: string } {
     const msg = (err as { message?: string })?.message || "";
     if (msg.startsWith("RATE_LIMITED")) {
-      return { title: "Too many requests", description: "Decision Lens · wait a minute and try again." };
+      return {
+        title: "Too many requests",
+        description: "Decision Lens · wait a minute and try again.",
+      };
     }
     if (msg.startsWith("AI_BAD_JSON")) {
-      return { title: "AI returned an unusable result", description: "Decision Lens · try again or rephrase your decision." };
+      return {
+        title: "AI returned an unusable result",
+        description: "Decision Lens · try again or rephrase your decision.",
+      };
     }
     if (msg.startsWith("AI_HTTP_ERROR")) {
-      return { title: "AI service error", description: "Decision Lens · the gateway rejected the request. Try again shortly." };
+      return {
+        title: "AI service error",
+        description: "Decision Lens · the gateway rejected the request. Try again shortly.",
+      };
     }
-    return { title: "Couldn't reach the AI", description: "Decision Lens · loaded a template instead." };
+    return {
+      title: "Couldn't reach the AI",
+      description: "Decision Lens · loaded a template instead.",
+    };
   }
 
   function describeSkipReason(reason: string): string {
     switch (reason) {
-      case "oversized": return "too large";
-      case "not_pdf": return "not a valid PDF";
-      case "pdf_parse_failed": return "couldn't read PDF";
-      case "private_host": return "blocked (private host)";
-      case "non_https": return "must be https://";
-      case "timeout": return "timed out";
-      case "bad_content_type": return "unsupported content type";
-      case "http_error": return "fetch failed";
-      case "empty": return "no readable text";
-      default: return reason;
+      case "oversized":
+        return "too large";
+      case "not_pdf":
+        return "not a valid PDF";
+      case "pdf_parse_failed":
+        return "couldn't read PDF";
+      case "private_host":
+        return "blocked (private host)";
+      case "non_https":
+        return "must be https://";
+      case "timeout":
+        return "timed out";
+      case "bad_content_type":
+        return "unsupported content type";
+      case "http_error":
+        return "fetch failed";
+      case "empty":
+        return "no readable text";
+      default:
+        return reason;
     }
   }
 
   function triggerAiHighlight() {
-    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) { setAiHighlight(false); return; }
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setAiHighlight(false);
+      return;
+    }
     setAiHighlight(true);
     window.setTimeout(() => setAiHighlight(false), 2200);
   }
@@ -906,7 +1271,9 @@ export default function DecisionLens() {
       setAiSkippedCount(0);
       setStage("model");
       triggerAiHighlight();
-      toast.success("Model drafted", { description: "Decision Lens · AI-built your starting system." });
+      toast.success("Model drafted", {
+        description: "Decision Lens · AI-built your starting system.",
+      });
     } catch (err) {
       console.error("autoDraft failed", err);
       loadModel(keywordTemplate(text));
@@ -922,7 +1289,9 @@ export default function DecisionLens() {
 
   async function runIngest() {
     if (!decision.trim()) {
-      toast.error("Add your decision first", { description: "Decision Lens · we need a question to map." });
+      toast.error("Add your decision first", {
+        description: "Decision Lens · we need a question to map.",
+      });
       return;
     }
     if (pdfFiles.length === 0 && urls.length === 0) {
@@ -933,10 +1302,12 @@ export default function DecisionLens() {
     const attached = pdfFiles.length + urls.length;
     try {
       const filesPayload = await Promise.all(
-        pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) }))
+        pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) })),
       );
       const { ingestSources } = await import("@/lib/ingest-sources.functions");
-      const raw = await ingestSources({ data: { files: filesPayload, urls, decisionText: decision } });
+      const raw = await ingestSources({
+        data: { files: filesPayload, urls, decisionText: decision },
+      });
       const m = validateDraftedModel(raw);
       if (!m) throw new Error("AI_BAD_JSON: model failed validation");
       loadModel(m);
@@ -947,13 +1318,23 @@ export default function DecisionLens() {
       setStage("model");
       triggerAiHighlight();
       if (skipped.length > 0) {
-        const lines = skipped.slice(0, 4).map((s) => `${s.name}: ${describeSkipReason(s.reason)}`).join(" · ");
+        const lines = skipped
+          .slice(0, 4)
+          .map((s) => `${s.name}: ${describeSkipReason(s.reason)}`)
+          .join(" · ");
         const more = skipped.length > 4 ? ` · +${skipped.length - 4} more` : "";
-        toast.warning(degraded ? "Decision drafted (no sources used)" : "Decision mapped (some sources skipped)", {
-          description: "Decision Lens · " + lines + more,
-        });
+        toast.warning(
+          degraded
+            ? "Decision drafted (no sources used)"
+            : "Decision mapped (some sources skipped)",
+          {
+            description: "Decision Lens · " + lines + more,
+          },
+        );
       } else {
-        toast.success("Decision mapped", { description: "Decision Lens · grounded in your sources." });
+        toast.success("Decision mapped", {
+          description: "Decision Lens · grounded in your sources.",
+        });
       }
     } catch (err) {
       console.error("ingest failed", err);
@@ -965,27 +1346,34 @@ export default function DecisionLens() {
   }
   async function runSuggestDecisions() {
     if (pdfFiles.length === 0 && urls.length === 0) {
-      toast.error("Add a source first", { description: "Decision Lens · drop a PDF or paste a link to suggest decisions." });
+      toast.error("Add a source first", {
+        description: "Decision Lens · drop a PDF or paste a link to suggest decisions.",
+      });
       return;
     }
     setSuggestingDecisions(true);
     try {
       const filesPayload = await Promise.all(
-        pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) }))
+        pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) })),
       );
       const { suggestDecisions } = await import("@/lib/suggest-decisions.functions");
       const res = await suggestDecisions({ data: { files: filesPayload, urls, hint: decision } });
       if (!res.decisions.length) {
-        toast.error("No decisions suggested", { description: "Decision Lens · try adding richer sources or write your own." });
+        toast.error("No decisions suggested", {
+          description: "Decision Lens · try adding richer sources or write your own.",
+        });
         return;
       }
       setDecisionSuggestions(res.decisions);
       if (res.degraded) {
         toast.warning("Suggested without your sources", {
-          description: "Decision Lens · we couldn't read what you attached — these are best guesses.",
+          description:
+            "Decision Lens · we couldn't read what you attached — these are best guesses.",
         });
       } else {
-        toast.success("Decision suggestions ready", { description: "Decision Lens · pick the one that fits, or write your own." });
+        toast.success("Decision suggestions ready", {
+          description: "Decision Lens · pick the one that fits, or write your own.",
+        });
       }
     } catch (err) {
       console.error("suggestDecisions failed", err);
@@ -1004,12 +1392,10 @@ export default function DecisionLens() {
       const el = decisionTextareaRef.current;
       if (el) el.setSelectionRange(el.value.length, el.value.length);
     });
-    toast.success("Decision set", { description: "Decision Lens · tweak it above, then map it from your sources." });
+    toast.success("Decision set", {
+      description: "Decision Lens · tweak it above, then map it from your sources.",
+    });
   }
-
-
-
-
 
   function loadModel(m: Model) {
     setOutcomeName(m.outcomeName);
@@ -1024,7 +1410,7 @@ export default function DecisionLens() {
 
   const model: Model = useMemo(
     () => ({ outcomeName, horizon, variables, influences, options }),
-    [outcomeName, horizon, variables, influences, options]
+    [outcomeName, horizon, variables, influences, options],
   );
 
   // Load model from #m= on first mount
@@ -1045,7 +1431,11 @@ export default function DecisionLens() {
         const encoded = encodeModel(model);
         const newHash = "#m=" + encoded;
         if (window.location.hash !== newHash) {
-          window.history.replaceState(null, "", window.location.pathname + window.location.search + newHash);
+          window.history.replaceState(
+            null,
+            "",
+            window.location.pathname + window.location.search + newHash,
+          );
         }
       } catch {
         /* noop */
@@ -1063,12 +1453,17 @@ export default function DecisionLens() {
         await navigator.clipboard.writeText(url);
       } else {
         const ta = document.createElement("textarea");
-        ta.value = url; document.body.appendChild(ta); ta.select();
-        document.execCommand("copy"); document.body.removeChild(ta);
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
       }
       toast.success("Copied!", { description: "Decision Lens · share link ready to paste." });
     } catch {
-      toast.error("Couldn't copy link", { description: "Decision Lens · try copying the URL manually." });
+      toast.error("Couldn't copy link", {
+        description: "Decision Lens · try copying the URL manually.",
+      });
     }
   }
 
@@ -1093,7 +1488,8 @@ export default function DecisionLens() {
       name,
       source: inferCurrentSource(),
       model: {
-        outcomeName, horizon,
+        outcomeName,
+        horizon,
         variables: variables.map((v) => ({ ...v })),
         influences: influences.map((i) => ({ ...i })),
         options: options.map((o) => ({ ...o, pushes: { ...o.pushes } })),
@@ -1115,9 +1511,7 @@ export default function DecisionLens() {
     if (!t) return;
     const name = window.prompt("Rename template", t.name);
     if (!name || !name.trim()) return;
-    persistUserTemplates(
-      userTemplates.map((x) => (x.id === id ? { ...x, name: name.trim() } : x))
-    );
+    persistUserTemplates(userTemplates.map((x) => (x.id === id ? { ...x, name: name.trim() } : x)));
     toast.success("Template renamed", { description: "Decision Lens · gallery updated." });
   }
   function loadUserTemplate(t: UserTemplate) {
@@ -1137,7 +1531,7 @@ export default function DecisionLens() {
         color: OPT_COLORS[i % OPT_COLORS.length],
         traj: simulate(variables, influences, o.pushes, horizon),
       })),
-    [options, variables, influences, horizon]
+    [options, variables, influences, horizon],
   );
 
   // Monte-Carlo: per-option uncertainty fans + joint win probabilities.
@@ -1158,8 +1552,8 @@ export default function DecisionLens() {
           score: r.traj[r.traj.length - 1].idx,
           winProb: mc.winProb[r.option.id] ?? 0,
         }))
-        .sort((a, b) => (b.winProb - a.winProb) || (b.score - a.score)),
-    [runs, mc]
+        .sort((a, b) => b.winProb - a.winProb || b.score - a.score),
+    [runs, mc],
   );
   const best = ranked[0];
 
@@ -1176,11 +1570,13 @@ export default function DecisionLens() {
     return out;
   }, [mc, options]);
   const allTrendDown = useMemo(
-    () => options.length > 0 && options.every((o) => {
-      const d = deltas[o.id];
-      return d ? d.end < d.start : false;
-    }),
-    [deltas, options]
+    () =>
+      options.length > 0 &&
+      options.every((o) => {
+        const d = deltas[o.id];
+        return d ? d.end < d.start : false;
+      }),
+    [deltas, options],
   );
 
   // Model-sanity checks: surface obvious modelling mistakes.
@@ -1195,29 +1591,49 @@ export default function DecisionLens() {
       if (hurt && v.weight > 0) {
         findings.push({
           id: "sign:" + v.id,
-          text: <>'<b className="text-foreground">{v.name}</b>' is set as <b>helping</b> your goal — does that match reality?</>,
+          text: (
+            <>
+              '<b className="text-foreground">{v.name}</b>' is set as <b>helping</b> your goal —
+              does that match reality?
+            </>
+          ),
         });
       } else if (help && v.weight < 0) {
         findings.push({
           id: "sign:" + v.id,
-          text: <>'<b className="text-foreground">{v.name}</b>' is set as <b>hurting</b> your goal — does that match reality?</>,
+          text: (
+            <>
+              '<b className="text-foreground">{v.name}</b>' is set as <b>hurting</b> your goal —
+              does that match reality?
+            </>
+          ),
         });
       }
     }
     if (variables.length > 0 && options.length > 0) {
       const dominant = [...variables].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))[0];
-      const noOneMoves = options.every((o) => Math.abs((o.pushes?.[dominant.id] ?? 0)) < 5);
+      const noOneMoves = options.every((o) => Math.abs(o.pushes?.[dominant.id] ?? 0) < 5);
       if (noOneMoves) {
         findings.push({
           id: "dominant:" + dominant.id,
-          text: <>No option meaningfully moves '<b className="text-foreground">{dominant.name}</b>', which is the strongest driver in your model.</>,
+          text: (
+            <>
+              No option meaningfully moves '<b className="text-foreground">{dominant.name}</b>',
+              which is the strongest driver in your model.
+            </>
+          ),
         });
       }
     }
     if (allTrendDown) {
       findings.push({
         id: "trend-down",
-        text: <>Every option's outlook gets worse over time. Either a driver's sign is wrong, or no option pushes hard enough on what matters.</>,
+        text: (
+          <>
+            Every option's outlook gets worse over time. Either a driver's sign is wrong, or no
+            option pushes hard enough on what matters.
+          </>
+        ),
       });
     }
     return findings;
@@ -1234,7 +1650,6 @@ export default function DecisionLens() {
   const [modelSuggestions, setModelSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [optionSuggestions, setOptionSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
-
 
   async function runSuggestActions(opt: DecisionOption) {
     setActionLoading((s) => ({ ...s, [opt.id]: true }));
@@ -1282,11 +1697,16 @@ export default function DecisionLens() {
   }
 
   // Invalidate stale AI output when the model changes
-  useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
+  useEffect(() => {
+    setExplanation(null);
+  }, [variables, influences, options, horizon]);
 
   // Cycle staged loading messages during ingest
   useEffect(() => {
-    if (!ingesting) { setIngestStep(0); return; }
+    if (!ingesting) {
+      setIngestStep(0);
+      return;
+    }
     setIngestStep(0);
     const id = window.setInterval(() => {
       setIngestStep((s) => (s + 1) % 4);
@@ -1306,7 +1726,9 @@ export default function DecisionLens() {
       });
       setExplanation(res.explanation);
     } catch (e) {
-      toast.error("Couldn't explain", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+      toast.error("Couldn't explain", {
+        description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable."),
+      });
     } finally {
       setExplaining(false);
     }
@@ -1322,7 +1744,9 @@ export default function DecisionLens() {
       });
       setResult(res.suggestions);
       if (!res.suggestions.length) {
-        toast.success("Decision Lens · looks solid", { description: "No changes suggested — this looks solid." });
+        toast.success("Decision Lens · looks solid", {
+          description: "No changes suggested — this looks solid.",
+        });
       }
     } catch (e) {
       toast.error("Decision Lens · couldn't get suggestions", {
@@ -1343,17 +1767,24 @@ export default function DecisionLens() {
     } else if (s.kind === "add_influence") {
       const dup = influences.some((i) => i.from === s.influence.from && i.to === s.influence.to);
       if (dup) {
-        toast("Decision Lens · already linked", { description: "That knock-on effect is already in your map." });
+        toast("Decision Lens · already linked", {
+          description: "That knock-on effect is already in your map.",
+        });
       } else {
         setInfluences([...influences, s.influence]);
-        toast.success("Decision Lens · knock-on effect added", { description: "Linked two drivers." });
+        toast.success("Decision Lens · knock-on effect added", {
+          description: "Linked two drivers.",
+        });
       }
     } else if (s.kind === "add_option") {
       const taken = new Set(options.map((o) => o.name.trim().toLowerCase()));
       if (taken.has(s.option.name.trim().toLowerCase())) {
         toast("Decision Lens · option already exists", { description: s.option.name });
       } else {
-        setOptions([...options, { id: uid(), name: s.option.name, pushes: { ...s.option.pushes } }]);
+        setOptions([
+          ...options,
+          { id: uid(), name: s.option.name, pushes: { ...s.option.pushes } },
+        ]);
         toast.success("Decision Lens · option added", { description: s.option.name });
       }
     }
@@ -1366,7 +1797,6 @@ export default function DecisionLens() {
     setResult((cur) => (cur ? cur.filter((x) => x !== s) : cur));
   }
 
-
   // Suggested probe: highest out-degree (ties → highest |weight|)
   const suggestedProbe = useMemo(() => {
     if (!variables.length) return null;
@@ -1378,7 +1808,8 @@ export default function DecisionLens() {
     for (const v of variables) {
       const d = outDeg.get(v.id) ?? 0;
       if (d > bestDeg || (d === bestDeg && Math.abs(v.weight) > Math.abs(bestVar.weight))) {
-        bestVar = v; bestDeg = d;
+        bestVar = v;
+        bestDeg = d;
       }
     }
     return { variable: bestVar, outDegree: bestDeg };
@@ -1388,13 +1819,15 @@ export default function DecisionLens() {
   const modelHealth = useMemo(() => {
     const noDownside = variables.length > 0 && !variables.some((v) => v.weight < 0);
     const orphans = variables.filter(
-      (v) => !influences.some((i) => i.from === v.id || i.to === v.id)
+      (v) => !influences.some((i) => i.from === v.id || i.to === v.id),
     );
     // Cycle detection via DFS on the directed influence graph.
     const adj = new Map<string, string[]>();
     for (const v of variables) adj.set(v.id, []);
     for (const i of influences) adj.get(i.from)?.push(i.to);
-    const WHITE = 0, GRAY = 1, BLACK = 2;
+    const WHITE = 0,
+      GRAY = 1,
+      BLACK = 2;
     const color = new Map<string, number>();
     for (const v of variables) color.set(v.id, WHITE);
     let hasCycle = false;
@@ -1403,7 +1836,10 @@ export default function DecisionLens() {
       color.set(u, GRAY);
       for (const n of adj.get(u) ?? []) {
         const c = color.get(n) ?? WHITE;
-        if (c === GRAY) { hasCycle = true; return; }
+        if (c === GRAY) {
+          hasCycle = true;
+          return;
+        }
         if (c === WHITE) dfs(n);
       }
       color.set(u, BLACK);
@@ -1412,11 +1848,6 @@ export default function DecisionLens() {
     const noLoops = influences.length > 0 && !hasCycle;
     return { noDownside, orphans, noLoops };
   }, [variables, influences]);
-
-
-
-
-
 
   /* ---------------------------- mutators ------------------------------- */
   function updVar(id: string, patch: Partial<Variable>) {
@@ -1428,9 +1859,13 @@ export default function DecisionLens() {
   function removeVar(id: string) {
     setVariables(variables.filter((v) => v.id !== id));
     setInfluences(influences.filter((i) => i.from !== id && i.to !== id));
-    setOptions(options.map((o) => {
-      const p = { ...o.pushes }; delete p[id]; return { ...o, pushes: p };
-    }));
+    setOptions(
+      options.map((o) => {
+        const p = { ...o.pushes };
+        delete p[id];
+        return { ...o, pushes: p };
+      }),
+    );
   }
   function addInfluence() {
     if (variables.length < 2) return;
@@ -1469,7 +1904,9 @@ export default function DecisionLens() {
               <button
                 key={s.id}
                 type="button"
-                ref={(el) => { stepperRefs.current[i] = el as unknown as HTMLButtonElement | null; }}
+                ref={(el) => {
+                  stepperRefs.current[i] = el as unknown as HTMLButtonElement | null;
+                }}
                 onClick={() => setStage(s.id)}
                 aria-current={active ? "step" : undefined}
                 className={[
@@ -1524,7 +1961,8 @@ export default function DecisionLens() {
         <header className="sticky top-0 z-10 min-h-16 px-4 md:px-8 py-3 flex items-start justify-between gap-4 border-b bg-white">
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-              Stage {STAGES.findIndex((s) => s.id === stage) + 1} of {STAGES.length} · {STAGES.find((s) => s.id === stage)?.label}
+              Stage {STAGES.findIndex((s) => s.id === stage) + 1} of {STAGES.length} ·{" "}
+              {STAGES.find((s) => s.id === stage)?.label}
             </div>
             <h1
               className="mt-0.5 text-base md:text-lg font-semibold text-foreground break-words"
@@ -1571,119 +2009,101 @@ export default function DecisionLens() {
         </div>
 
         <div className="flex-1 px-4 md:px-8 py-6 md:py-8">
-        <Tabs value={stage} onValueChange={(v) => setStage(v as Stage)} className="w-full">
-          <TabsList className="sr-only">
-            {STAGES.map((s) => (
-              <TabsTrigger key={s.id} value={s.id}>{s.label}</TabsTrigger>
-            ))}
-          </TabsList>
+          <Tabs value={stage} onValueChange={(v) => setStage(v as Stage)} className="w-full">
+            <TabsList className="sr-only">
+              {STAGES.map((s) => (
+                <TabsTrigger key={s.id} value={s.id}>
+                  {s.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-
-
-
-          {/* ---------------------------- FRAME ---------------------------- */}
-          <TabsContent value="frame" className="mt-0">
-            <div className="dl-frame">
-              <Panel>
-                <SectionTag icon={Target} text="The decision" />
-                <label className="mt-3 block text-sm text-muted-foreground">
-                  What decision are you facing?
-                </label>
-                <Textarea
-                  ref={decisionTextareaRef}
-                  value={decision}
-                  onChange={(e) => setDecision(e.target.value)}
-                  rows={3}
-                  className="mt-2 resize-y bg-muted"
-                />
-
-                {/* Sources: PDFs + URLs */}
-                <div className="mt-4">
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    Sources (optional)
-                    <HelpPopover
-                      title="Sources"
-                      body="Drop PDFs or paste links. We'll read them and use them as the starting point for your decision map."
-                    />
-                  </div>
-                  <input
-                    ref={pdfInputRef}
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      const list = e.target.files ? Array.from(e.target.files) : [];
-                      if (list.length) addPdfFiles(list);
-                      e.target.value = "";
-                    }}
+            {/* ---------------------------- FRAME ---------------------------- */}
+            <TabsContent value="frame" className="mt-0">
+              <div className="dl-frame">
+                <Panel>
+                  <SectionTag icon={Target} text="The decision" />
+                  <label className="mt-3 block text-sm text-muted-foreground">
+                    What decision are you facing?
+                  </label>
+                  <Textarea
+                    ref={decisionTextareaRef}
+                    value={decision}
+                    onChange={(e) => setDecision(e.target.value)}
+                    rows={3}
+                    className="mt-2 resize-y bg-muted"
                   />
-                  <div
-                    ref={dropzoneRef}
-                    onClick={() => pdfInputRef.current?.click()}
-                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={(e) => {
-                      e.preventDefault(); setDragOver(false);
-                      const list = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
-                      if (list.length) addPdfFiles(list);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") pdfInputRef.current?.click(); }}
-                    className={
-                      "mt-2 cursor-pointer rounded-xl border-2 border-dashed p-4 text-center text-xs transition-colors " +
-                      (dragOver
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border bg-muted/40 text-muted-foreground hover:border-primary/60")
-                    }
-                  >
-                    <Upload size={16} className="mx-auto mb-1 text-primary" />
-                    <div>
-                      <b className="text-foreground">Drop PDFs here</b> or click to browse — up to 5 files, 10 MB each.
-                    </div>
-                  </div>
-                  {pdfFiles.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {pdfFiles.map((f, i) => (
-                        <span key={f.name + i} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground">
-                          <FileText size={12} className="text-primary" />
-                          <span className="max-w-[180px] truncate">{f.name}</span>
-                          <span className="text-dim">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
-                          <button
-                            type="button"
-                            aria-label={"Remove " + f.name}
-                            onClick={(e) => { e.stopPropagation(); removePdf(i); }}
-                            className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-dim hover:text-foreground"
-                          >
-                            <X size={11} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
 
-                  <div className="mt-3">
-                    <Input
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") { e.preventDefault(); tryAddUrl(urlInput); }
+                  {/* Sources: PDFs + URLs */}
+                  <div className="mt-4">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      Sources (optional)
+                      <HelpPopover
+                        title="Sources"
+                        body="Drop PDFs or paste links. We'll read them and use them as the starting point for your decision map."
+                      />
+                    </div>
+                    <input
+                      ref={pdfInputRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const list = e.target.files ? Array.from(e.target.files) : [];
+                        if (list.length) addPdfFiles(list);
+                        e.target.value = "";
                       }}
-                      onBlur={() => { if (urlInput.trim()) tryAddUrl(urlInput); }}
-                      placeholder="Paste a URL and press Enter"
-                      className="bg-muted"
-                      aria-label="Source URL"
                     />
-                    {urls.length > 0 && (
+                    <div
+                      ref={dropzoneRef}
+                      onClick={() => pdfInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOver(true);
+                      }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOver(false);
+                        const list = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+                        if (list.length) addPdfFiles(list);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") pdfInputRef.current?.click();
+                      }}
+                      className={
+                        "mt-2 cursor-pointer rounded-xl border-2 border-dashed p-4 text-center text-xs transition-colors " +
+                        (dragOver
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border bg-muted/40 text-muted-foreground hover:border-primary/60")
+                      }
+                    >
+                      <Upload size={16} className="mx-auto mb-1 text-primary" />
+                      <div>
+                        <b className="text-foreground">Drop PDFs here</b> or click to browse — up to
+                        5 files, 10 MB each.
+                      </div>
+                    </div>
+                    {pdfFiles.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {urls.map((u, i) => (
-                          <span key={u + i} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground">
-                            <span className="max-w-[220px] truncate">{u}</span>
+                        {pdfFiles.map((f, i) => (
+                          <span
+                            key={f.name + i}
+                            className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground"
+                          >
+                            <FileText size={12} className="text-primary" />
+                            <span className="max-w-[180px] truncate">{f.name}</span>
+                            <span className="text-dim">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
                             <button
                               type="button"
-                              aria-label={"Remove " + u}
-                              onClick={() => removeUrl(i)}
+                              aria-label={"Remove " + f.name}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removePdf(i);
+                              }}
                               className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-dim hover:text-foreground"
                             >
                               <X size={11} />
@@ -1692,1071 +2112,1324 @@ export default function DecisionLens() {
                         ))}
                       </div>
                     )}
+
+                    <div className="mt-3">
+                      <Input
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            tryAddUrl(urlInput);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (urlInput.trim()) tryAddUrl(urlInput);
+                        }}
+                        placeholder="Paste a URL and press Enter"
+                        className="bg-muted"
+                        aria-label="Source URL"
+                      />
+                      {urls.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {urls.map((u, i) => (
+                            <span
+                              key={u + i}
+                              className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-foreground"
+                            >
+                              <span className="max-w-[220px] truncate">{u}</span>
+                              <button
+                                type="button"
+                                aria-label={"Remove " + u}
+                                onClick={() => removeUrl(i)}
+                                className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-dim hover:text-foreground"
+                              >
+                                <X size={11} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {(() => {
-                  const hasSources = pdfFiles.length > 0 || urls.length > 0;
-                  const nSrc = pdfFiles.length + urls.length;
-                  const busy = ingesting || drafting || suggestingDecisions;
-                  const ingestMessages = [
-                    "Reading your sources…",
-                    "Picking out what really matters…",
-                    "Spotting the knock-on effects…",
-                    "Laying out your options…",
-                  ];
-                  return (
-                    <>
-                      {/* Stateful guidance callout */}
-                      <div className="mt-5 rounded-xl border border-primary/40 bg-primary/10 p-4">
-                        {ingesting ? (
-                          <div>
-                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                              <Loader2 size={16} className="animate-spin text-primary" />
-                              {ingestMessages[ingestStep]}
+                  {(() => {
+                    const hasSources = pdfFiles.length > 0 || urls.length > 0;
+                    const nSrc = pdfFiles.length + urls.length;
+                    const busy = ingesting || drafting || suggestingDecisions;
+                    const ingestMessages = [
+                      "Reading your sources…",
+                      "Picking out what really matters…",
+                      "Spotting the knock-on effects…",
+                      "Laying out your options…",
+                    ];
+                    return (
+                      <>
+                        {/* Stateful guidance callout */}
+                        <div className="mt-5 rounded-xl border border-primary/40 bg-primary/10 p-4">
+                          {ingesting ? (
+                            <div>
+                              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                <Loader2 size={16} className="animate-spin text-primary" />
+                                {ingestMessages[ingestStep]}
+                              </div>
+                              <div className="mt-3 flex gap-1.5">
+                                {ingestMessages.map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={
+                                      "h-1 flex-1 rounded-full transition-colors " +
+                                      (i <= ingestStep ? "bg-primary" : "bg-primary/20")
+                                    }
+                                  />
+                                ))}
+                              </div>
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                This can take up to ~30s for large PDFs.
+                              </p>
                             </div>
-                            <div className="mt-3 flex gap-1.5">
-                              {ingestMessages.map((_, i) => (
-                                <div
-                                  key={i}
-                                  className={
-                                    "h-1 flex-1 rounded-full transition-colors " +
-                                    (i <= ingestStep ? "bg-primary" : "bg-primary/20")
-                                  }
-                                />
-                              ))}
+                          ) : hasSources ? (
+                            <div>
+                              <ul className="space-y-1.5 text-sm">
+                                <li className="flex items-center gap-2 text-foreground">
+                                  <CheckCircle2 size={15} className="text-primary" />
+                                  <span>
+                                    <b>Step 1</b> — {nSrc} source{nSrc === 1 ? "" : "s"} attached
+                                  </span>
+                                </li>
+                                <li className="flex items-center gap-2 text-muted-foreground">
+                                  <Circle size={15} className="text-muted-foreground/60" />
+                                  <span>
+                                    <b>Step 2</b> (optional) — refine your question above
+                                  </span>
+                                </li>
+                                <li className="flex items-center gap-2 text-foreground">
+                                  <PlayCircle size={15} className="text-primary" />
+                                  <span>
+                                    <b>Step 3</b> — click “Map my decision” below
+                                  </span>
+                                </li>
+                              </ul>
+                              <p className="mt-3 text-xs text-muted-foreground">
+                                Decision Lens will read your sources and lay out the drivers,
+                                knock-on effects, and options for you — about 10–30 seconds.
+                              </p>
                             </div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              This can take up to ~30s for large PDFs.
-                            </p>
-                          </div>
-                        ) : hasSources ? (
-                          <div>
-                            <ul className="space-y-1.5 text-sm">
-                              <li className="flex items-center gap-2 text-foreground">
-                                <CheckCircle2 size={15} className="text-primary" />
-                                <span><b>Step 1</b> — {nSrc} source{nSrc === 1 ? "" : "s"} attached</span>
-                              </li>
-                              <li className="flex items-center gap-2 text-muted-foreground">
-                                <Circle size={15} className="text-muted-foreground/60" />
-                                <span><b>Step 2</b> (optional) — refine your question above</span>
-                              </li>
-                              <li className="flex items-center gap-2 text-foreground">
-                                <PlayCircle size={15} className="text-primary" />
-                                <span><b>Step 3</b> — click “Map my decision” below</span>
-                              </li>
-                            </ul>
-                            <p className="mt-3 text-xs text-muted-foreground">
-                              Decision Lens will read your sources and lay out the drivers, knock-on effects, and options for you — about 10–30 seconds.
-                            </p>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="text-sm font-medium text-foreground">Two ways to start</div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Upload PDFs or paste links above and Decision Lens will read them to map your decision — or skip sources and let AI draft from your question alone.
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                          ) : (
+                            <div>
+                              <div className="text-sm font-medium text-foreground">
+                                Two ways to start
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Upload PDFs or paste links above and Decision Lens will read them to
+                                map your decision — or skip sources and let AI draft from your
+                                question alone.
+                              </p>
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Action row */}
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
-                        {hasSources ? (
-                          <>
+                        {/* Action row */}
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          {hasSources ? (
+                            <>
+                              <Button
+                                onClick={() => {
+                                  void runIngest();
+                                }}
+                                disabled={busy}
+                                size="lg"
+                                className="gap-2"
+                              >
+                                {ingesting ? (
+                                  <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                  <FileText size={16} />
+                                )}
+                                {ingesting ? "Mapping…" : "Map my decision"}
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  void runSuggestDecisions();
+                                }}
+                                disabled={busy}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                              >
+                                {suggestingDecisions ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <Lightbulb size={14} />
+                                )}
+                                {suggestingDecisions
+                                  ? "Reading sources…"
+                                  : decisionSuggestions
+                                    ? "Suggest different decisions"
+                                    : "Suggest decisions from sources"}
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  void runAutoDraft(decision);
+                                }}
+                                disabled={busy}
+                                variant="ghost"
+                                size="sm"
+                                className="gap-2"
+                              >
+                                {drafting ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <Sparkles size={14} />
+                                )}
+                                {drafting ? "Drafting…" : "Skip sources & draft from text"}
+                              </Button>
+                            </>
+                          ) : (
                             <Button
-                              onClick={() => { void runIngest(); }}
+                              onClick={() => {
+                                void runAutoDraft(decision);
+                              }}
                               disabled={busy}
                               size="lg"
                               className="gap-2"
                             >
-                              {ingesting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                              {ingesting ? "Mapping…" : "Map my decision"}
+                              {drafting ? (
+                                <Loader2 size={16} className="animate-spin" />
+                              ) : (
+                                <Sparkles size={16} />
+                              )}
+                              {drafting ? "Drafting…" : "Auto-draft from my question"}
                             </Button>
-                            <Button
-                              type="button"
-                              onClick={() => { void runSuggestDecisions(); }}
-                              disabled={busy}
-                              variant="outline"
-                              size="sm"
-                              className="gap-2"
-                            >
-                              {suggestingDecisions ? <Loader2 size={14} className="animate-spin" /> : <Lightbulb size={14} />}
-                              {suggestingDecisions ? "Reading sources…" : (decisionSuggestions ? "Suggest different decisions" : "Suggest decisions from sources")}
-                            </Button>
-                            <Button
-                              onClick={() => { void runAutoDraft(decision); }}
-                              disabled={busy}
-                              variant="ghost"
-                              size="sm"
-                              className="gap-2"
-                            >
-                              {drafting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                              {drafting ? "Drafting…" : "Skip sources & draft from text"}
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            onClick={() => { void runAutoDraft(decision); }}
-                            disabled={busy}
-                            size="lg"
-                            className="gap-2"
-                          >
-                            {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                            {drafting ? "Drafting…" : "Auto-draft from my question"}
-                          </Button>
-                        )}
-                      </div>
+                          )}
+                        </div>
 
-                      {/* AI-suggested decisions from sources */}
-                      {decisionSuggestions && decisionSuggestions.length > 0 && (
-                        <div className="mt-4 rounded-xl border border-border bg-card p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                                <Lightbulb size={15} className="text-primary" />
-                                Pick a decision to frame
+                        {/* AI-suggested decisions from sources */}
+                        {decisionSuggestions && decisionSuggestions.length > 0 && (
+                          <div className="mt-4 rounded-xl border border-border bg-card p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                  <Lightbulb size={15} className="text-primary" />
+                                  Pick a decision to frame
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Based on what your sources keep coming back to. Pick one to drop
+                                  into the question above — you can still edit it.
+                                </p>
                               </div>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Based on what your sources keep coming back to. Pick one to drop into the question above — you can still edit it.
-                              </p>
+                              <button
+                                type="button"
+                                aria-label="Dismiss suggestions"
+                                onClick={() => setDecisionSuggestions(null)}
+                                className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-md text-dim hover:text-foreground hover:bg-muted"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                            <ul className="mt-3 space-y-2">
+                              {decisionSuggestions.map((d, i) => (
+                                <li
+                                  key={i}
+                                  className="rounded-lg border border-border bg-background p-3 hover:border-primary/60 transition-colors"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium text-foreground break-words">
+                                        {d.question}
+                                      </div>
+                                      {d.rationale && (
+                                        <div className="mt-1 text-xs text-muted-foreground break-words">
+                                          {d.rationale}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => pickSuggestedDecision(d.question)}
+                                      className="shrink-0 gap-1"
+                                    >
+                                      <Check size={14} />
+                                      Use this
+                                    </Button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                            <button
+                              type="button"
+                              onClick={() => setDecisionSuggestions(null)}
+                              className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                            >
+                              Write my own instead
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Optional refinements */}
+                        <div className="mt-6 border-t border-border pt-4">
+                          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            Optional refinements
+                          </div>
+                          <div className="mt-3 dl-2">
+                            <div>
+                              <label className="block text-sm text-muted-foreground">
+                                What does success mean? (outcome label)
+                              </label>
+                              <Input
+                                value={outcomeName}
+                                onChange={(e) => setOutcomeName(e.target.value)}
+                                className="mt-2 bg-muted"
+                              />
+                            </div>
+                            <div>
+                              <label className="flex items-center gap-1 text-sm text-muted-foreground">
+                                How far ahead: <span className="text-primary">{horizon} steps</span>
+                                <HelpPopover
+                                  title="How far ahead you're looking"
+                                  body="A short range shows the quick wins. A longer range shows how things play out once the knock-on effects kick in."
+                                />
+                              </label>
+                              <Slider
+                                min={4}
+                                max={36}
+                                step={1}
+                                value={[horizon]}
+                                onValueChange={(v) => setHorizon(v[0])}
+                                className="mt-4"
+                                aria-label="How far ahead you're looking"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </Panel>
+
+                <div ref={templatesPanelRef}>
+                  <Panel>
+                    <SectionTag icon={GitBranch} text="Template gallery" />
+                    <p className="mt-2 text-xs text-dim">
+                      Pick a starting system — built-in or one of your saved models.
+                    </p>
+                    <div
+                      className="mt-3 grid gap-3"
+                      style={{ gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))" }}
+                    >
+                      {TEMPLATES.map((tpl) => (
+                        <button
+                          key={tpl.label}
+                          type="button"
+                          onClick={() => loadBuiltinTemplate(tpl)}
+                          className="group flex h-full flex-col gap-2 rounded-md border border-border bg-muted p-3 text-left transition-colors hover:border-primary"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                              Built-in
+                            </span>
+                            <ArrowRight
+                              size={14}
+                              className="text-primary opacity-60 group-hover:opacity-100"
+                            />
+                          </div>
+                          <div className="text-sm font-medium text-foreground">{tpl.label}</div>
+                          <div className="text-[11px] text-dim">Outcome · {tpl.outcomeName}</div>
+                        </button>
+                      ))}
+
+                      {userTemplates.map((t) => {
+                        const badge =
+                          t.source === "ai"
+                            ? "AI"
+                            : t.source === "documents"
+                              ? "Documents"
+                              : "Manual";
+                        return (
+                          <div
+                            key={t.id}
+                            className="group flex h-full flex-col gap-2 rounded-md border border-border bg-card p-3 text-left transition-colors hover:border-primary"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary">
+                                <Bookmark size={10} /> {badge}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => renameUserTemplate(t.id)}
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  aria-label={`Rename ${t.name}`}
+                                  title="Rename"
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteUserTemplate(t.id)}
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
+                                  aria-label={`Delete ${t.name}`}
+                                  title="Delete"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
                             </div>
                             <button
                               type="button"
-                              aria-label="Dismiss suggestions"
-                              onClick={() => setDecisionSuggestions(null)}
-                              className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-md text-dim hover:text-foreground hover:bg-muted"
+                              onClick={() => loadUserTemplate(t)}
+                              className="flex flex-1 flex-col gap-1 text-left"
                             >
-                              <X size={14} />
+                              <div className="text-sm font-medium text-foreground">{t.name}</div>
+                              <div className="text-[11px] text-dim">
+                                Outcome · {t.model.outcomeName}
+                              </div>
                             </button>
                           </div>
-                          <ul className="mt-3 space-y-2">
-                            {decisionSuggestions.map((d, i) => (
-                              <li
-                                key={i}
-                                className="rounded-lg border border-border bg-background p-3 hover:border-primary/60 transition-colors"
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium text-foreground break-words">
-                                      {d.question}
-                                    </div>
-                                    {d.rationale && (
-                                      <div className="mt-1 text-xs text-muted-foreground break-words">
-                                        {d.rationale}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={() => pickSuggestedDecision(d.question)}
-                                    className="shrink-0 gap-1"
-                                  >
-                                    <Check size={14} />
-                                    Use this
-                                  </Button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                          <button
-                            type="button"
-                            onClick={() => setDecisionSuggestions(null)}
-                            className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                          >
-                            Write my own instead
-                          </button>
-                        </div>
-                      )}
+                        );
+                      })}
 
-                      {/* Optional refinements */}
-                      <div className="mt-6 border-t border-border pt-4">
-                        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                          Optional refinements
+                      <button
+                        type="button"
+                        onClick={() => {
+                          loadModel(blankStarter());
+                          setStage("model");
+                        }}
+                        className="flex h-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border bg-transparent p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                      >
+                        <Plus size={16} />
+                        Start blank
+                      </button>
+                    </div>
+                  </Panel>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ---------------------------- MODEL ---------------------------- */}
+            <TabsContent value="model" className="mt-0">
+              {!coachDismissed &&
+                (() => {
+                  const varCount = variables.length;
+                  const step1Done = varCount >= 3 && varCount <= 6;
+                  const step2Done = varCount > 0;
+                  const step3Done = influences.length >= 2;
+                  const Item = ({
+                    done,
+                    children,
+                  }: {
+                    done: boolean;
+                    children: React.ReactNode;
+                  }) => (
+                    <li className="flex items-start gap-2">
+                      {done ? (
+                        <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
+                      ) : (
+                        <Circle size={15} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                      )}
+                      <span className={done ? "text-foreground" : "text-muted-foreground"}>
+                        {children}
+                      </span>
+                    </li>
+                  );
+                  return (
+                    <div className="mb-5">
+                      <Panel className="border-primary/30 bg-primary/5">
+                        <div className="flex items-start justify-between gap-3">
+                          <SectionTag icon={Compass} text="Build a good model" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCoachDismissed(true)}
+                            className="-mt-1 h-7 px-2 text-xs text-muted-foreground"
+                            aria-label="Dismiss setup coach"
+                          >
+                            Dismiss
+                          </Button>
                         </div>
-                        <div className="mt-3 dl-2">
-                          <div>
-                            <label className="block text-sm text-muted-foreground">
-                              What does success mean? (outcome label)
-                            </label>
-                            <Input
-                              value={outcomeName}
-                              onChange={(e) => setOutcomeName(e.target.value)}
-                              className="mt-2 bg-muted"
-                            />
-                          </div>
-                          <div>
-                            <label className="flex items-center gap-1 text-sm text-muted-foreground">
-                              How far ahead: <span className="text-primary">{horizon} steps</span>
-                              <HelpPopover
-                                title="How far ahead you're looking"
-                                body="A short range shows the quick wins. A longer range shows how things play out once the knock-on effects kick in."
-                              />
-                            </label>
-                            <Slider
-                              min={4}
-                              max={36}
-                              step={1}
-                              value={[horizon]}
-                              onValueChange={(v) => setHorizon(v[0])}
-                              className="mt-4"
-                              aria-label="How far ahead you're looking"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </>
+                        <ul className="mt-3 grid list-none gap-2 p-0 text-sm">
+                          <Item done={step1Done}>
+                            <b>1.</b> List the few things that drive {outcomeName.toLowerCase()}{" "}
+                            (aim for 3–6)
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              — {varCount} so far
+                            </span>
+                          </Item>
+                          <Item done={step2Done}>
+                            <b>2.</b> For each, set where it stands today and whether it helps or
+                            hurts.
+                          </Item>
+                          <Item done={step3Done}>
+                            <b>3.</b> Connect them with knock-on effects — aim for at least one
+                            loop.
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              — {influences.length} so far
+                            </span>
+                          </Item>
+                        </ul>
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          Reopen anytime from the Help button in the header.
+                        </p>
+                      </Panel>
+                    </div>
                   );
                 })()}
-
-              </Panel>
-
-
-
-
-              <div ref={templatesPanelRef}>
-                <Panel>
-                  <SectionTag icon={GitBranch} text="Template gallery" />
-                  <p className="mt-2 text-xs text-dim">
-                    Pick a starting system — built-in or one of your saved models.
-                  </p>
-                  <div
-                    className="mt-3 grid gap-3"
-                    style={{ gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))" }}
-                  >
-                    {TEMPLATES.map((tpl) => (
-                      <button
-                        key={tpl.label}
-                        type="button"
-                        onClick={() => loadBuiltinTemplate(tpl)}
-                        className="group flex h-full flex-col gap-2 rounded-md border border-border bg-muted p-3 text-left transition-colors hover:border-primary"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Built-in
-                          </span>
-                          <ArrowRight size={14} className="text-primary opacity-60 group-hover:opacity-100" />
-                        </div>
-                        <div className="text-sm font-medium text-foreground">{tpl.label}</div>
-                        <div className="text-[11px] text-dim">Outcome · {tpl.outcomeName}</div>
-                      </button>
-                    ))}
-
-                    {userTemplates.map((t) => {
-                      const badge =
-                        t.source === "ai" ? "AI" : t.source === "documents" ? "Documents" : "Manual";
-                      return (
-                        <div
-                          key={t.id}
-                          className="group flex h-full flex-col gap-2 rounded-md border border-border bg-card p-3 text-left transition-colors hover:border-primary"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary">
-                              <Bookmark size={10} /> {badge}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => renameUserTemplate(t.id)}
-                                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                                aria-label={`Rename ${t.name}`}
-                                title="Rename"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => deleteUserTemplate(t.id)}
-                                className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
-                                aria-label={`Delete ${t.name}`}
-                                title="Delete"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => loadUserTemplate(t)}
-                            className="flex flex-1 flex-col gap-1 text-left"
-                          >
-                            <div className="text-sm font-medium text-foreground">{t.name}</div>
-                            <div className="text-[11px] text-dim">Outcome · {t.model.outcomeName}</div>
-                          </button>
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      onClick={() => { loadModel(blankStarter()); setStage("model"); }}
-                      className="flex h-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border bg-transparent p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-                    >
-                      <Plus size={16} />
-                      Start blank
-                    </button>
-                  </div>
-                </Panel>
-              </div>
-
-            </div>
-          </TabsContent>
-
-          {/* ---------------------------- MODEL ---------------------------- */}
-          <TabsContent value="model" className="mt-0">
-            {!coachDismissed && (() => {
-              const varCount = variables.length;
-              const step1Done = varCount >= 3 && varCount <= 6;
-              const step2Done = varCount > 0;
-              const step3Done = influences.length >= 2;
-              const Item = ({ done, children }: { done: boolean; children: React.ReactNode }) => (
-                <li className="flex items-start gap-2">
-                  {done ? (
-                    <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
-                  ) : (
-                    <Circle size={15} className="mt-0.5 shrink-0 text-muted-foreground/60" />
-                  )}
-                  <span className={done ? "text-foreground" : "text-muted-foreground"}>{children}</span>
-                </li>
-              );
-              return (
+              {modelFindings.length > 0 && !sanityDismissed && (
                 <div className="mb-5">
-                  <Panel className="border-primary/30 bg-primary/5">
+                  <Panel className="border-hurts/30 bg-hurts/5">
                     <div className="flex items-start justify-between gap-3">
-                      <SectionTag icon={Compass} text="Build a good model" />
+                      <SectionTag icon={AlertTriangle} text="Worth a second look" />
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setCoachDismissed(true)}
+                        onClick={() => setSanityDismissed(true)}
                         className="-mt-1 h-7 px-2 text-xs text-muted-foreground"
-                        aria-label="Dismiss setup coach"
+                        aria-label="Dismiss model warnings"
                       >
                         Dismiss
                       </Button>
                     </div>
-                    <ul className="mt-3 grid list-none gap-2 p-0 text-sm">
-                      <Item done={step1Done}>
-                        <b>1.</b> List the few things that drive {outcomeName.toLowerCase()} (aim for 3–6)
-                        <span className="ml-1 text-xs text-muted-foreground">— {varCount} so far</span>
-                      </Item>
-                      <Item done={step2Done}>
-                        <b>2.</b> For each, set where it stands today and whether it helps or hurts.
-                      </Item>
-                      <Item done={step3Done}>
-                        <b>3.</b> Connect them with knock-on effects — aim for at least one loop.
-                        <span className="ml-1 text-xs text-muted-foreground">— {influences.length} so far</span>
-                      </Item>
+                    <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
+                      {modelFindings.map((f) => (
+                        <li key={f.id} className="flex items-start gap-2">
+                          <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
+                          <span className="leading-relaxed">{f.text}</span>
+                        </li>
+                      ))}
                     </ul>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Reopen anytime from the Help button in the header.
-                    </p>
                   </Panel>
                 </div>
-              );
-            })()}
-            {modelFindings.length > 0 && !sanityDismissed && (
-              <div className="mb-5">
-                <Panel className="border-hurts/30 bg-hurts/5">
-                  <div className="flex items-start justify-between gap-3">
-                    <SectionTag icon={AlertTriangle} text="Worth a second look" />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSanityDismissed(true)}
-                      className="-mt-1 h-7 px-2 text-xs text-muted-foreground"
-                      aria-label="Dismiss model warnings"
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                  <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
-                    {modelFindings.map((f) => (
-                      <li key={f.id} className="flex items-start gap-2">
-                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
-                        <span className="leading-relaxed">{f.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </Panel>
-              </div>
-            )}
-            {(aiSummary || (aiSources && aiSources.length > 0)) && (
-              <div className="mb-5">
-                <Panel>
-                  <SectionTag icon={Sparkles} text="Your decision landscape" />
-                  {aiSummary && (
-                    <p className="mt-2 text-sm text-foreground">{aiSummary}</p>
-                  )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Built from your sources — tweak anything below, then move on to Options → Decide.
-                  </p>
-                  {aiAttachedCount > 0 && (
-                    <p className="mt-2 text-xs text-foreground">
-                      Used <b>{Math.max(0, aiAttachedCount - aiSkippedCount)}</b> of <b>{aiAttachedCount}</b> source{aiAttachedCount === 1 ? "" : "s"}
-                      {aiSkippedCount > 0 && (
-                        <span className="text-muted-foreground"> ({aiSkippedCount} skipped: unreadable or too large)</span>
-                      )}
-                      .
+              )}
+              {(aiSummary || (aiSources && aiSources.length > 0)) && (
+                <div className="mb-5">
+                  <Panel>
+                    <SectionTag icon={Sparkles} text="Your decision landscape" />
+                    {aiSummary && <p className="mt-2 text-sm text-foreground">{aiSummary}</p>}
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Built from your sources — tweak anything below, then move on to Options →
+                      Decide.
                     </p>
-                  )}
-                  {aiSources && aiSources.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {aiSources.map((s, i) => (
-                        <span
-                          key={s.name + i}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"
-                        >
-                          {s.type === "pdf" ? <FileText size={11} className="text-primary" /> : <Upload size={11} className="text-primary" />}
-                          <span className="max-w-[220px] truncate">{s.name}</span>
-                          <span className="text-dim uppercase tracking-wider">{s.type}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <p className="mt-3 text-xs text-dim">
-                    Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each driver to see why the AI included it.
-                  </p>
-                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    <Button
-                      onClick={() => setStage("options")}
-                      className="gap-2"
-                    >
-                      Looks right — set up options <ArrowRight size={14} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setStage("frame")}
-                      className="gap-1.5"
-                    >
-                      <ArrowLeft size={13} /> Re-map from sources
-                    </Button>
-                  </div>
-                </Panel>
-              </div>
-            )}
-
-            <div className="mb-5">
-              <Panel>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <SectionTag icon={Lightbulb} text="Ways to strengthen this model" />
-                    <HelpPopover
-                      title="Help me improve this"
-                      body="Spots things you may have missed — an important driver, a downside, or a knock-on effect that creates a loop."
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => runImprove("model")}
-                    disabled={improvingModel || variables.length === 0}
-                    className="gap-1.5"
-                    aria-label="Help me improve this model"
-                  >
-                    {improvingModel ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                    {modelSuggestions ? "Get more suggestions" : "✨ Help me improve this"}
-                  </Button>
-                </div>
-                {modelSuggestions === null && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Get a few suggestions: a driver you might be missing, a downside to weigh, or a knock-on effect that creates a loop.
-                  </p>
-                )}
-                <SuggestionList
-                  suggestions={modelSuggestions}
-                  variables={variables}
-                  onAccept={(s) => acceptSuggestion(s, "model")}
-                  onDismiss={(s) => dismissSuggestion(s, "model")}
-                />
-              </Panel>
-            </div>
-
-
-
-            <div className="dl-model">
-
-
-              <div className={aiHighlight ? "rounded-xl ring-2 ring-primary/70 ring-offset-2 ring-offset-background motion-safe:animate-pulse transition-shadow" : "transition-shadow"}>
-              <Panel>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <SectionTag icon={Network} text="What's driving this decision" />
-                    <HelpPopover
-                      title="What's a driver?"
-                      body="The handful of things that genuinely move your outcome — like trust, demand, or cash on hand. Not surface details."
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      setVariables([...variables, { id: uid(), name: "New driver", value: 50, weight: 40 }])
-                    }
-                    className="gap-1"
-                  >
-                    <Plus size={13} /> Add
-                  </Button>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  The few things that actually move {outcomeName.toLowerCase()}. Set where each stands today and whether it helps or hurts your goal.
-                </p>
-                <div className="mt-3 grid gap-3">
-                  {variables.map((v) => (
-                    <div key={v.id} className="rounded-xl border border-border bg-muted p-3">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={v.name}
-                          onChange={(e) => updVar(v.id, { name: e.target.value })}
-                          className="flex-1 h-9 bg-transparent text-sm font-medium"
-                          aria-label={"Driver name: " + v.name}
-                        />
-                        {v.rationale && (
-                          <HelpPopover title="Why this driver" body={v.rationale} />
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeVar(v.id)}
-                          aria-label={"Remove " + v.name}
-                          className="text-dim"
-                        >
-                          <X size={15} />
-                        </Button>
-                      </div>
-                      <div className="mt-2 dl-2">
-                        <SliderRow
-                          label="Today" val={v.value} min={0} max={100} tone="primary"
-                          onChange={(x) => updVar(v.id, { value: x })}
-                        />
-                        <SliderRow
-                          label={v.weight >= 0 ? "Helps your goal" : "Hurts your goal"}
-                          val={v.weight} min={-100} max={100}
-                          tone={v.weight >= 0 ? "helps" : "hurts"}
-                          onChange={(x) => updVar(v.id, { weight: x })}
-                          help={{
-                            title: "Helps or hurts your goal",
-                            body: "How strongly this driver pushes the outcome up (helps) or pulls it down (hurts). Bigger number = bigger swing.",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {modelHealth.noDownside && (
-                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
-                    <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
-                    <span>Every real decision has a downside — consider adding something this could hurt (a risk).</span>
-                  </div>
-                )}
-
-                <div className="mt-5 flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <SectionTag icon={GitBranch} text="Knock-on effects" />
-                    <HelpPopover
-                      title="Knock-on effects"
-                      body="How one driver affects another over time — for example, more trust lowers fear, or faster growth raises burn."
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={addInfluence}
-                    className="gap-1"
-                  >
-                    <Plus size={13} /> Add
-                  </Button>
-                </div>
-                <div className="mt-3 grid gap-2">
-                  {influences.length === 0 && (
-                    <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                      <b className="text-foreground">No knock-on effects yet.</b> Add how one driver moves another — that's what makes the options play out differently over time.
-                    </div>
-                  )}
-
-                  {influences.map((inf, idx) => {
-                    const fromName = variables.find((v) => v.id === inf.from)?.name ?? "—";
-                    const toName = variables.find((v) => v.id === inf.to)?.name ?? "—";
-                    const label = strengthLabel(inf.strength);
-                    const tone = inf.strength >= 0 ? "text-helps" : "text-hurts";
-                    return (
-                      <div key={idx} className="rounded-xl border border-border bg-muted p-3">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
-                          <span className="text-muted-foreground">When</span>
-                          <VarSelect value={inf.from} vars={variables} onChange={(val) => updInf(idx, { from: val })} />
-                          <span className="text-muted-foreground">rises,</span>
-                          <VarSelect value={inf.to} vars={variables} onChange={(val) => updInf(idx, { to: val })} />
-                          <span className="text-muted-foreground">goes</span>
-                          <span className={"font-medium " + tone} aria-live="polite">{label}</span>
-                          {inf.rationale && (
-                            <HelpPopover title="Why this knock-on effect" body={inf.rationale} />
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setInfluences(influences.filter((_, i) => i !== idx))}
-                            aria-label={`Remove knock-on effect from ${fromName} to ${toName}`}
-                            className="ml-auto text-dim"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </div>
-                        <div className="mt-2 flex items-center gap-3">
-                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground w-20 shrink-0">Strength</span>
-                          <Slider
-                            min={-100} max={100} step={1} value={[inf.strength]}
-                            onValueChange={(val) => updInf(idx, { strength: val[0] })}
-                            className="flex-1"
-                            aria-label={`Knock-on effect strength from ${fromName} to ${toName} — currently ${label}`}
-                          />
-                          <span className={"text-xs tabular-nums w-10 text-right " + tone}>
-                            {inf.strength > 0 ? "+" : ""}{inf.strength}
+                    {aiAttachedCount > 0 && (
+                      <p className="mt-2 text-xs text-foreground">
+                        Used <b>{Math.max(0, aiAttachedCount - aiSkippedCount)}</b> of{" "}
+                        <b>{aiAttachedCount}</b> source{aiAttachedCount === 1 ? "" : "s"}
+                        {aiSkippedCount > 0 && (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            ({aiSkippedCount} skipped: unreadable or too large)
                           </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {(modelHealth.orphans.length > 0 || modelHealth.noLoops) && (
-                  <div className="mt-3 grid gap-2">
-                    {modelHealth.orphans.slice(0, 2).map((v) => (
-                      <div key={v.id} className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
-                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
-                        <span>‘{v.name}’ isn't connected to anything yet — does it affect, or get affected by, the others?</span>
-                      </div>
-                    ))}
-                    {modelHealth.noLoops && (
-                      <div className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
-                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
-                        <span>Nothing loops back yet. Decisions get interesting when one driver feeds another that feeds it back.</span>
+                        )}
+                        .
+                      </p>
+                    )}
+                    {aiSources && aiSources.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {aiSources.map((s, i) => (
+                          <span
+                            key={s.name + i}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"
+                          >
+                            {s.type === "pdf" ? (
+                              <FileText size={11} className="text-primary" />
+                            ) : (
+                              <Upload size={11} className="text-primary" />
+                            )}
+                            <span className="max-w-[220px] truncate">{s.name}</span>
+                            <span className="text-dim uppercase tracking-wider">{s.type}</span>
+                          </span>
+                        ))}
                       </div>
                     )}
-                  </div>
-                )}
-
-              </Panel>
-              </div>
-
-              {/* live system map — transforms as you add variables & links */}
-              <Panel>
-                <div className="flex items-start justify-between gap-2">
-                  <SectionTag icon={Network} text="Decision map" />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setMapOpen(true)}
-                    aria-label="Open larger decision map"
-                    className="gap-1.5 -mt-1 -mr-1"
-                  >
-                    <Maximize2 size={14} />
-                    Expand
-                  </Button>
+                    <p className="mt-3 text-xs text-dim">
+                      Hover the{" "}
+                      <span className="inline-flex items-center">
+                        <HelpCircle size={11} className="mx-0.5" />
+                      </span>{" "}
+                      next to each driver to see why the AI included it.
+                    </p>
+                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                      <Button onClick={() => setStage("options")} className="gap-2">
+                        Looks right — set up options <ArrowRight size={14} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setStage("frame")}
+                        className="gap-1.5"
+                      >
+                        <ArrowLeft size={13} /> Re-map from sources
+                      </Button>
+                    </div>
+                  </Panel>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Your map, live. Bubbles are the drivers (green helps your goal, red hurts it); arrows are the knock-on effects between them.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setMapOpen(true)}
-                  aria-label="Open larger decision map"
-                  className="block w-full text-left cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <SystemMap variables={variables} influences={influences} />
-                </button>
-                <div className="mt-3 flex justify-end">
-                  <NavBtn dir="next" onClick={() => setStage("options")}>Set up your options</NavBtn>
-                </div>
-              </Panel>
-            </div>
-          </TabsContent>
+              )}
 
-          {/* ---------------------------- OPTIONS ---------------------------- */}
-          <TabsContent value="options" className="mt-0">
-            <div className="grid gap-5">
-              <Panel>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <SectionTag icon={GitBranch} text="The options you're choosing between" />
-                  <div className="flex items-center gap-2">
+              <div className="mb-5">
+                <Panel>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <SectionTag icon={Lightbulb} text="Ways to strengthen this model" />
+                      <HelpPopover
+                        title="Help me improve this"
+                        body="Spots things you may have missed — an important driver, a downside, or a knock-on effect that creates a loop."
+                      />
+                    </div>
                     <Button
                       size="sm"
                       variant="default"
-                      onClick={() => runImprove("options")}
-                      disabled={improvingOptions || variables.length === 0}
+                      onClick={() => runImprove("model")}
+                      disabled={improvingModel || variables.length === 0}
                       className="gap-1.5"
-                      aria-label="Help me improve these options"
+                      aria-label="Help me improve this model"
                     >
-                      {improvingOptions ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                      {optionSuggestions ? "Get more strategies" : "✨ Help me improve this"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        setOptions([...options, { id: uid(), name: "Option " + (options.length + 1), pushes: {} }])
-                      }
-                      className="gap-1"
-                    >
-                      <Plus size={13} /> Add option
+                      {improvingModel ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={13} />
+                      )}
+                      {modelSuggestions ? "Get more suggestions" : "✨ Help me improve this"}
                     </Button>
                   </div>
-                </div>
+                  {modelSuggestions === null && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Get a few suggestions: a driver you might be missing, a downside to weigh, or
+                      a knock-on effect that creates a loop.
+                    </p>
+                  )}
+                  <SuggestionList
+                    suggestions={modelSuggestions}
+                    variables={variables}
+                    onAccept={(s) => acceptSuggestion(s, "model")}
+                    onDismiss={(s) => dismissSuggestion(s, "model")}
+                  />
+                </Panel>
+              </div>
 
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Each option is a different play. Show how it moves each driver — most good options boost some and cost others.
-                </p>
-                {options.every((o) => Object.values(o.pushes).every((p) => !p)) && (
-                  <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                    <b className="text-foreground">No effects set yet.</b> Move at least one slider per option — that's how each option stands apart when we look ahead.
-                  </div>
-                )}
-                {(() => {
-                  const pairs: Array<[string, string]> = [];
-                  for (let i = 0; i < options.length; i++) {
-                    for (let j = i + 1; j < options.length; j++) {
-                      const a = options[i], b = options[j];
-                      const aHas = Object.values(a.pushes).some((p) => p);
-                      const bHas = Object.values(b.pushes).some((p) => p);
-                      if (!aHas || !bHas) continue;
-                      if (pushSimilarity(a.pushes, b.pushes, variables) >= 0.95) {
-                        pairs.push([a.name || "Option", b.name || "Option"]);
-                      }
-                    }
-                  }
-                  if (!pairs.length) return null;
-                  return (
-                    <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-                      {pairs.map(([a, b], k) => (
-                        <div key={k}>
-                          <b className="text-foreground">‘{a}’ and ‘{b}’</b> look almost the same — make them genuinely different choices, or drop one.
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-
-
-
-                
-                <SuggestionList
-                  suggestions={optionSuggestions}
-                  variables={variables}
-                  onAccept={(s) => acceptSuggestion(s, "options")}
-                  onDismiss={(s) => dismissSuggestion(s, "options")}
-                />
-
-
-
+              <div className="dl-model">
                 <div
-                  className="mt-4 grid gap-4"
-                  style={{ gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}
+                  className={
+                    aiHighlight
+                      ? "rounded-xl ring-2 ring-primary/70 ring-offset-2 ring-offset-background motion-safe:animate-pulse transition-shadow"
+                      : "transition-shadow"
+                  }
                 >
-
-                  {options.map((o, i) => {
-                    const color = OPT_COLORS[i % OPT_COLORS.length];
-                    const pushVals = variables.map((v) => o.pushes[v.id] || 0);
-                    const hasAny = pushVals.some((p) => p !== 0);
-                    const onlyPositive = hasAny && pushVals.every((p) => p >= 0);
-                    const summary = summarizeOption(o.pushes, variables);
-                    return (
-                      <div
-                        key={o.id}
-                        className="rounded-xl bg-muted p-3"
-                        style={{ border: "1px solid " + color + "66" }}
+                  <Panel>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <SectionTag icon={Network} text="What's driving this decision" />
+                        <HelpPopover
+                          title="What's a driver?"
+                          body="The handful of things that genuinely move your outcome — like trust, demand, or cash on hand. Not surface details."
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          setVariables([
+                            ...variables,
+                            { id: uid(), name: "New driver", value: 50, weight: 40 },
+                          ])
+                        }
+                        className="gap-1"
                       >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="inline-block h-2.5 w-2.5 rounded"
-                            style={{ background: color }}
-                          />
-                          <Input
-                            value={o.name}
-                            onChange={(e) => updOpt(o.id, { name: e.target.value })}
-                            className="flex-1 h-9 bg-transparent text-sm font-medium"
-                            aria-label={"Option name: " + o.name}
-                          />
-                          {options.length > 1 && (
+                        <Plus size={13} /> Add
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      The few things that actually move {outcomeName.toLowerCase()}. Set where each
+                      stands today and whether it helps or hurts your goal.
+                    </p>
+                    <div className="mt-3 grid gap-3">
+                      {variables.map((v) => (
+                        <div key={v.id} className="rounded-xl border border-border bg-muted p-3">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={v.name}
+                              onChange={(e) => updVar(v.id, { name: e.target.value })}
+                              className="flex-1 h-9 bg-transparent text-sm font-medium"
+                              aria-label={"Driver name: " + v.name}
+                            />
+                            {v.rationale && (
+                              <HelpPopover title="Why this driver" body={v.rationale} />
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setOptions(options.filter((x) => x.id !== o.id))}
-                              aria-label={"Remove " + o.name}
+                              onClick={() => removeVar(v.id)}
+                              aria-label={"Remove " + v.name}
                               className="text-dim"
                             >
                               <X size={15} />
                             </Button>
-                          )}
-                        </div>
-                        <div
-                          className="mt-2 rounded-md bg-background/60 px-2 py-1 text-[11px] text-muted-foreground"
-                          aria-live="polite"
-                        >
-                          {summary}
-                        </div>
-                        {onlyPositive && (
-                          <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[11px] text-muted-foreground">
-                            <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-500" />
-                            <span>This option has no downside set — real strategies usually cost something. Consider what it trades away.</span>
                           </div>
-                        )}
-                        <div className="mt-3 grid gap-2">
-                          {variables.map((v) => {
-                            const n = o.pushes[v.id] || 0;
-                            const label = pushLabel(n);
-                            const tone = n > 0 ? "text-helps" : n < 0 ? "text-hurts" : "text-dim";
-                            return (
-                              <div key={v.id} className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground" style={{ width: 92 }}>
-                                  {v.name}
-                                </span>
-                                <Slider
-                                  min={-60} max={60} step={1}
-                                  value={[n]}
-                                  onValueChange={(val) =>
-                                    updOpt(o.id, { pushes: { ...o.pushes, [v.id]: val[0] } })
-                                  }
-                                  className="flex-1"
-                                  aria-label={o.name + " " + label + " " + v.name + " (" + n + ")"}
-                                />
-                                <span
-                                  className={"text-[10px] font-semibold uppercase tracking-wide text-right " + tone}
-                                  style={{ width: 96 }}
-                                  title={o.name + " " + label + " " + v.name}
-                                >
-                                  {label}{n !== 0 ? " " + (n > 0 ? "+" : "") + n : ""}
-                                </span>
-                              </div>
-                            );
-                          })}
+                          <div className="mt-2 dl-2">
+                            <SliderRow
+                              label="Today"
+                              val={v.value}
+                              min={0}
+                              max={100}
+                              tone="primary"
+                              onChange={(x) => updVar(v.id, { value: x })}
+                            />
+                            <SliderRow
+                              label={v.weight >= 0 ? "Helps your goal" : "Hurts your goal"}
+                              val={v.weight}
+                              min={-100}
+                              max={100}
+                              tone={v.weight >= 0 ? "helps" : "hurts"}
+                              onChange={(x) => updVar(v.id, { weight: x })}
+                              help={{
+                                title: "Helps or hurts your goal",
+                                body: "How strongly this driver pushes the outcome up (helps) or pulls it down (hurts). Bigger number = bigger swing.",
+                              }}
+                            />
+                          </div>
                         </div>
-                        <ActionPlanEditor
-                          option={o}
-                          variables={variables}
-                          onChange={(actions) => updOpt(o.id, { actions })}
-                          onSuggest={() => runSuggestActions(o)}
-                          suggesting={!!actionLoading[o.id]}
+                      ))}
+                    </div>
+
+                    {modelHealth.noDownside && (
+                      <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
+                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                        <span>
+                          Every real decision has a downside — consider adding something this could
+                          hurt (a risk).
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="mt-5 flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <SectionTag icon={GitBranch} text="Knock-on effects" />
+                        <HelpPopover
+                          title="Knock-on effects"
+                          body="How one driver affects another over time — for example, more trust lowers fear, or faster growth raises burn."
                         />
                       </div>
-                    );
-                  })}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={addInfluence}
+                        className="gap-1"
+                      >
+                        <Plus size={13} /> Add
+                      </Button>
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                      {influences.length === 0 && (
+                        <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                          <b className="text-foreground">No knock-on effects yet.</b> Add how one
+                          driver moves another — that's what makes the options play out differently
+                          over time.
+                        </div>
+                      )}
 
-                </div>
-                <div className="mt-4 flex justify-between">
-                  <NavBtn dir="back" onClick={() => setStage("model")}>Back to the map</NavBtn>
-                  <NavBtn dir="next" onClick={() => setStage("decide")}>See how each plays out</NavBtn>
-                </div>
-              </Panel>
-            </div>
-          </TabsContent>
+                      {influences.map((inf, idx) => {
+                        const fromName = variables.find((v) => v.id === inf.from)?.name ?? "—";
+                        const toName = variables.find((v) => v.id === inf.to)?.name ?? "—";
+                        const label = strengthLabel(inf.strength);
+                        const tone = inf.strength >= 0 ? "text-helps" : "text-hurts";
+                        return (
+                          <div key={idx} className="rounded-xl border border-border bg-muted p-3">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
+                              <span className="text-muted-foreground">When</span>
+                              <VarSelect
+                                value={inf.from}
+                                vars={variables}
+                                onChange={(val) => updInf(idx, { from: val })}
+                              />
+                              <span className="text-muted-foreground">rises,</span>
+                              <VarSelect
+                                value={inf.to}
+                                vars={variables}
+                                onChange={(val) => updInf(idx, { to: val })}
+                              />
+                              <span className="text-muted-foreground">goes</span>
+                              <span className={"font-medium " + tone} aria-live="polite">
+                                {label}
+                              </span>
+                              {inf.rationale && (
+                                <HelpPopover
+                                  title="Why this knock-on effect"
+                                  body={inf.rationale}
+                                />
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  setInfluences(influences.filter((_, i) => i !== idx))
+                                }
+                                aria-label={`Remove knock-on effect from ${fromName} to ${toName}`}
+                                className="ml-auto text-dim"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            </div>
+                            <div className="mt-2 flex items-center gap-3">
+                              <span className="text-[11px] uppercase tracking-wider text-muted-foreground w-20 shrink-0">
+                                Strength
+                              </span>
+                              <Slider
+                                min={-100}
+                                max={100}
+                                step={1}
+                                value={[inf.strength]}
+                                onValueChange={(val) => updInf(idx, { strength: val[0] })}
+                                className="flex-1"
+                                aria-label={`Knock-on effect strength from ${fromName} to ${toName} — currently ${label}`}
+                              />
+                              <span className={"text-xs tabular-nums w-10 text-right " + tone}>
+                                {inf.strength > 0 ? "+" : ""}
+                                {inf.strength}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-          {/* ---------------------------- DECIDE ---------------------------- */}
-          <TabsContent value="decide" className="mt-0">
-            <div className="dl-decide">
-              <Panel>
-                <div className="flex items-start justify-between gap-2">
-                  <SectionTag icon={Telescope} text={"How each option plays out · " + outcomeName} />
-                  <Button
+                    {(modelHealth.orphans.length > 0 || modelHealth.noLoops) && (
+                      <div className="mt-3 grid gap-2">
+                        {modelHealth.orphans.slice(0, 2).map((v) => (
+                          <div
+                            key={v.id}
+                            className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10"
+                          >
+                            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                            <span>
+                              ‘{v.name}’ isn't connected to anything yet — does it affect, or get
+                              affected by, the others?
+                            </span>
+                          </div>
+                        ))}
+                        {modelHealth.noLoops && (
+                          <div className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
+                            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                            <span>
+                              Nothing loops back yet. Decisions get interesting when one driver
+                              feeds another that feeds it back.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Panel>
+                </div>
+
+                {/* live system map — transforms as you add variables & links */}
+                <Panel>
+                  <div className="flex items-start justify-between gap-2">
+                    <SectionTag icon={Network} text="Decision map" />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setMapOpen(true)}
+                      aria-label="Open larger decision map"
+                      className="gap-1.5 -mt-1 -mr-1"
+                    >
+                      <Maximize2 size={14} />
+                      Expand
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Your map, live. Bubbles are the drivers (green helps your goal, red hurts it);
+                    arrows are the knock-on effects between them.
+                  </p>
+                  <button
                     type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setChartOpen(true)}
-                    aria-label="Open larger trajectory chart"
-                    className="gap-1.5 -mt-1 -mr-1"
+                    onClick={() => setMapOpen(true)}
+                    aria-label="Open larger decision map"
+                    className="block w-full text-left cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <Maximize2 size={14} />
-                    Expand
-                  </Button>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Each line shows how an option is likely to affect {outcomeName.toLowerCase()} over time. The shaded area is the range of how things could go — we're more confident about the near term than far ahead.
-                </p>
-                <p className="mt-1 text-xs text-dim">
-                  Higher on the chart = better outlook. The ranking on the right is <b className="text-muted-foreground">relative</b> — it shows which option does best compared to the others, not whether things improve overall.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setChartOpen(true)}
-                  aria-label="Open larger trajectory chart"
-                  className="block w-full text-left cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <TrajectoryChart
-                    runs={runs}
-                    horizon={horizon}
-                    focusId={focusOpt}
-                    best={best}
-                    mcBands={mc.bands}
-                  />
-                </button>
-                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  {runs.map((r) => (
-                    <span key={r.option.id} className="flex items-center gap-1.5">
-                      <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
-                      {r.option.name}
-                    </span>
-                  ))}
-                  <span className="ml-auto text-dim">based on {MC_RUNS} possible futures</span>
-                </div>
-                <div className="mt-3 grid gap-1.5 border-t border-border pt-3">
-                  {runs.map((r) => {
-                    const d = deltas[r.option.id];
-                    if (!d) return null;
-                    const delta = Math.round(d.delta);
-                    const tone = delta >= 2 ? "text-helps" : delta <= -2 ? "text-hurts" : "text-dim";
-                    const glyph = delta >= 2 ? "▲" : delta <= -2 ? "▼" : "→";
-                    const sign = delta > 0 ? "+" : "";
+                    <SystemMap variables={variables} influences={influences} />
+                  </button>
+                  <div className="mt-3 flex justify-end">
+                    <NavBtn dir="next" onClick={() => setStage("options")}>
+                      Set up your options
+                    </NavBtn>
+                  </div>
+                </Panel>
+              </div>
+            </TabsContent>
+
+            {/* ---------------------------- OPTIONS ---------------------------- */}
+            <TabsContent value="options" className="mt-0">
+              <div className="grid gap-5">
+                <Panel>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <SectionTag icon={GitBranch} text="The options you're choosing between" />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => runImprove("options")}
+                        disabled={improvingOptions || variables.length === 0}
+                        className="gap-1.5"
+                        aria-label="Help me improve these options"
+                      >
+                        {improvingOptions ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={13} />
+                        )}
+                        {optionSuggestions ? "Get more strategies" : "✨ Help me improve this"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          setOptions([
+                            ...options,
+                            { id: uid(), name: "Option " + (options.length + 1), pushes: {} },
+                          ])
+                        }
+                        className="gap-1"
+                      >
+                        <Plus size={13} /> Add option
+                      </Button>
+                    </div>
+                  </div>
+
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Each option is a different play. Show how it moves each driver — most good
+                    options boost some and cost others.
+                  </p>
+                  {options.every((o) => Object.values(o.pushes).every((p) => !p)) && (
+                    <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                      <b className="text-foreground">No effects set yet.</b> Move at least one
+                      slider per option — that's how each option stands apart when we look ahead.
+                    </div>
+                  )}
+                  {(() => {
+                    const pairs: Array<[string, string]> = [];
+                    for (let i = 0; i < options.length; i++) {
+                      for (let j = i + 1; j < options.length; j++) {
+                        const a = options[i],
+                          b = options[j];
+                        const aHas = Object.values(a.pushes).some((p) => p);
+                        const bHas = Object.values(b.pushes).some((p) => p);
+                        if (!aHas || !bHas) continue;
+                        if (pushSimilarity(a.pushes, b.pushes, variables) >= 0.95) {
+                          pairs.push([a.name || "Option", b.name || "Option"]);
+                        }
+                      }
+                    }
+                    if (!pairs.length) return null;
                     return (
-                      <div key={r.option.id} className="flex items-center gap-2 text-xs">
-                        <span className="inline-block h-2 w-2 rounded" style={{ background: r.color }} />
-                        <span className="flex-1 truncate text-muted-foreground">{r.option.name}</span>
-                        <span className="tabular-nums text-dim">starts {Math.round(d.start)} → ends {Math.round(d.end)}</span>
-                        <span className={"tabular-nums font-semibold w-14 text-right " + tone}>{glyph} {sign}{delta}</span>
+                      <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                        {pairs.map(([a, b], k) => (
+                          <div key={k}>
+                            <b className="text-foreground">
+                              ‘{a}’ and ‘{b}’
+                            </b>{" "}
+                            look almost the same — make them genuinely different choices, or drop
+                            one.
+                          </div>
+                        ))}
                       </div>
                     );
-                  })}
-                </div>
-              </Panel>
+                  })()}
 
-
-
-              <Panel>
-                <Collapsible defaultOpen>
-                  <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
-                    <SectionTag icon={Telescope} text="Things to keep in mind" />
-                    <ChevronDown size={14} className="text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
-                      <li>
-                        <b className="text-foreground">How close is the race:</b> the gap in outlook between #1 and #2 is{" "}
-                        {Math.round((best?.score ?? 0) - (ranked[1]?.score ?? best?.score ?? 0))} points. If that's small, this is basically a tie — don't over-trust the ranking.
-                      </li>
-                      <li>
-                        <b className="text-foreground">Near term is more reliable:</b> the further out you look, the fuzzier things get. Revisit this as new information comes in.
-                      </li>
-                      <li>
-                        <b className="text-foreground">Cheapest thing to check first:</b>{" "}
-                        {suggestedProbe ? (
-                          <>get a read on <b className="text-primary">{suggestedProbe.variable.name}</b> before you commit — it affects {suggestedProbe.outDegree} other {suggestedProbe.outDegree === 1 ? "driver" : "drivers"}.</>
-                        ) : (
-                          <>get a read on whichever driver feeds the most arrows before you commit.</>
-                        )}
-                      </li>
-                      {best && best.winProb >= 0.95 && Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
-                        <li>
-                          <b className="text-foreground">Strong lead:</b> #1 comes out ahead in almost every likely future. To pressure-test it, try lowering its strongest helping driver or strengthening a knock-on effect that works against it.
-                        </li>
-                      )}
-                    </ul>
-
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setStage("model")}
-                      className="mt-3 gap-2"
-                    >
-                      <RotateCcw size={13} /> Tweak the map
-                    </Button>
-                  </CollapsibleContent>
-                </Collapsible>
-              </Panel>
-
-              <Panel>
-                <SectionTag icon={Target} text="Which option looks best" />
-                <div className="mt-3 grid gap-2">
-                  {ranked.map((r, i) => (
-                    <button
-                      key={r.option.id}
-                      onMouseEnter={() => setFocusOpt(r.option.id)}
-                      onMouseLeave={() => setFocusOpt(null)}
-                      onFocus={() => setFocusOpt(r.option.id)}
-                      onBlur={() => setFocusOpt(null)}
-                      onClick={() => setFocusOpt((cur) => (cur === r.option.id ? null : r.option.id))}
-                      aria-pressed={focusOpt === r.option.id}
-                      className={
-                        "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                        (i === 0
-                          ? "border-helps/40 bg-helps/10"
-                          : "border-border bg-muted hover:bg-muted/70 hover:border-primary/30")
-                      }
-                    >
-                      <span className="w-[18px] text-sm font-semibold text-dim">{i + 1}</span>
-                      <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
-                      <span className="flex-1 text-sm">{r.option.name}</span>
-                      <span className="flex flex-col items-end leading-tight">
-                        <span className="text-sm font-semibold tabular-nums text-foreground">
-                          ~{Math.round(r.winProb * 10)} of 10
-                        </span>
-                        <span className="text-[10px] text-dim tabular-nums">
-                          Outlook {Math.round(r.score)}
-                        </span>
-                      </span>
-                      {i === 0 && <span className="text-xs font-semibold text-helps">comes out ahead in ~{Math.round(r.winProb * 10)} of 10 likely futures</span>}
-                    </button>
-                  ))}
-
-                </div>
-
-                {allTrendDown && (
-                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
-                    <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
-                    <span className="leading-relaxed">
-                      All options trend downward in this model — "comes out ahead" means <b className="text-foreground">loses the least</b>. To find options that <i>improve</i> the outlook, revisit the <button type="button" onClick={() => setStage("model")} className="underline underline-offset-2 hover:text-foreground">Model tab</button>.
-                    </span>
-                  </div>
-                )}
-
-
-                <div className="mt-4 border-t border-border pt-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Wand2 size={13} className="text-primary" />
-                      <span>Why does <b className="text-foreground">{best?.option.name ?? "this option"}</b> win?</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={runExplain}
-                      disabled={explaining || ranked.length === 0}
-                      className="gap-1.5"
-                    >
-                      {explaining ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                      {explanation ? "Re-explain" : "Explain"}
-                    </Button>
-                  </div>
-                  {explanation && (
-                    <p className="mt-2 rounded-lg border border-border bg-muted/60 p-3 text-xs leading-relaxed text-foreground">
-                      {explanation}
-                    </p>
-                  )}
-                </div>
-              </Panel>
-
-              {best && (() => {
-                const focused = focusOpt ? ranked.find((r) => r.option.id === focusOpt) : null;
-                const shown = focused ?? best;
-                return (
-                  <ActionPlanReadout
-                    option={shown.option}
-                    winProb={shown.winProb}
+                  <SuggestionList
+                    suggestions={optionSuggestions}
                     variables={variables}
-                    decision={decision}
-                    outcomeName={outcomeName}
-                    explanation={explanation}
-                    suggesting={!!actionLoading[shown.option.id]}
-                    onSuggest={() => runSuggestActions(shown.option)}
-                    onGoOptions={() => setStage("options")}
+                    onAccept={(s) => acceptSuggestion(s, "options")}
+                    onDismiss={(s) => dismissSuggestion(s, "options")}
                   />
-                );
-              })()}
-            </div>
-          </TabsContent>
-        </Tabs>
+
+                  <div
+                    className="mt-4 grid gap-4"
+                    style={{ gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}
+                  >
+                    {options.map((o, i) => {
+                      const color = OPT_COLORS[i % OPT_COLORS.length];
+                      const pushVals = variables.map((v) => o.pushes[v.id] || 0);
+                      const hasAny = pushVals.some((p) => p !== 0);
+                      const onlyPositive = hasAny && pushVals.every((p) => p >= 0);
+                      const summary = summarizeOption(o.pushes, variables);
+                      return (
+                        <div
+                          key={o.id}
+                          className="rounded-xl bg-muted p-3"
+                          style={{ border: "1px solid " + color + "66" }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block h-2.5 w-2.5 rounded"
+                              style={{ background: color }}
+                            />
+                            <Input
+                              value={o.name}
+                              onChange={(e) => updOpt(o.id, { name: e.target.value })}
+                              className="flex-1 h-9 bg-transparent text-sm font-medium"
+                              aria-label={"Option name: " + o.name}
+                            />
+                            {options.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setOptions(options.filter((x) => x.id !== o.id))}
+                                aria-label={"Remove " + o.name}
+                                className="text-dim"
+                              >
+                                <X size={15} />
+                              </Button>
+                            )}
+                          </div>
+                          <div
+                            className="mt-2 rounded-md bg-background/60 px-2 py-1 text-[11px] text-muted-foreground"
+                            aria-live="polite"
+                          >
+                            {summary}
+                          </div>
+                          {onlyPositive && (
+                            <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[11px] text-muted-foreground">
+                              <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-500" />
+                              <span>
+                                This option has no downside set — real strategies usually cost
+                                something. Consider what it trades away.
+                              </span>
+                            </div>
+                          )}
+                          <div className="mt-3 grid gap-2">
+                            {variables.map((v) => {
+                              const n = o.pushes[v.id] || 0;
+                              const label = pushLabel(n);
+                              const tone = n > 0 ? "text-helps" : n < 0 ? "text-hurts" : "text-dim";
+                              return (
+                                <div key={v.id} className="flex items-center gap-2">
+                                  <span
+                                    className="text-xs text-muted-foreground"
+                                    style={{ width: 92 }}
+                                  >
+                                    {v.name}
+                                  </span>
+                                  <Slider
+                                    min={-60}
+                                    max={60}
+                                    step={1}
+                                    value={[n]}
+                                    onValueChange={(val) =>
+                                      updOpt(o.id, { pushes: { ...o.pushes, [v.id]: val[0] } })
+                                    }
+                                    className="flex-1"
+                                    aria-label={
+                                      o.name + " " + label + " " + v.name + " (" + n + ")"
+                                    }
+                                  />
+                                  <span
+                                    className={
+                                      "text-[10px] font-semibold uppercase tracking-wide text-right " +
+                                      tone
+                                    }
+                                    style={{ width: 96 }}
+                                    title={o.name + " " + label + " " + v.name}
+                                  >
+                                    {label}
+                                    {n !== 0 ? " " + (n > 0 ? "+" : "") + n : ""}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <ActionPlanEditor
+                            option={o}
+                            variables={variables}
+                            onChange={(actions) => updOpt(o.id, { actions })}
+                            onSuggest={() => runSuggestActions(o)}
+                            suggesting={!!actionLoading[o.id]}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 flex justify-between">
+                    <NavBtn dir="back" onClick={() => setStage("model")}>
+                      Back to the map
+                    </NavBtn>
+                    <NavBtn dir="next" onClick={() => setStage("decide")}>
+                      See how each plays out
+                    </NavBtn>
+                  </div>
+                </Panel>
+              </div>
+            </TabsContent>
+
+            {/* ---------------------------- DECIDE ---------------------------- */}
+            <TabsContent value="decide" className="mt-0">
+              <div className="dl-decide">
+                <Panel>
+                  <div className="flex items-start justify-between gap-2">
+                    <SectionTag
+                      icon={Telescope}
+                      text={"How each option plays out · " + outcomeName}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setChartOpen(true)}
+                      aria-label="Open larger trajectory chart"
+                      className="gap-1.5 -mt-1 -mr-1"
+                    >
+                      <Maximize2 size={14} />
+                      Expand
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Each line shows how an option is likely to affect {outcomeName.toLowerCase()}{" "}
+                    over time. The shaded area is the range of how things could go — we're more
+                    confident about the near term than far ahead.
+                  </p>
+                  <p className="mt-1 text-xs text-dim">
+                    Higher on the chart = better outlook. The ranking on the right is{" "}
+                    <b className="text-muted-foreground">relative</b> — it shows which option does
+                    best compared to the others, not whether things improve overall.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setChartOpen(true)}
+                    aria-label="Open larger trajectory chart"
+                    className="block w-full text-left cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <TrajectoryChart
+                      runs={runs}
+                      horizon={horizon}
+                      focusId={focusOpt}
+                      best={best}
+                      mcBands={mc.bands}
+                    />
+                  </button>
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    {runs.map((r) => (
+                      <span key={r.option.id} className="flex items-center gap-1.5">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded"
+                          style={{ background: r.color }}
+                        />
+                        {r.option.name}
+                      </span>
+                    ))}
+                    <span className="ml-auto text-dim">based on {MC_RUNS} possible futures</span>
+                  </div>
+                  <div className="mt-3 grid gap-1.5 border-t border-border pt-3">
+                    {runs.map((r) => {
+                      const d = deltas[r.option.id];
+                      if (!d) return null;
+                      const delta = Math.round(d.delta);
+                      const tone =
+                        delta >= 2 ? "text-helps" : delta <= -2 ? "text-hurts" : "text-dim";
+                      const glyph = delta >= 2 ? "▲" : delta <= -2 ? "▼" : "→";
+                      const sign = delta > 0 ? "+" : "";
+                      return (
+                        <div key={r.option.id} className="flex items-center gap-2 text-xs">
+                          <span
+                            className="inline-block h-2 w-2 rounded"
+                            style={{ background: r.color }}
+                          />
+                          <span className="flex-1 truncate text-muted-foreground">
+                            {r.option.name}
+                          </span>
+                          <span className="tabular-nums text-dim">
+                            starts {Math.round(d.start)} → ends {Math.round(d.end)}
+                          </span>
+                          <span className={"tabular-nums font-semibold w-14 text-right " + tone}>
+                            {glyph} {sign}
+                            {delta}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Panel>
+
+                <Panel>
+                  <Collapsible defaultOpen>
+                    <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
+                      <SectionTag icon={Telescope} text="Things to keep in mind" />
+                      <ChevronDown
+                        size={14}
+                        className="text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90"
+                      />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
+                        <li>
+                          <b className="text-foreground">How close is the race:</b> the gap in
+                          outlook between #1 and #2 is{" "}
+                          {Math.round((best?.score ?? 0) - (ranked[1]?.score ?? best?.score ?? 0))}{" "}
+                          points. If that's small, this is basically a tie — don't over-trust the
+                          ranking.
+                        </li>
+                        <li>
+                          <b className="text-foreground">Near term is more reliable:</b> the further
+                          out you look, the fuzzier things get. Revisit this as new information
+                          comes in.
+                        </li>
+                        <li>
+                          <b className="text-foreground">Cheapest thing to check first:</b>{" "}
+                          {suggestedProbe ? (
+                            <>
+                              get a read on{" "}
+                              <b className="text-primary">{suggestedProbe.variable.name}</b> before
+                              you commit — it affects {suggestedProbe.outDegree} other{" "}
+                              {suggestedProbe.outDegree === 1 ? "driver" : "drivers"}.
+                            </>
+                          ) : (
+                            <>
+                              get a read on whichever driver feeds the most arrows before you
+                              commit.
+                            </>
+                          )}
+                        </li>
+                        {best &&
+                          best.winProb >= 0.95 &&
+                          Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
+                            <li>
+                              <b className="text-foreground">Strong lead:</b> #1 comes out ahead in
+                              almost every likely future. To pressure-test it, try lowering its
+                              strongest helping driver or strengthening a knock-on effect that works
+                              against it.
+                            </li>
+                          )}
+                      </ul>
+
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setStage("model")}
+                        className="mt-3 gap-2"
+                      >
+                        <RotateCcw size={13} /> Tweak the map
+                      </Button>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </Panel>
+
+                <Panel>
+                  <SectionTag icon={Target} text="Which option looks best" />
+                  <div className="mt-3 grid gap-2">
+                    {ranked.map((r, i) => (
+                      <button
+                        key={r.option.id}
+                        onMouseEnter={() => setFocusOpt(r.option.id)}
+                        onMouseLeave={() => setFocusOpt(null)}
+                        onFocus={() => setFocusOpt(r.option.id)}
+                        onBlur={() => setFocusOpt(null)}
+                        onClick={() =>
+                          setFocusOpt((cur) => (cur === r.option.id ? null : r.option.id))
+                        }
+                        aria-pressed={focusOpt === r.option.id}
+                        className={
+                          "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                          (i === 0
+                            ? "border-helps/40 bg-helps/10"
+                            : "border-border bg-muted hover:bg-muted/70 hover:border-primary/30")
+                        }
+                      >
+                        <span className="w-[18px] text-sm font-semibold text-dim">{i + 1}</span>
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded"
+                          style={{ background: r.color }}
+                        />
+                        <span className="flex-1 text-sm">{r.option.name}</span>
+                        <span className="flex flex-col items-end leading-tight">
+                          <span className="text-sm font-semibold tabular-nums text-foreground">
+                            ~{Math.round(r.winProb * 10)} of 10
+                          </span>
+                          <span className="text-[10px] text-dim tabular-nums">
+                            Outlook {Math.round(r.score)}
+                          </span>
+                        </span>
+                        {i === 0 && (
+                          <span className="text-xs font-semibold text-helps">
+                            comes out ahead in ~{Math.round(r.winProb * 10)} of 10 likely futures
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {allTrendDown && (
+                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
+                      <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
+                      <span className="leading-relaxed">
+                        All options trend downward in this model — "comes out ahead" means{" "}
+                        <b className="text-foreground">loses the least</b>. To find options that{" "}
+                        <i>improve</i> the outlook, revisit the{" "}
+                        <button
+                          type="button"
+                          onClick={() => setStage("model")}
+                          className="underline underline-offset-2 hover:text-foreground"
+                        >
+                          Model tab
+                        </button>
+                        .
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-4 border-t border-border pt-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Wand2 size={13} className="text-primary" />
+                        <span>
+                          Why does{" "}
+                          <b className="text-foreground">{best?.option.name ?? "this option"}</b>{" "}
+                          win?
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={runExplain}
+                        disabled={explaining || ranked.length === 0}
+                        className="gap-1.5"
+                      >
+                        {explaining ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={13} />
+                        )}
+                        {explanation ? "Re-explain" : "Explain"}
+                      </Button>
+                    </div>
+                    {explanation && (
+                      <p className="mt-2 rounded-lg border border-border bg-muted/60 p-3 text-xs leading-relaxed text-foreground">
+                        {explanation}
+                      </p>
+                    )}
+                  </div>
+                </Panel>
+
+                {best &&
+                  (() => {
+                    const focused = focusOpt ? ranked.find((r) => r.option.id === focusOpt) : null;
+                    const shown = focused ?? best;
+                    return (
+                      <ActionPlanReadout
+                        option={shown.option}
+                        winProb={shown.winProb}
+                        variables={variables}
+                        decision={decision}
+                        outcomeName={outcomeName}
+                        explanation={explanation}
+                        suggesting={!!actionLoading[shown.option.id]}
+                        onSuggest={() => runSuggestActions(shown.option)}
+                        onGoOptions={() => setStage("options")}
+                      />
+                    );
+                  })()}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
-
 
       <WelcomeDialog
         open={welcomeOpen}
@@ -2773,7 +3446,10 @@ export default function DecisionLens() {
         anchors={[dropzoneRef.current, ...stepperRefs.current]}
         onNext={() => {
           const next = (tourStep ?? 0) + 1;
-          if (next > STAGES.length) { setTourStep(null); return; }
+          if (next > STAGES.length) {
+            setTourStep(null);
+            return;
+          }
           setTourStep(next);
           // next=1 → Frame tab, next=2 → Model, etc.
           const stageIdx = Math.max(0, next - 1);
@@ -2781,7 +3457,6 @@ export default function DecisionLens() {
         }}
         onSkip={() => setTourStep(null)}
       />
-
 
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent className="max-w-md">
@@ -2795,21 +3470,28 @@ export default function DecisionLens() {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2 grid gap-2">
-            <label className="text-xs text-muted-foreground" htmlFor="dl-save-name">Template name</label>
+            <label className="text-xs text-muted-foreground" htmlFor="dl-save-name">
+              Template name
+            </label>
             <Input
               id="dl-save-name"
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") confirmSaveTemplate(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") confirmSaveTemplate();
+              }}
               placeholder="e.g. Q3 market entry"
               autoFocus
             />
             <div className="text-[11px] text-dim">
-              Will be saved as <span className="text-foreground">{inferCurrentSource()}</span> source.
+              Will be saved as <span className="text-foreground">{inferCurrentSource()}</span>{" "}
+              source.
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={confirmSaveTemplate} disabled={!saveName.trim()} className="gap-2">
               <BookmarkPlus size={14} /> Save
             </Button>
@@ -2825,7 +3507,9 @@ export default function DecisionLens() {
               How each option plays out · {outcomeName}
             </DialogTitle>
             <DialogDescription>
-              Higher on the chart = better outlook. The shaded band shows the range of possible futures; the line is the middle case. Ranking is relative — best vs. the other options, not vs. today.
+              Higher on the chart = better outlook. The shaded band shows the range of possible
+              futures; the line is the middle case. Ranking is relative — best vs. the other
+              options, not vs. today.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0">
@@ -2847,9 +3531,17 @@ export default function DecisionLens() {
               const sign = delta > 0 ? "+" : "";
               return (
                 <span key={r.option.id} className="flex items-center gap-1.5">
-                  <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded"
+                    style={{ background: r.color }}
+                  />
                   <span>{r.option.name}</span>
-                  {d && <span className={"tabular-nums font-semibold " + tone}>{glyph} {sign}{delta}</span>}
+                  {d && (
+                    <span className={"tabular-nums font-semibold " + tone}>
+                      {glyph} {sign}
+                      {delta}
+                    </span>
+                  )}
                 </span>
               );
             })}
@@ -2859,7 +3551,8 @@ export default function DecisionLens() {
             <div className="shrink-0 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
               <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
               <span className="leading-relaxed">
-                All options trend downward in this model — "comes out ahead" means <b className="text-foreground">loses the least</b>.
+                All options trend downward in this model — "comes out ahead" means{" "}
+                <b className="text-foreground">loses the least</b>.
               </span>
             </div>
           )}
@@ -2874,7 +3567,8 @@ export default function DecisionLens() {
               Decision map — {decision || "Untitled decision"}
             </DialogTitle>
             <DialogDescription>
-              Green bubbles help your goal · red hurts it · arrows show knock-on effects · bubble size grows with how strongly a driver matters.
+              Green bubbles help your goal · red hurts it · arrows show knock-on effects · bubble
+              size grows with how strongly a driver matters.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0">
@@ -2891,7 +3585,10 @@ const EFFORT_OPTS: DecisionAction["effort"][] = ["low", "med", "high"];
 const WHEN_OPTS: DecisionAction["when"][] = ["now", "soon", "ongoing"];
 
 function SuggestionList({
-  suggestions, variables, onAccept, onDismiss,
+  suggestions,
+  variables,
+  onAccept,
+  onDismiss,
 }: {
   suggestions: ImproveSuggestion[] | null;
   variables: Variable[];
@@ -2901,9 +3598,7 @@ function SuggestionList({
   if (suggestions === null) return null;
   if (suggestions.length === 0) {
     return (
-      <p className="mt-3 text-xs text-muted-foreground">
-        No changes suggested — this looks solid.
-      </p>
+      <p className="mt-3 text-xs text-muted-foreground">No changes suggested — this looks solid.</p>
     );
   }
   const varName = (id: string) => variables.find((v) => v.id === id)?.name ?? id;
@@ -2911,10 +3606,13 @@ function SuggestionList({
     <ul className="mt-3 grid list-none gap-2 p-0">
       {suggestions.map((s, i) => {
         const Icon =
-          s.kind === "add_driver" ? Plus :
-          s.kind === "add_influence" ? GitBranch :
-          s.kind === "add_option" ? Compass :
-          Lightbulb;
+          s.kind === "add_driver"
+            ? Plus
+            : s.kind === "add_influence"
+              ? GitBranch
+              : s.kind === "add_option"
+                ? Compass
+                : Lightbulb;
         return (
           <li
             key={i}
@@ -2976,10 +3674,12 @@ function SuggestionList({
   );
 }
 
-
-
 function ActionPlanEditor({
-  option, variables, onChange, onSuggest, suggesting,
+  option,
+  variables,
+  onChange,
+  onSuggest,
+  suggesting,
 }: {
   option: DecisionOption;
   variables: Variable[];
@@ -2989,7 +3689,9 @@ function ActionPlanEditor({
 }) {
   const actions = option.actions ?? [];
   const pushedIds = new Set(
-    Object.entries(option.pushes).filter(([, v]) => v !== 0).map(([k]) => k),
+    Object.entries(option.pushes)
+      .filter(([, v]) => v !== 0)
+      .map(([k]) => k),
   );
 
   function setAction(idx: number, patch: Partial<DecisionAction>) {
@@ -3039,10 +3741,7 @@ function ActionPlanEditor({
           const targets = a.targets ?? [];
           const inconsistent = targets.some((t) => !pushedIds.has(t));
           return (
-            <div
-              key={i}
-              className="rounded-lg border border-border/60 bg-background/40 p-2"
-            >
+            <div key={i} className="rounded-lg border border-border/60 bg-background/40 p-2">
               <div className="flex items-start gap-2">
                 <Input
                   value={a.text}
@@ -3064,7 +3763,8 @@ function ActionPlanEditor({
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent side="top" className="w-64 text-xs">
-                      This action affects a driver the option's sliders don't move. Either adjust the sliders above or drop the unrelated driver.
+                      This action affects a driver the option's sliders don't move. Either adjust
+                      the sliders above or drop the unrelated driver.
                     </PopoverContent>
                   </Popover>
                 )}
@@ -3172,8 +3872,15 @@ const WHEN_LABEL: Record<NonNullable<DecisionAction["when"]>, string> = {
 };
 
 function ActionPlanReadout({
-  option, winProb, variables, decision, outcomeName, explanation,
-  suggesting, onSuggest, onGoOptions,
+  option,
+  winProb,
+  variables,
+  decision,
+  outcomeName,
+  explanation,
+  suggesting,
+  onSuggest,
+  onGoOptions,
 }: {
   option: DecisionOption;
   winProb: number;
@@ -3192,7 +3899,11 @@ function ActionPlanReadout({
   }, [variables]);
 
   const actions = option.actions ?? [];
-  const groups: Record<"now" | "soon" | "ongoing", DecisionAction[]> = { now: [], soon: [], ongoing: [] };
+  const groups: Record<"now" | "soon" | "ongoing", DecisionAction[]> = {
+    now: [],
+    soon: [],
+    ongoing: [],
+  };
   for (const a of actions) {
     const bucket = (a.when ?? "ongoing") as "now" | "soon" | "ongoing";
     groups[bucket].push(a);
@@ -3205,7 +3916,9 @@ function ActionPlanReadout({
     lines.push("");
     lines.push(`**Decision:** ${decision || "(unnamed decision)"}`);
     lines.push(`**Chosen strategy:** ${option.name}`);
-    lines.push(`**Comes out ahead in ~${Math.round(winPct/10)} of 10 likely futures** (${outcomeName})`);
+    lines.push(
+      `**Comes out ahead in ~${Math.round(winPct / 10)} of 10 likely futures** (${outcomeName})`,
+    );
     lines.push("");
     if (explanation) {
       lines.push(`## Why this strategy`);
@@ -3253,7 +3966,10 @@ function ActionPlanReadout({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <CollapsibleTrigger className="group flex flex-1 items-center justify-between gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
             <SectionTag icon={PlayCircle} text={`Action plan — ${option.name}`} />
-            <ChevronDown size={14} className="text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
+            <ChevronDown
+              size={14}
+              className="text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90"
+            />
           </CollapsibleTrigger>
           <Button
             size="sm"
@@ -3280,7 +3996,14 @@ function ActionPlanReadout({
           {actions.length === 0 ? (
             <div className="mt-3 rounded-lg border border-dashed border-border bg-background/40 p-4 text-xs text-muted-foreground">
               <p>
-                No actions yet — add them in <button onClick={onGoOptions} className="underline underline-offset-2 hover:text-foreground">Options</button>, or
+                No actions yet — add them in{" "}
+                <button
+                  onClick={onGoOptions}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  Options
+                </button>
+                , or
               </p>
               <Button
                 size="sm"
@@ -3290,7 +4013,11 @@ function ActionPlanReadout({
                 className="mt-2 h-8 gap-1.5"
                 aria-label={`Generate actions for ${option.name}`}
               >
-                {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                {suggesting ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Sparkles size={13} />
+                )}
                 Suggest some
               </Button>
             </div>
@@ -3322,11 +4049,17 @@ function ActionPlanReadout({
                               if (!v) return null;
                               const push = option.pushes[tid] ?? 0;
                               const arrow = push > 0 ? "▲" : push < 0 ? "▼" : "·";
-                              const tone = v.weight >= 0 ? "text-helps border-helps/40 bg-helps/10" : "text-hurts border-hurts/40 bg-hurts/10";
+                              const tone =
+                                v.weight >= 0
+                                  ? "text-helps border-helps/40 bg-helps/10"
+                                  : "text-hurts border-hurts/40 bg-hurts/10";
                               return (
                                 <span
                                   key={tid}
-                                  className={"inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] " + tone}
+                                  className={
+                                    "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] " +
+                                    tone
+                                  }
                                   aria-label={`${v.name} ${push > 0 ? "boosted" : push < 0 ? "lowered" : "unchanged"}`}
                                 >
                                   <span aria-hidden>{arrow}</span>
@@ -3349,10 +4082,13 @@ function ActionPlanReadout({
   );
 }
 
-
-
-
-function SectionTag({ icon: Icon, text }: { icon: React.ComponentType<{ size?: number; className?: string }>; text: string }) {
+function SectionTag({
+  icon: Icon,
+  text,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  text: string;
+}) {
   return (
     <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
       <Icon size={14} className="text-primary" /> {text}
@@ -3381,7 +4117,13 @@ const TONE_TEXT: Record<Tone, string> = {
 };
 
 function SliderRow({
-  label, val, min, max, tone, onChange, help,
+  label,
+  val,
+  min,
+  max,
+  tone,
+  onChange,
+  help,
 }: {
   label: string;
   val: number;
@@ -3401,7 +4143,9 @@ function SliderRow({
         <span className={TONE_TEXT[tone]}>{val}</span>
       </div>
       <Slider
-        min={min} max={max} step={1}
+        min={min}
+        max={max}
+        step={1}
         value={[val]}
         onValueChange={(v) => onChange(v[0])}
         className="mt-2 w-full"
@@ -3413,7 +4157,9 @@ function SliderRow({
 }
 
 function VarSelect({
-  value, vars, onChange,
+  value,
+  vars,
+  onChange,
 }: {
   value: string;
   vars: Variable[];
@@ -3421,10 +4167,7 @@ function VarSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger
-        className="h-8 max-w-[140px] bg-secondary text-xs"
-        aria-label="Variable"
-      >
+      <SelectTrigger className="h-8 max-w-[140px] bg-secondary text-xs" aria-label="Variable">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -3438,13 +4181,17 @@ function VarSelect({
   );
 }
 
-function NavBtn({ dir, onClick, children }: { dir: "next" | "back"; onClick: () => void; children: React.ReactNode }) {
+function NavBtn({
+  dir,
+  onClick,
+  children,
+}: {
+  dir: "next" | "back";
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <Button
-      onClick={onClick}
-      variant={dir === "next" ? "default" : "secondary"}
-      className="gap-2"
-    >
+    <Button onClick={onClick} variant={dir === "next" ? "default" : "secondary"} className="gap-2">
       {dir === "back" && <ArrowLeft size={15} />}
       {children}
       {dir === "next" && <ArrowRight size={15} />}
@@ -3464,7 +4211,11 @@ function SystemMapImpl({
   influences: Influence[];
   fill?: boolean;
 }) {
-  const W = 460, H = 320, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 56;
+  const W = 460,
+    H = 320,
+    cx = W / 2,
+    cy = H / 2,
+    R = Math.min(W, H) / 2 - 56;
   const pos: Record<string, { x: number; y: number }> = {};
   const n = variables.length;
   variables.forEach((v, i) => {
@@ -3494,16 +4245,23 @@ function SystemMapImpl({
           </marker>
         </defs>
         {influences.map((inf, idx) => {
-          const a = pos[inf.from], b = pos[inf.to];
+          const a = pos[inf.from],
+            b = pos[inf.to];
           if (!a || !b) return null;
           const mx = (a.x + b.x) / 2 + (b.y - a.y) * 0.12;
           const my = (a.y + b.y) / 2 - (b.x - a.x) * 0.12;
           const col = inf.strength >= 0 ? SVG.good : SVG.bad;
           return (
-            <path key={idx} d={`M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}`} fill="none"
-              stroke={col} strokeWidth={1 + Math.abs(inf.strength) / 45} opacity="0.55"
+            <path
+              key={idx}
+              d={`M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}`}
+              fill="none"
+              stroke={col}
+              strokeWidth={1 + Math.abs(inf.strength) / 45}
+              opacity="0.55"
               strokeDasharray={inf.strength < 0 ? "4 3" : undefined}
-              markerEnd={`url(#${inf.strength >= 0 ? "dl-g" : "dl-r"})`} />
+              markerEnd={`url(#${inf.strength >= 0 ? "dl-g" : "dl-r"})`}
+            />
           );
         })}
         {variables.map((v) => {
@@ -3514,7 +4272,14 @@ function SystemMapImpl({
             <g key={v.id}>
               <circle cx={p.x} cy={p.y} r={r} fill={col + "22"} stroke={col} strokeWidth="2" />
               <circle cx={p.x} cy={p.y} r={(r - 6) * (v.value / 100)} fill={col + "44"} />
-              <text x={p.x} y={p.y + 4} fill="#ffffff" fontSize="11" textAnchor="middle" fontWeight="700">
+              <text
+                x={p.x}
+                y={p.y + 4}
+                fill="#ffffff"
+                fontSize="11"
+                textAnchor="middle"
+                fontWeight="700"
+              >
                 {v.weight >= 0 ? "+" : "−"}
               </text>
               <text x={p.x} y={p.y + r + 14} fill={SVG.ink2} fontSize="11" textAnchor="middle">
@@ -3532,7 +4297,12 @@ const SystemMap = React.memo(SystemMapImpl);
 /* ----------------------- trajectory chart (SVG) -------------------------- */
 type Run = { option: DecisionOption; color: string; traj: TrajPoint[] };
 function TrajectoryChartImpl({
-  runs, horizon, focusId, best, mcBands, fill = false,
+  runs,
+  horizon,
+  focusId,
+  best,
+  mcBands,
+  fill = false,
 }: {
   runs: Run[];
   horizon: number;
@@ -3541,11 +4311,18 @@ function TrajectoryChartImpl({
   mcBands?: Record<string, MCBand[]>;
   fill?: boolean;
 }) {
-  const W = 620, H = 320, pl = 36, pr = 14, pt = 14, pb = 26;
+  const W = 620,
+    H = 320,
+    pl = 36,
+    pr = 14,
+    pt = 14,
+    pb = 26;
   const ix = (t: number) => pl + (t * (W - pl - pr)) / Math.max(horizon, 1);
   const iy = (v: number) => pt + ((100 - v) * (H - pt - pb)) / 100;
   const grid = [0, 25, 50, 75, 100];
-  const bandRun = runs.find((r) => r.option.id === focusId) || (best && runs.find((r) => r.option.id === best.option.id));
+  const bandRun =
+    runs.find((r) => r.option.id === focusId) ||
+    (best && runs.find((r) => r.option.id === best.option.id));
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [hoverStep, setHoverStep] = useState<number | null>(null);
@@ -3559,7 +4336,9 @@ function TrajectoryChartImpl({
     const clamped = Math.max(0, Math.min(horizon, t));
     setHoverStep(clamped);
   }
-  function handleLeave() { setHoverStep(null); }
+  function handleLeave() {
+    setHoverStep(null);
+  }
 
   const tipW = 150;
   const tipLineH = 14;
@@ -3588,60 +4367,106 @@ function TrajectoryChartImpl({
         aria-label="Option trajectories"
         onMouseMove={handleMove}
         onMouseLeave={handleLeave}
-        onTouchStart={(e) => { if (e.touches[0]) handleMove(e.touches[0]); }}
-        onTouchMove={(e) => { if (e.touches[0]) handleMove(e.touches[0]); }}
+        onTouchStart={(e) => {
+          if (e.touches[0]) handleMove(e.touches[0]);
+        }}
+        onTouchMove={(e) => {
+          if (e.touches[0]) handleMove(e.touches[0]);
+        }}
         onTouchEnd={handleLeave}
         style={fill ? { touchAction: "none", display: "block" } : { touchAction: "none" }}
       >
         {grid.map((g) => (
           <g key={g}>
             <line x1={pl} y1={iy(g)} x2={W - pr} y2={iy(g)} stroke={SVG.border} strokeWidth="1" />
-            <text x={pl - 7} y={iy(g) + 4} fill={SVG.dim} fontSize="10" textAnchor="end">{g}</text>
+            <text x={pl - 7} y={iy(g) + 4} fill={SVG.dim} fontSize="10" textAnchor="end">
+              {g}
+            </text>
           </g>
         ))}
         {[0, Math.round(horizon / 2), horizon].map((m) => (
-          <text key={m} x={ix(m)} y={H - 8} fill={SVG.dim} fontSize="10" textAnchor="middle">{m}</text>
+          <text key={m} x={ix(m)} y={H - 8} fill={SVG.dim} fontSize="10" textAnchor="middle">
+            {m}
+          </text>
         ))}
-        {bandRun && mcBands && mcBands[bandRun.option.id] && (() => {
-          const band = mcBands[bandRun.option.id];
-          let top = "", bot = "";
-          band.forEach((b, i) => {
-            top += `${ix(i)},${iy(b.p90)} `;
-            bot = `${ix(i)},${iy(b.p10)} ` + bot;
-          });
-          return <polygon points={top + bot} fill={bandRun.color + "33"} />;
-        })()}
+        {bandRun &&
+          mcBands &&
+          mcBands[bandRun.option.id] &&
+          (() => {
+            const band = mcBands[bandRun.option.id];
+            let top = "",
+              bot = "";
+            band.forEach((b, i) => {
+              top += `${ix(i)},${iy(b.p90)} `;
+              bot = `${ix(i)},${iy(b.p10)} ` + bot;
+            });
+            return <polygon points={top + bot} fill={bandRun.color + "33"} />;
+          })()}
         {runs.map((r) => {
           const focused = !focusId || r.option.id === focusId;
           const d = r.traj.map((p, i) => `${i ? "L" : "M"}${ix(i)},${iy(p.idx)}`).join(" ");
           return (
-            <path key={r.option.id} d={d} fill="none" stroke={r.color}
-              strokeWidth={focused ? 3.2 : 1.6} opacity={focused ? 1 : 0.35} />
+            <path
+              key={r.option.id}
+              d={d}
+              fill="none"
+              stroke={r.color}
+              strokeWidth={focused ? 3.2 : 1.6}
+              opacity={focused ? 1 : 0.35}
+            />
           );
         })}
         {runs.map((r) => (
-          <circle key={r.option.id} cx={ix(horizon)} cy={iy(r.traj[r.traj.length - 1].idx)} r="4"
-            fill={r.color} stroke={SVG.bgDeep} strokeWidth="2" />
+          <circle
+            key={r.option.id}
+            cx={ix(horizon)}
+            cy={iy(r.traj[r.traj.length - 1].idx)}
+            r="4"
+            fill={r.color}
+            stroke={SVG.bgDeep}
+            strokeWidth="2"
+          />
         ))}
 
         {/* Hover guide + markers + tooltip */}
         {hoverStep != null && (
           <g pointerEvents="none">
             <line
-              x1={ix(hoverStep)} y1={pt} x2={ix(hoverStep)} y2={H - pb}
-              stroke={SVG.ink2} strokeWidth="1" strokeDasharray="3 3" opacity="0.6"
+              x1={ix(hoverStep)}
+              y1={pt}
+              x2={ix(hoverStep)}
+              y2={H - pb}
+              stroke={SVG.ink2}
+              strokeWidth="1"
+              strokeDasharray="3 3"
+              opacity="0.6"
             />
             {runs.map((r) => {
               const p = r.traj[hoverStep];
               if (!p) return null;
               return (
-                <circle key={r.option.id} cx={ix(hoverStep)} cy={iy(p.idx)} r="3.5"
-                  fill={r.color} stroke={SVG.bgDeep} strokeWidth="2" />
+                <circle
+                  key={r.option.id}
+                  cx={ix(hoverStep)}
+                  cy={iy(p.idx)}
+                  r="3.5"
+                  fill={r.color}
+                  stroke={SVG.bgDeep}
+                  strokeWidth="2"
+                />
               );
             })}
             <g transform={`translate(${tipX},${tipY})`}>
-              <rect width={tipW} height={tipH} rx="6" ry="6"
-                fill={SVG.bgDeep} stroke={SVG.border2} strokeWidth="1" opacity="0.96" />
+              <rect
+                width={tipW}
+                height={tipH}
+                rx="6"
+                ry="6"
+                fill={SVG.bgDeep}
+                stroke={SVG.border2}
+                strokeWidth="1"
+                opacity="0.96"
+              />
               <text x={tipPad} y={tipPad + 10} fill={SVG.ink} fontSize="11" fontWeight="600">
                 Step {hoverStep}
               </text>
@@ -3655,7 +4480,14 @@ function TrajectoryChartImpl({
                     <text x={tipPad + 13} y={y} fill={SVG.ink2} fontSize="11">
                       {r.option.name.length > 16 ? r.option.name.slice(0, 15) + "…" : r.option.name}
                     </text>
-                    <text x={tipW - tipPad} y={y} fill={SVG.ink} fontSize="11" textAnchor="end" fontWeight="600">
+                    <text
+                      x={tipW - tipPad}
+                      y={y}
+                      fill={SVG.ink}
+                      fontSize="11"
+                      textAnchor="end"
+                      fontWeight="600"
+                    >
                       {val}
                     </text>
                   </g>
@@ -3693,7 +4525,14 @@ function HelpPopover({ title, body }: { title: string; body: string }) {
 }
 
 function WelcomeDialog({
-  open, dontShow, setDontShow, onClose, onDocs, onDescribe, onTemplate, onTour,
+  open,
+  dontShow,
+  setDontShow,
+  onClose,
+  onDocs,
+  onDescribe,
+  onTemplate,
+  onTour,
 }: {
   open: boolean;
   dontShow: boolean;
@@ -3705,7 +4544,12 @@ function WelcomeDialog({
   onTour: () => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -3713,21 +4557,40 @@ function WelcomeDialog({
             Welcome to Decision Lens
           </DialogTitle>
           <DialogDescription>
-            Turn a messy decision into a clear, do-this-next plan. Upload your documents or describe the decision in plain words. AI maps the few things that really matter and your options, then shows how each one is likely to play out — so you walk away with a sequenced action plan for the strongest choice.
+            Turn a messy decision into a clear, do-this-next plan. Upload your documents or describe
+            the decision in plain words. AI maps the few things that really matter and your options,
+            then shows how each one is likely to play out — so you walk away with a sequenced action
+            plan for the strongest choice.
           </DialogDescription>
         </DialogHeader>
 
         <div className="rounded-lg border border-border bg-muted/40 p-3">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">How it works</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            How it works
+          </div>
           <ol className="mt-2 grid gap-1 text-sm text-foreground">
-            <li><b className="text-primary">1. Add your material</b> — drop PDFs or paste links (or just describe it).</li>
-            <li><b className="text-primary">2. AI maps the picture</b> — the drivers, the knock-on effects, the options, and concrete actions.</li>
-            <li><b className="text-primary">3. Tweak & second-opinion</b> — adjust anything; ask AI what you might be missing.</li>
-            <li><b className="text-primary">4. See how each plays out</b> — we look across many possible futures to see which option comes out ahead.</li>
-            <li><b className="text-primary">5. Get an action plan</b> — sequenced Now / Soon / Ongoing steps you can copy as Markdown.</li>
+            <li>
+              <b className="text-primary">1. Add your material</b> — drop PDFs or paste links (or
+              just describe it).
+            </li>
+            <li>
+              <b className="text-primary">2. AI maps the picture</b> — the drivers, the knock-on
+              effects, the options, and concrete actions.
+            </li>
+            <li>
+              <b className="text-primary">3. Tweak & second-opinion</b> — adjust anything; ask AI
+              what you might be missing.
+            </li>
+            <li>
+              <b className="text-primary">4. See how each plays out</b> — we look across many
+              possible futures to see which option comes out ahead.
+            </li>
+            <li>
+              <b className="text-primary">5. Get an action plan</b> — sequenced Now / Soon / Ongoing
+              steps you can copy as Markdown.
+            </li>
           </ol>
         </div>
-
 
         <div className="grid gap-2">
           <Button onClick={onDocs} size="lg" className="justify-start gap-2">
@@ -3739,11 +4602,14 @@ function WelcomeDialog({
           <Button onClick={onTemplate} variant="outline" className="justify-start gap-2">
             <GitBranch size={15} /> Start from a template
           </Button>
-          <Button onClick={onTour} variant="ghost" className="justify-start gap-2 text-muted-foreground">
+          <Button
+            onClick={onTour}
+            variant="ghost"
+            className="justify-start gap-2 text-muted-foreground"
+          >
             <MousePointerClick size={15} /> Take the 60-second tour
           </Button>
         </div>
-
 
         <DialogFooter className="flex-row items-center justify-between sm:justify-between">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -3755,7 +4621,9 @@ function WelcomeDialog({
             />
             Don't show again
           </label>
-          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -3770,10 +4638,11 @@ const TOUR_COPY = [
   "Decide tab: we look across many possible futures to see which option comes out ahead, explain why, and hand you a Now / Soon / Ongoing action plan you can copy.",
 ];
 
-
-
 function TourCoachmark({
-  step, anchors, onNext, onSkip,
+  step,
+  anchors,
+  onNext,
+  onSkip,
 }: {
   step: number | null;
   anchors: Array<HTMLElement | null>;
@@ -3783,7 +4652,10 @@ function TourCoachmark({
   const [rect, setRect] = useState<DOMRect | null>(null);
 
   useEffect(() => {
-    if (step == null) { setRect(null); return; }
+    if (step == null) {
+      setRect(null);
+      return;
+    }
     const el = anchors[step];
     if (!el) return;
     const update = () => setRect(el.getBoundingClientRect());
@@ -3806,7 +4678,12 @@ function TourCoachmark({
       <div className="absolute inset-0 bg-background/40 backdrop-blur-[1px]" onClick={onSkip} />
       <div
         className="absolute rounded-md ring-2 ring-primary ring-offset-2 ring-offset-background pointer-events-none"
-        style={{ top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 }}
+        style={{
+          top: rect.top - 4,
+          left: rect.left - 4,
+          width: rect.width + 8,
+          height: rect.height + 8,
+        }}
       />
       <div
         role="dialog"
@@ -3819,7 +4696,9 @@ function TourCoachmark({
         </div>
         <p className="mt-1 text-sm text-foreground">{TOUR_COPY[step]}</p>
         <div className="mt-3 flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={onSkip} className="text-muted-foreground">Skip</Button>
+          <Button variant="ghost" size="sm" onClick={onSkip} className="text-muted-foreground">
+            Skip
+          </Button>
           <Button size="sm" onClick={onNext} className="gap-2">
             {isLast ? "Finish" : "Next"}
             {!isLast && <ArrowRight size={14} />}

@@ -79,23 +79,46 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Decision Support" },
-      { name: "description", content: "Decision Compass models decisions as systems, simulates options, and ranks outcomes." },
+      {
+        name: "description",
+        content:
+          "Decision Compass models decisions as systems, simulates options, and ranks outcomes.",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Decision Support" },
-      { property: "og:description", content: "Decision Compass models decisions as systems, simulates options, and ranks outcomes." },
+      {
+        property: "og:description",
+        content:
+          "Decision Compass models decisions as systems, simulates options, and ranks outcomes.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Decision Support" },
-      { name: "twitter:description", content: "Decision Compass models decisions as systems, simulates options, and ranks outcomes." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/db10e579-2c15-41e9-82be-54f272312e5d/id-preview-3916922f--ef3c9bb8-877f-40c8-bc1a-fa534e78d66d.lovable.app-1782374708168.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/db10e579-2c15-41e9-82be-54f272312e5d/id-preview-3916922f--ef3c9bb8-877f-40c8-bc1a-fa534e78d66d.lovable.app-1782374708168.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Decision Compass models decisions as systems, simulates options, and ranks outcomes.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/db10e579-2c15-41e9-82be-54f272312e5d/id-preview-3916922f--ef3c9bb8-877f-40c8-bc1a-fa534e78d66d.lovable.app-1782374708168.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/db10e579-2c15-41e9-82be-54f272312e5d/id-preview-3916922f--ef3c9bb8-877f-40c8-bc1a-fa534e78d66d.lovable.app-1782374708168.png",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
