@@ -1516,3 +1516,157 @@ function TrajectoryChartImpl({
   );
 }
 const TrajectoryChart = React.memo(TrajectoryChartImpl);
+
+/* ----------------------------- onboarding parts ------------------------- */
+
+function HelpPopover({ title, body }: { title: string; body: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={"What is " + title + "?"}
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <HelpCircle size={13} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" className="w-64 text-xs">
+        <div className="font-semibold text-foreground">{title}</div>
+        <p className="mt-1 text-muted-foreground">{body}</p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function WelcomeDialog({
+  open, dontShow, setDontShow, onClose, onDocs, onDescribe, onTemplate, onTour,
+}: {
+  open: boolean;
+  dontShow: boolean;
+  setDontShow: (v: boolean) => void;
+  onClose: () => void;
+  onDocs: () => void;
+  onDescribe: () => void;
+  onTemplate: () => void;
+  onTour: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Compass size={18} className="text-primary" />
+            Welcome to Decision Lens
+          </DialogTitle>
+          <DialogDescription>
+            Model a decision as a small system of forces, simulate your options, and compare outcomes — instead of arguing about vibes.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-lg border border-border bg-muted/40 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">The four stages</div>
+          <ol className="mt-2 grid gap-1 text-sm text-foreground">
+            <li><b className="text-primary">1. Frame</b> — name the decision and what success means.</li>
+            <li><b className="text-primary">2. Model</b> — list the few variables that drive it and the influences between them.</li>
+            <li><b className="text-primary">3. Options</b> — describe each option as a push on the system.</li>
+            <li><b className="text-primary">4. Decide</b> — roll them forward; compare trajectories and win-probabilities.</li>
+          </ol>
+        </div>
+
+        <div className="grid gap-2">
+          <Button onClick={onDocs} className="justify-start gap-2">
+            <FileText size={15} /> Map a decision from my documents
+          </Button>
+          <Button onClick={onDescribe} variant="secondary" className="justify-start gap-2">
+            <Sparkles size={15} /> Describe my decision
+          </Button>
+          <Button onClick={onTemplate} variant="secondary" className="justify-start gap-2">
+            <GitBranch size={15} /> Start from a template
+          </Button>
+          <Button onClick={onTour} variant="ghost" className="justify-start gap-2 text-muted-foreground">
+            <MousePointerClick size={15} /> Take the 60-second tour
+          </Button>
+        </div>
+
+        <DialogFooter className="flex-row items-center justify-between sm:justify-between">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={dontShow}
+              onChange={(e) => setDontShow(e.target.checked)}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            Don't show again
+          </label>
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const TOUR_COPY = [
+  "Frame: tell Decision Lens what you're choosing between and what success means.",
+  "Model: list the few latent variables that drive the outcome and the influences between them.",
+  "Options: describe each option as a push on the system — how it nudges each variable.",
+  "Decide: see ranked trajectories and win-probabilities, then pick with eyes open.",
+];
+
+function TourCoachmark({
+  step, anchors, onNext, onSkip,
+}: {
+  step: number | null;
+  anchors: Array<HTMLButtonElement | null>;
+  onNext: () => void;
+  onSkip: () => void;
+}) {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (step == null) { setRect(null); return; }
+    const el = anchors[step];
+    if (!el) return;
+    const update = () => setRect(el.getBoundingClientRect());
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [step, anchors]);
+
+  if (step == null || !rect) return null;
+  const top = rect.bottom + 10;
+  const left = Math.max(12, Math.min(window.innerWidth - 312, rect.left));
+  const isLast = step >= TOUR_COPY.length - 1;
+
+  return (
+    <div className="fixed inset-0 z-50" aria-live="polite">
+      <div className="absolute inset-0 bg-background/40 backdrop-blur-[1px]" onClick={onSkip} />
+      <div
+        className="absolute rounded-md ring-2 ring-primary ring-offset-2 ring-offset-background pointer-events-none"
+        style={{ top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 }}
+      />
+      <div
+        role="dialog"
+        aria-label="Decision Lens tour"
+        className="absolute w-[300px] rounded-lg border border-border bg-card p-4 shadow-lg"
+        style={{ top, left }}
+      >
+        <div className="text-xs font-semibold uppercase tracking-wider text-primary">
+          Step {step + 1} of {TOUR_COPY.length}
+        </div>
+        <p className="mt-1 text-sm text-foreground">{TOUR_COPY[step]}</p>
+        <div className="mt-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={onSkip} className="text-muted-foreground">Skip</Button>
+          <Button size="sm" onClick={onNext} className="gap-2">
+            {isLast ? "Finish" : "Next"}
+            {!isLast && <ArrowRight size={14} />}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
