@@ -43,7 +43,7 @@ const T = {
   ink: "#e9ecf3",
   ink2: "#cdd5e4",
   muted: "#9aa3b5",
-  dim: "#6c7689",
+  dim: "#8b95a8",
   primary: "#6ea8fe",
   good: "#7ee787",
   bad: "#ff6b81",
