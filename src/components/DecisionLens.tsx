@@ -1414,8 +1414,8 @@ export default function DecisionLens() {
                   const busy = ingesting || drafting;
                   const ingestMessages = [
                     "Reading your sources…",
-                    "Extracting the key drivers…",
-                    "Mapping the feedback loops…",
+                    "Picking out what really matters…",
+                    "Spotting the knock-on effects…",
                     "Laying out your options…",
                   ];
                   return (
