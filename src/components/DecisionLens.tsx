@@ -1284,21 +1284,16 @@ export default function DecisionLens() {
         className="hidden md:flex w-64 shrink-0 flex-col text-white shrink-0 sticky top-0 h-screen"
         style={{ backgroundColor: "#3D6C87" }}
       >
-        <div className="px-6 py-5 flex items-center gap-3 border-b border-white/10">
-          <div
-            className="w-9 h-9 rounded flex items-center justify-center font-bold text-white"
-            style={{ backgroundColor: "#A52A20", fontFamily: FONT_DISPLAY }}
-            aria-hidden
-          >
-            D
+        <div className="px-5 py-5 border-b border-white/10">
+          <div className="bg-white rounded-md px-3 py-2 flex items-center justify-center">
+            <img
+              src={fraimeworksLogo.url}
+              alt="FraimeWorks decision"
+              className="h-9 w-auto object-contain"
+            />
           </div>
-          <div>
-            <div className="font-semibold text-base tracking-tight" style={{ fontFamily: FONT_DISPLAY }}>
-              Decision Lens
-            </div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-white/60">
-              World-model thinking
-            </div>
+          <div className="mt-2 text-[10px] uppercase tracking-[0.18em] text-white/60 text-center">
+            World-model thinking
           </div>
         </div>
 
