@@ -10,7 +10,7 @@ export type DraftedModel = {
   horizon?: number;
   variables?: Array<{ id?: string; name?: string; value?: number; weight?: number }>;
   influences?: Array<{ from?: string; to?: string; strength?: number }>;
-  options?: Array<{ name?: string; pushes?: Record<string, number> }>;
+  options?: Array<{ name?: string; pushes?: Record<string, number>; actions?: Array<{ text?: string; targets?: string[]; effort?: "low" | "med" | "high"; when?: "now" | "soon" | "ongoing" }> }>;
 };
 
 const SYSTEM_PROMPT =
