@@ -925,19 +925,22 @@ function keywordTemplate(decisionText: string): Model {
     horizon: tpl.horizon,
     variables: tpl.variables.map((v) => ({ ...v })),
     influences: tpl.influences.map((i) => ({ ...i })),
-    options: tpl.options.map((o) => ({
-      id: uid(),
-      name: o.name,
-      pushes: { ...o.pushes },
-      ...((o as any).actions
-        ? {
-            actions: (o as any).actions.map((a: any) => ({
-              ...a,
-              targets: a.targets ? [...a.targets] : undefined,
-            })),
-          }
-        : {}),
-    })),
+    options: tpl.options.map((o) => {
+      const maybeActions = (o as { actions?: DecisionAction[] }).actions;
+      return {
+        id: uid(),
+        name: o.name,
+        pushes: { ...o.pushes },
+        ...(maybeActions
+          ? {
+              actions: maybeActions.map((a) => ({
+                ...a,
+                targets: a.targets ? [...a.targets] : undefined,
+              })),
+            }
+          : {}),
+      };
+    }),
   };
 }
 
