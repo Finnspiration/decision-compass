@@ -51,14 +51,13 @@ export const draftModel = createServerFn({ method: "POST" })
     const content = json.choices?.[0]?.message?.content;
     if (!content) throw new Error("AI gateway returned no content");
 
-    let parsed: unknown;
+    let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(content) as Record<string, unknown>;
     } catch {
-      // Try to extract a JSON block if the model wrapped it.
       const m = content.match(/\{[\s\S]*\}/);
       if (!m) throw new Error("AI gateway returned non-JSON content");
-      parsed = JSON.parse(m[0]);
+      parsed = JSON.parse(m[0]) as Record<string, unknown>;
     }
     return parsed;
   });
