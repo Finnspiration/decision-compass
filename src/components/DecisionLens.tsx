@@ -2426,6 +2426,23 @@ export default function DecisionLens() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={mapOpen} onOpenChange={setMapOpen}>
+        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] flex flex-col gap-3">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Network size={16} className="text-primary" />
+              Decision map — {decision || "Untitled decision"}
+            </DialogTitle>
+            <DialogDescription>
+              Green bubbles help your goal · red hurts it · arrows show knock-on effects · bubble size grows with how strongly a driver matters.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <SystemMap variables={variables} influences={influences} fill />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
