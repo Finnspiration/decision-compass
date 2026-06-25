@@ -1924,12 +1924,11 @@ export default function DecisionLens() {
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Each option is an action that pushes the state every step. Drag a variable up if the option lifts
-                  it, down if it drags it.
+                  Each option is a choice you could make. For each driver, say whether this option boosts it or lowers it.
                 </p>
                 {options.every((o) => Object.values(o.pushes).every((p) => !p)) && (
                   <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                    <b className="text-foreground">No effects set yet.</b> Move at least one slider per option — that's how each option distinguishes itself in the simulation.
+                    <b className="text-foreground">Nothing set yet.</b> Move at least one slider per option — that's how each option stands apart when we look ahead.
                   </div>
                 )}
 
