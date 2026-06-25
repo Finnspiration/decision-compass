@@ -2433,10 +2433,11 @@ function WelcomeDialog({
 }
 
 const TOUR_COPY = [
-  "Frame: tell Decision Lens what you're choosing between and what success means.",
-  "Model: list the few latent variables that drive the outcome and the influences between them.",
-  "Options: describe each option as a push on the system — how it nudges each variable.",
-  "Decide: see ranked trajectories and win-probabilities, then pick with eyes open.",
+  "Start here: drop PDFs or paste links, then click Map my decision — AI reads them and builds your model.",
+  "Or just describe the decision and let AI draft it.",
+  "Review the variables and influences. Click 'Critique my model' to have AI spot what's missing.",
+  "Describe each option as a push on the system.",
+  "Compare trajectories and win-probabilities, then choose.",
 ];
 
 function TourCoachmark({
