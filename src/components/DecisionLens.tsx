@@ -2280,7 +2280,7 @@ function ActionPlanEditor({
 
       {actions.length === 0 && (
         <p className="mt-2 text-xs text-muted-foreground">
-          No actions yet. Add a step the team would execute, or let AI suggest some.
+          No actions yet. Add a step your team would actually take, or let AI suggest a few.
         </p>
       )}
 
