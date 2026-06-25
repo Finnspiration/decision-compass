@@ -1807,7 +1807,7 @@ export default function DecisionLens() {
                           aria-label={"Driver name: " + v.name}
                         />
                         {v.rationale && (
-                          <HelpPopover title="Why this variable" body={v.rationale} />
+                          <HelpPopover title="Why this driver" body={v.rationale} />
                         )}
                         <Button
                           variant="ghost"
