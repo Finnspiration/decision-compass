@@ -1,45 +1,78 @@
-# Make outlook trajectories readable + flag suspicious model setup
+## Goal
 
-Two UI-only changes in `src/components/DecisionLens.tsx`. No engine, type, or server-function changes.
+Make Decision Lens easier to work with by replacing the dark, tab-switching layout with a calm light **dashboard shell**: a persistent left sidebar that always shows where you are in the 4-stage flow (Frame → Model → Options → Decide), a sticky top header with the decision name + primary action, and a panelized white workspace.
 
-## 1. Self-explanatory chart on the Decide tab
+Engine, types, server functions, and Monte-Carlo logic are **unchanged**. This is a presentation-layer redesign only.
 
-Goal: a non-technical reader instantly understands *which direction is good*, *where each option starts and ends*, and that the ranking is **relative**.
+## Design tokens (locked)
 
-Changes to the "How each option plays out" panel:
+Defined in `src/styles.css` under `@theme inline` + `:root`:
 
-- **Y-axis label** on the left edge of the SVG: "Outlook score (higher = better)". Small, muted.
-- **Caption line** under the existing description: "Lines show the most likely path. Shaded bands show the range of plausible futures."
-- **Per-option delta chips** rendered under the legend, one per option:
-  - Format: `<color dot> {Option name} — starts {S}, ends {E} ({±Δ})`
-  - Δ rendered with ▲/▼ glyph and a status color (green if Δ ≥ +2, red if Δ ≤ −2, muted otherwise).
-  - Source: first and last point of each option's p50 series already computed in `simulateMonteCarlo`.
-- **Relative-ranking note** beneath the win-probability list (right column), shown only when the top option's end value is below its start value:
-  - "All options trend downward in this model — 'comes out ahead' means **loses the least**. To find options that *improve* the outlook, revisit the Model tab."
-  - Render as a small `Alert`-style block with the existing warning token.
+- `--background: #FFFFFF`
+- `--foreground: #3D6C87` (Primary blue — headings, structure, axes)
+- `--muted / surface: #99B0C0` at 5–20% tints (panels, secondary fills)
+- `--accent / destructive: #A52A20` (CTAs, highlights, key actions)
+- Borders: `#99B0C0` @ 20–30%
+- Fonts: Sora (headings via `--font-display`), Manrope (body via `--font-sans`), loaded via `<link>` in `src/routes/__root.tsx` head
+- Remove `className="dark"` from `<html>` — app is now light
 
-All copy uses the established plain-language glossary (driver / outlook / how it plays out). No new tokens.
+## Layout shell
 
-## 2. Flag suspicious model setup on the Model tab
+New file `src/components/DecisionShell.tsx` wraps `DecisionLens` with:
 
-Goal: surface obvious modelling mistakes that produce misleading Decide-tab results — without prescribing answers.
+```text
+┌──────────┬───────────────────────────────────────┐
+│          │  Decision title         Share | Export│  ← sticky header (h-16)
+│ sidebar  ├───────────────────────────────────────┤
+│ (#3D6C87)│                                       │
+│          │   active stage panel(s)               │
+│ • Frame  │   (rendered from existing DecisionLens│
+│ • Model  │    stage components — Frame / Model / │
+│ • Optns  │    Options / Decide)                  │
+│ • Decide │                                       │
+│          │                                       │
+│ [CTA]    │                                       │
+└──────────┴───────────────────────────────────────┘
+```
 
-Add a single `ModelSanityPanel` rendered at the top of the Model tab when any check fires. Each finding is one short sentence + the driver/option it refers to. Checks (pure functions over the current model, recomputed via `useMemo`):
+- Sidebar `w-64`, `bg-[#3D6C87]`, white text. Logo block top, 4 stage links, primary CTA at bottom (`bg-[#A52A20]` — "Upload document" / context-aware label).
+- Active stage: `bg-white/10 border-l-4 border-[#A52A20]`. Inactive: `opacity-70` + hover `bg-white/10`.
+- Each item shows stage number + name + a small completion dot (filled when that stage has data).
+- Header: white, `border-b`, shows current decision goal + Share + Export plan buttons.
+- Workspace: `bg-[#FFFFFF]` with panel cards `bg-white border border-[#99B0C0]/30 rounded-lg shadow-sm` (replacing the current dark cards).
 
-- **Counter-intuitive weight sign**: a driver whose name contains hurt-words (depletion, burn, risk, cost, churn, saturation, debt, loss, attrition, drag) has a **positive** weight, OR a driver whose name contains help-words (growth, advantage, moat, reach, trust, quality, retention, momentum) has a **negative** weight. Message: "'{name}' is set as **helping** your goal — does that match reality?" (or *hurting* in the inverse case).
-- **No option moves the dominant driver**: identify the driver with the largest `|weight|`. If every option's push on it is `|push| < 5`, flag: "No option meaningfully moves '{name}', which is the strongest driver in your model."
-- **All options trend down**: if every option's p50 end < p50 start (computed from the same `simulateMonteCarlo` results the Decide tab already uses, lifted via `useMemo` so it isn't recomputed), flag: "Every option's outlook gets worse over time. Either a driver's sign is wrong, or no option pushes hard enough on what matters."
+## Stage routing
 
-Panel UI:
-- shadcn `Card` with a muted-warning surface (reuse the existing warning token, do not introduce new colors).
-- Heading: "Worth a second look".
-- List of findings, each with a small `AlertTriangle` icon and the offending driver/option name highlighted.
-- Dismissable per-session (state only, no persistence).
+Keep existing Tabs state inside `DecisionLens`, but **lift the active-stage value** so the sidebar drives it. Two options, decide during build:
+
+- (a) Sidebar buttons call a `setStage(...)` prop on `DecisionLens` — minimal invasive change.
+- (b) Switch to URL hash sub-route (`#stage=model`) — nice to have, optional.
+
+We go with (a) for this pass.
+
+## Component restyle pass (inside DecisionLens.tsx)
+
+Only swap classes / tokens — no logic changes:
+
+- All `Card` / `Panel` backgrounds → `bg-white`, border `border-[#99B0C0]/30`, text `text-[#3D6C87]`.
+- Section labels → uppercase Sora 12px `text-[#99B0C0] tracking-widest font-bold` (matches prototype).
+- Primary CTAs (Run, Suggest actions, Export plan, Share) → `bg-[#A52A20] text-white`.
+- Secondary buttons → outline `border-[#99B0C0] text-[#3D6C87]`.
+- Sliders / chips / driver pills → primary blue fills, accent red only for warnings/highlights.
+- AI Critique panel → left border `border-l-4 border-[#A52A20]` + soft red tint, matching prototype.
+- Trajectory chart axes & lines → `#3D6C87`; winning option line + p50 marker → `#A52A20`; confidence band → `#3D6C87`/10–20%.
+- Sanity / "worth a second look" panel → red-tinted accent style.
+- Onboarding `WelcomeDialog` + tour bubbles → light surface, Sora headings, accent CTA.
 
 ## Files touched
 
-- `src/components/DecisionLens.tsx` — add `ModelSanityPanel`, delta chips, axis label, caption, relative-ranking note. Lift Monte-Carlo results so both the chart and the sanity panel read the same series (no extra simulation runs).
+- `src/styles.css` — replace dark `--background`/`--foreground` etc. with FraimeWorks palette under `:root`, map via `@theme inline`. Remove dark-specific overrides.
+- `src/routes/__root.tsx` — remove `className="dark"` from `<html>`; add Sora + Manrope `<link>` in head.
+- `src/components/DecisionShell.tsx` — new shell (sidebar + header + main).
+- `src/routes/index.tsx` — render `<DecisionShell><DecisionLens .../></DecisionShell>`.
+- `src/components/DecisionLens.tsx` — accept optional `stage` + `onStageChange` props; replace color classes per the restyle pass above. No engine, no prompt, no type changes.
 
 ## Out of scope
 
-- Simulation engine, types, server functions, AI prompts, share-URL codec, templates, onboarding copy — all unchanged.
+- No changes to server functions, prompts, simulation engine, types, share-URL codec, templates, or action-plan logic.
+- No new features. No mobile-specific redesign (mobile keeps the existing stacked layout via responsive breakpoints — sidebar collapses to a top bar under `md`).
