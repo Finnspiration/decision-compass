@@ -1066,7 +1066,7 @@ export default function DecisionLens() {
     try {
       const res = await callSuggestActions({
         data: {
-          decision: decisionText,
+          decision,
           outcomeName,
           variables,
           option: { id: opt.id, name: opt.name, pushes: opt.pushes },
