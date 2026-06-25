@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { useServerFn } from "@tanstack/react-start";
-import { explainDecision, critiqueModel, suggestActions, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
+import { explainDecision, improveModel, suggestActions, type ImproveSuggestion } from "@/lib/ai-assist.functions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1178,13 +1178,16 @@ export default function DecisionLens() {
 
   /* --------------------------- AI assistance --------------------------- */
   const callExplain = useServerFn(explainDecision);
-  const callCritique = useServerFn(critiqueModel);
+  const callImprove = useServerFn(improveModel);
   const callSuggestActions = useServerFn(suggestActions);
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
-  const [critiquing, setCritiquing] = useState(false);
-  const [critique, setCritique] = useState<CritiqueSuggestion[] | null>(null);
+  const [improvingModel, setImprovingModel] = useState(false);
+  const [improvingOptions, setImprovingOptions] = useState(false);
+  const [modelSuggestions, setModelSuggestions] = useState<ImproveSuggestion[] | null>(null);
+  const [optionSuggestions, setOptionSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+
 
   async function runSuggestActions(opt: DecisionOption) {
     setActionLoading((s) => ({ ...s, [opt.id]: true }));
@@ -1233,7 +1236,8 @@ export default function DecisionLens() {
 
   // Invalidate stale AI output when the model changes
   useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
-  useEffect(() => { setCritique(null); }, [variables, influences, options]);
+  useEffect(() => { setModelSuggestions(null); }, [variables, influences]);
+  useEffect(() => { setOptionSuggestions(null); }, [options, variables]);
 
   // Cycle staged loading messages during ingest
   useEffect(() => {
@@ -1263,36 +1267,60 @@ export default function DecisionLens() {
     }
   }
 
-  async function runCritique() {
-    setCritiquing(true);
+  async function runImprove(focus: "model" | "options") {
+    const setLoading = focus === "model" ? setImprovingModel : setImprovingOptions;
+    const setResult = focus === "model" ? setModelSuggestions : setOptionSuggestions;
+    setLoading(true);
     try {
-      const res = await callCritique({
-        data: { model: { outcomeName, horizon, variables, influences, options } },
+      const res = await callImprove({
+        data: { focus, model: { outcomeName, horizon, variables, influences, options } },
       });
-      setCritique(res.suggestions);
+      setResult(res.suggestions);
       if (!res.suggestions.length) {
-        toast.success("Looks solid", { description: "Decision Lens · nothing major stood out." });
+        toast.success("Decision Lens · looks solid", { description: "No changes suggested — this looks solid." });
       }
     } catch (e) {
-      toast.error("Second opinion failed", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+      toast.error("Decision Lens · couldn't get suggestions", {
+        description: e instanceof Error ? e.message : "AI unavailable.",
+      });
     } finally {
-      setCritiquing(false);
+      setLoading(false);
     }
   }
 
-  function acceptSuggestion(s: CritiqueSuggestion) {
-    if (s.kind === "add_variable" && s.variable) {
+  function acceptSuggestion(s: ImproveSuggestion, source: "model" | "options") {
+    if (s.kind === "add_driver") {
       const ids = new Set(variables.map((v) => v.id));
       let id = s.variable.id || uid();
       while (ids.has(id)) id = id + "_" + Math.random().toString(36).slice(2, 4);
       setVariables([...variables, { ...s.variable, id }]);
-      toast.success("Driver added", { description: "Decision Lens · " + s.variable.name });
-    } else if (s.kind === "add_influence" && s.influence) {
-      setInfluences([...influences, s.influence]);
-      toast.success("Knock-on effect added", { description: "Decision Lens · linked two drivers." });
+      toast.success("Decision Lens · driver added", { description: s.variable.name });
+    } else if (s.kind === "add_influence") {
+      const dup = influences.some((i) => i.from === s.influence.from && i.to === s.influence.to);
+      if (dup) {
+        toast("Decision Lens · already linked", { description: "That knock-on effect is already in your map." });
+      } else {
+        setInfluences([...influences, s.influence]);
+        toast.success("Decision Lens · knock-on effect added", { description: "Linked two drivers." });
+      }
+    } else if (s.kind === "add_option") {
+      const taken = new Set(options.map((o) => o.name.trim().toLowerCase()));
+      if (taken.has(s.option.name.trim().toLowerCase())) {
+        toast("Decision Lens · option already exists", { description: s.option.name });
+      } else {
+        setOptions([...options, { id: uid(), name: s.option.name, pushes: { ...s.option.pushes } }]);
+        toast.success("Decision Lens · option added", { description: s.option.name });
+      }
     }
-    setCritique((cur) => (cur ? cur.filter((x) => x !== s) : cur));
+    const setResult = source === "model" ? setModelSuggestions : setOptionSuggestions;
+    setResult((cur) => (cur ? cur.filter((x) => x !== s) : cur));
   }
+
+  function dismissSuggestion(s: ImproveSuggestion, source: "model" | "options") {
+    const setResult = source === "model" ? setModelSuggestions : setOptionSuggestions;
+    setResult((cur) => (cur ? cur.filter((x) => x !== s) : cur));
+  }
+
 
   // Suggested probe: highest out-degree (ties → highest |weight|)
   const suggestedProbe = useMemo(() => {
@@ -1995,69 +2023,39 @@ export default function DecisionLens() {
               <Panel>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <SectionTag icon={Lightbulb} text="Second opinion" />
+                    <SectionTag icon={Lightbulb} text="Ways to strengthen this model" />
                     <HelpPopover
-                      title="Second opinion"
-                      body="Spots things you may have missed — an important factor, a downside to consider, or two options that look too alike."
+                      title="Help me improve this"
+                      body="Spots things you may have missed — an important driver, a downside, or a knock-on effect that creates a loop."
                     />
                   </div>
                   <Button
                     size="sm"
-                    variant="secondary"
-                    onClick={runCritique}
-                    disabled={critiquing || variables.length === 0}
+                    variant="default"
+                    onClick={() => runImprove("model")}
+                    disabled={improvingModel || variables.length === 0}
                     className="gap-1.5"
+                    aria-label="Help me improve this model"
                   >
-                    {critiquing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                    {critique ? "Get another second opinion" : "Get a second opinion"}
+                    {improvingModel ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {modelSuggestions ? "Get more suggestions" : "✨ Help me improve this"}
                   </Button>
                 </div>
-                {critique && critique.length > 0 && (
-                  <ul className="mt-3 grid list-none gap-2 p-0">
-                    {critique.map((s, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-3 rounded-lg border border-border bg-muted/60 p-2.5 text-xs"
-                      >
-                        <Lightbulb size={13} className="mt-0.5 shrink-0 text-primary" />
-                        <div className="flex-1 leading-relaxed text-foreground">
-                          {s.message}
-                          {s.kind === "add_variable" && s.variable && (
-                            <div className="mt-1 text-dim">
-                              → add driver <b className="text-foreground">{s.variable.name}</b>{" "}
-                              ({s.variable.weight >= 0 ? "helps" : "hurts"} your goal · {Math.abs(s.variable.weight)})
-                            </div>
-                          )}
-                          {s.kind === "add_influence" && s.influence && (
-                            <div className="mt-1 text-dim">
-                              → knock-on: <b className="text-foreground">{variables.find((v) => v.id === s.influence!.from)?.name ?? s.influence.from}</b>
-                              {" → "}
-                              <b className="text-foreground">{variables.find((v) => v.id === s.influence!.to)?.name ?? s.influence.to}</b>
-                              {" "}({s.influence.strength >= 0 ? "+" : ""}{s.influence.strength})
-                            </div>
-                          )}
-                        </div>
-                        {(s.kind === "add_variable" || s.kind === "add_influence") && (
-                          <Button size="sm" variant="default" onClick={() => acceptSuggestion(s)} className="h-7 gap-1 px-2 text-[11px]">
-                            <Plus size={11} /> Accept
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {critique && critique.length === 0 && (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Nothing major stands out — your map looks coherent.
-                  </p>
-                )}
-                {!critique && (
+                {modelSuggestions === null && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Get a few suggestions: a factor you might be missing, a downside to weigh, or options that are too similar.
+                    Get a few suggestions: a driver you might be missing, a downside to weigh, or a knock-on effect that creates a loop.
                   </p>
                 )}
+                <SuggestionList
+                  suggestions={modelSuggestions}
+                  variables={variables}
+                  onAccept={(s) => acceptSuggestion(s, "model")}
+                  onDismiss={(s) => dismissSuggestion(s, "model")}
+                />
               </Panel>
             </div>
+
+
 
             <div className="dl-model">
 
@@ -2262,19 +2260,33 @@ export default function DecisionLens() {
           <TabsContent value="options" className="mt-0">
             <div className="grid gap-5">
               <Panel>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <SectionTag icon={GitBranch} text="The options you're choosing between" />
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      setOptions([...options, { id: uid(), name: "Option " + (options.length + 1), pushes: {} }])
-                    }
-                    className="gap-1"
-                  >
-                    <Plus size={13} /> Add option
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => runImprove("options")}
+                      disabled={improvingOptions || variables.length === 0}
+                      className="gap-1.5"
+                      aria-label="Help me improve these options"
+                    >
+                      {improvingOptions ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                      {optionSuggestions ? "Get more strategies" : "✨ Help me improve this"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        setOptions([...options, { id: uid(), name: "Option " + (options.length + 1), pushes: {} }])
+                      }
+                      className="gap-1"
+                    >
+                      <Plus size={13} /> Add option
+                    </Button>
+                  </div>
                 </div>
+
                 <p className="mt-2 text-xs text-muted-foreground">
                   Each option is a different play. Show how it moves each driver — most good options boost some and cost others.
                 </p>
@@ -2310,10 +2322,21 @@ export default function DecisionLens() {
 
 
 
+                
+                <SuggestionList
+                  suggestions={optionSuggestions}
+                  variables={variables}
+                  onAccept={(s) => acceptSuggestion(s, "options")}
+                  onDismiss={(s) => dismissSuggestion(s, "options")}
+                />
+
+
+
                 <div
                   className="mt-4 grid gap-4"
                   style={{ gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}
                 >
+
                   {options.map((o, i) => {
                     const color = OPT_COLORS[i % OPT_COLORS.length];
                     const pushVals = variables.map((v) => o.pushes[v.id] || 0);
@@ -2748,6 +2771,94 @@ export default function DecisionLens() {
 /* ----------------------------- small parts ------------------------------- */
 const EFFORT_OPTS: DecisionAction["effort"][] = ["low", "med", "high"];
 const WHEN_OPTS: DecisionAction["when"][] = ["now", "soon", "ongoing"];
+
+function SuggestionList({
+  suggestions, variables, onAccept, onDismiss,
+}: {
+  suggestions: ImproveSuggestion[] | null;
+  variables: Variable[];
+  onAccept: (s: ImproveSuggestion) => void;
+  onDismiss: (s: ImproveSuggestion) => void;
+}) {
+  if (suggestions === null) return null;
+  if (suggestions.length === 0) {
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">
+        No changes suggested — this looks solid.
+      </p>
+    );
+  }
+  const varName = (id: string) => variables.find((v) => v.id === id)?.name ?? id;
+  return (
+    <ul className="mt-3 grid list-none gap-2 p-0">
+      {suggestions.map((s, i) => {
+        const Icon =
+          s.kind === "add_driver" ? Plus :
+          s.kind === "add_influence" ? GitBranch :
+          s.kind === "add_option" ? Compass :
+          Lightbulb;
+        return (
+          <li
+            key={i}
+            className="flex items-start gap-3 rounded-lg border border-border bg-muted/60 p-2.5 text-xs"
+          >
+            <Icon size={13} className="mt-0.5 shrink-0 text-primary" />
+            <div className="flex-1 leading-relaxed text-foreground">
+              {s.message}
+              {s.kind === "add_driver" && (
+                <div className="mt-1 text-dim">
+                  → add driver <b className="text-foreground">{s.variable.name}</b>{" "}
+                  <span className={s.variable.weight >= 0 ? "text-helps" : "text-hurts"}>
+                    ({s.variable.weight >= 0 ? "helps" : "hurts"} your goal)
+                  </span>
+                </div>
+              )}
+              {s.kind === "add_influence" && (
+                <div className="mt-1 text-dim">
+                  → when <b className="text-foreground">{varName(s.influence.from)}</b> rises,{" "}
+                  <b className="text-foreground">{varName(s.influence.to)}</b> goes{" "}
+                  <span className={s.influence.strength >= 0 ? "text-helps" : "text-hurts"}>
+                    {strengthLabel(s.influence.strength)}
+                  </span>
+                </div>
+              )}
+              {s.kind === "add_option" && (
+                <div className="mt-1 text-dim">
+                  → new option <b className="text-foreground">{s.option.name}</b>:{" "}
+                  {summarizeOption(s.option.pushes, variables)}
+                </div>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {s.kind !== "note" && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => onAccept(s)}
+                  className="h-7 gap-1 px-2 text-[11px]"
+                  aria-label="Add this suggestion"
+                >
+                  <Plus size={11} /> Add
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onDismiss(s)}
+                className="h-7 px-2 text-[11px] text-dim"
+                aria-label="Dismiss this suggestion"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+
 
 function ActionPlanEditor({
   option, variables, onChange, onSuggest, suggesting,
