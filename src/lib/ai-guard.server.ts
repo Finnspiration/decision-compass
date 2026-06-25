@@ -18,8 +18,9 @@ export function rateLimit(name: string, opts: { perMinute: number }): void {
   const b = buckets.get(key) ?? { hits: [] };
   b.hits = b.hits.filter((t) => now - t < windowMs);
   if (b.hits.length >= opts.perMinute) {
-    throw new Error("Rate limit exceeded. Please wait a minute and try again.");
+    throw new Error("RATE_LIMITED: Too many requests. Please wait a minute and try again.");
   }
+
   b.hits.push(now);
   buckets.set(key, b);
   // Best-effort cleanup
@@ -111,6 +112,10 @@ export function validateAndClampModel(raw: unknown): SafeModel {
       pushes,
     };
   });
+  // Safety net: never return zero options — downstream UI requires at least one
+  if (options.length === 0 && variables.length > 0) {
+    options.push({ name: "Status quo", pushes: {} });
+  }
 
   const sourcesIn = Array.isArray(r.sources) ? r.sources.slice(0, 16) : [];
   const sources = sourcesIn
@@ -132,3 +137,9 @@ export function validateAndClampModel(raw: unknown): SafeModel {
     options,
   };
 }
+
+/** True when the model has enough structure to be usable downstream. */
+export function modelIsUsable(m: SafeModel): boolean {
+  return m.variables.length > 0 && m.options.length > 0;
+}
+
