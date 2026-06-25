@@ -563,14 +563,31 @@ export default function DecisionLens() {
       })),
     [options, variables, influences, horizon]
   );
+
+  // Monte-Carlo: per-option uncertainty fans + joint win probabilities.
+  const mc = useMemo(() => {
+    const bands: Record<string, MCBand[]> = {};
+    options.forEach((o) => {
+      bands[o.id] = simulateMonteCarlo(variables, influences, o.pushes, horizon, MC_RUNS);
+    });
+    const winProb = winProbabilities(variables, influences, options, horizon, MC_RUNS);
+    return { bands, winProb };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variables, influences, options, horizon]);
+
   const ranked = useMemo(
     () =>
       [...runs]
-        .map((r) => ({ ...r, score: r.traj[r.traj.length - 1].idx }))
-        .sort((a, b) => b.score - a.score),
-    [runs]
+        .map((r) => ({
+          ...r,
+          score: r.traj[r.traj.length - 1].idx,
+          winProb: mc.winProb[r.option.id] ?? 0,
+        }))
+        .sort((a, b) => (b.winProb - a.winProb) || (b.score - a.score)),
+    [runs, mc]
   );
   const best = ranked[0];
+
 
   /* ---------------------------- mutators ------------------------------- */
   function updVar(id: string, patch: Partial<Variable>) {
