@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { toast } from "sonner";
 import {
-  Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2,
+  Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
 } from "lucide-react";
 
@@ -250,8 +250,7 @@ function blankStarter(): Model {
   };
 }
 
-// >>> Replace this body with an LLM call in Lovable. <<<
-function autoDraftModel(decisionText: string): Model {
+function keywordTemplate(decisionText: string): Model {
   const t = (decisionText || "").toLowerCase();
   const hit = TEMPLATES.find((tpl) => tpl.key.some((k) => t.includes(k)));
   const tpl = hit || TEMPLATES[0];
@@ -262,6 +261,73 @@ function autoDraftModel(decisionText: string): Model {
     influences: tpl.influences.map((i) => ({ ...i })),
     options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes } })),
   };
+}
+
+const clampN = (n: unknown, lo: number, hi: number): number => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return (lo + hi) / 2;
+  return Math.max(lo, Math.min(hi, x));
+};
+
+function validateDraftedModel(raw: any): Model | null {
+  if (!raw || typeof raw !== "object") return null;
+  if (!Array.isArray(raw.variables) || raw.variables.length === 0) return null;
+  const variables: Variable[] = raw.variables
+    .map((v: any) => {
+      const id = String(v?.id ?? "").trim();
+      if (!id) return null;
+      return {
+        id,
+        name: String(v?.name ?? id),
+        value: clampN(v?.value, 0, 100),
+        weight: clampN(v?.weight, -100, 100),
+      };
+    })
+    .filter(Boolean) as Variable[];
+  if (variables.length === 0) return null;
+  const ids = new Set(variables.map((v) => v.id));
+
+  const influences: Influence[] = (Array.isArray(raw.influences) ? raw.influences : [])
+    .map((i: any) => ({
+      from: String(i?.from ?? ""),
+      to: String(i?.to ?? ""),
+      strength: clampN(i?.strength, -100, 100),
+    }))
+    .filter((i: Influence) => ids.has(i.from) && ids.has(i.to));
+
+  const options: DecisionOption[] = (Array.isArray(raw.options) ? raw.options : [])
+    .map((o: any) => {
+      const pushes: Record<string, number> = {};
+      if (o?.pushes && typeof o.pushes === "object") {
+        for (const k of Object.keys(o.pushes)) {
+          if (!ids.has(k)) continue;
+          pushes[k] = clampN((o.pushes as any)[k], -60, 60);
+        }
+      }
+      return { id: uid(), name: String(o?.name ?? "Option"), pushes };
+    });
+  if (options.length === 0) return null;
+
+  return {
+    outcomeName: String(raw.outcomeName ?? "Outcome"),
+    horizon: Math.round(clampN(raw.horizon, 4, 36)),
+    variables,
+    influences,
+    options,
+  };
+}
+
+async function autoDraftModel(decisionText: string): Promise<Model> {
+  try {
+    const { draftModel } = await import("@/lib/draft-model.functions");
+    const raw = await draftModel({ data: { decisionText } });
+    const m = validateDraftedModel(raw);
+    if (!m) throw new Error("Invalid model JSON");
+    return m;
+  } catch (err) {
+    console.error("autoDraftModel failed", err);
+    throw err;
+  }
 }
 
 /* ------------------------------- palette --------------------------------
@@ -281,13 +347,30 @@ export default function DecisionLens() {
   const [decision, setDecision] = useState(
     "Should we enter the new market now, wait and build, or partner in?"
   );
-  const seed = useMemo(() => autoDraftModel(decision), []); // initial demo model
+  const seed = useMemo(() => keywordTemplate(decision), []); // initial demo model
   const [outcomeName, setOutcomeName] = useState(seed.outcomeName);
   const [horizon, setHorizon] = useState(seed.horizon);
   const [variables, setVariables] = useState<Variable[]>(seed.variables);
   const [influences, setInfluences] = useState<Influence[]>(seed.influences);
   const [options, setOptions] = useState<DecisionOption[]>(seed.options);
   const [focusOpt, setFocusOpt] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
+
+  async function runAutoDraft(text: string) {
+    setDrafting(true);
+    try {
+      const m = await autoDraftModel(text);
+      loadModel(m);
+      setStage("model");
+      toast.success("Model drafted", { description: "Decision Lens · AI-built your starting system." });
+    } catch {
+      loadModel(keywordTemplate(text));
+      setStage("model");
+      toast.error("Couldn't reach the AI", { description: "Decision Lens · loaded a template instead." });
+    } finally {
+      setDrafting(false);
+    }
+  }
 
   function loadModel(m: Model) {
     setOutcomeName(m.outcomeName);
@@ -487,14 +570,15 @@ export default function DecisionLens() {
                 </div>
 
                 <Button
-                  onClick={() => { loadModel(autoDraftModel(decision)); setStage("model"); }}
+                  onClick={() => { void runAutoDraft(decision); }}
+                  disabled={drafting}
                   className="mt-5 gap-2"
                 >
-                  <Sparkles size={16} /> Auto-draft the model
+                  {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {drafting ? "Drafting…" : "Auto-draft the model"}
                 </Button>
                 <p className="mt-2 text-xs text-dim">
-                  Prototype: matches a starter template. In Lovable, wire this button to an LLM that returns the
-                  model from your decision text.
+                  Lovable AI builds a starter system from your decision text. Falls back to a template if the AI is unreachable.
                 </p>
               </Panel>
 
@@ -505,7 +589,8 @@ export default function DecisionLens() {
                     <Button
                       key={tpl.label}
                       variant="secondary"
-                      onClick={() => { setDecision(tpl.decision); loadModel(autoDraftModel(tpl.key[0])); setStage("model"); }}
+                      disabled={drafting}
+                      onClick={() => { setDecision(tpl.decision); void runAutoDraft(tpl.key[0]); }}
                       className="h-auto justify-between bg-muted px-4 py-3 text-left text-sm font-normal"
                     >
                       <span>{tpl.label}</span>
