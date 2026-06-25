@@ -187,18 +187,21 @@ function sanitizeActions(raw: unknown, validIds: Set<string>): DecisionAction[] 
     const aa = a as Record<string, unknown>;
     const text = typeof aa.text === "string" ? aa.text.trim().slice(0, 160) : "";
     if (!text) continue;
+    const field = (o: unknown, k: string) => (o as Record<string, unknown>)[k];
     const targetsSrc = Array.isArray(aa.targets)
       ? aa.targets
-      : Array.isArray((aa as any).g)
-        ? (aa as any).g
+      : Array.isArray(field(aa, "g"))
+        ? (field(aa, "g") as unknown[])
         : [];
     const targets = (targetsSrc as unknown[]).map((t) => String(t)).filter((t) => validIds.has(t));
-    const effortRaw = (aa.effort ?? (aa as any).e) as unknown;
-    const effort = EFFORTS.includes(effortRaw as any)
+    const effortRaw = (aa.effort ?? field(aa, "e")) as unknown;
+    const effort = (EFFORTS as readonly string[]).includes(effortRaw as string)
       ? (effortRaw as DecisionAction["effort"])
       : undefined;
-    const whenRaw = (aa.when ?? (aa as any).w) as unknown;
-    const when = WHENS.includes(whenRaw as any) ? (whenRaw as DecisionAction["when"]) : undefined;
+    const whenRaw = (aa.when ?? field(aa, "w")) as unknown;
+    const when = (WHENS as readonly string[]).includes(whenRaw as string)
+      ? (whenRaw as DecisionAction["when"])
+      : undefined;
     const act: DecisionAction = { text };
     if (targets.length) act.targets = targets;
     if (effort) act.effort = effort;
