@@ -942,6 +942,16 @@ export default function DecisionLens() {
   useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
   useEffect(() => { setCritique(null); }, [variables, influences, options]);
 
+  // Cycle staged loading messages during ingest
+  useEffect(() => {
+    if (!ingesting) { setIngestStep(0); return; }
+    setIngestStep(0);
+    const id = window.setInterval(() => {
+      setIngestStep((s) => (s + 1) % 4);
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, [ingesting]);
+
   async function runExplain() {
     if (!ranked.length) return;
     setExplaining(true);
