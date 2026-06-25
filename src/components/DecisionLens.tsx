@@ -2316,6 +2316,10 @@ export default function DecisionLens() {
                 >
                   {options.map((o, i) => {
                     const color = OPT_COLORS[i % OPT_COLORS.length];
+                    const pushVals = variables.map((v) => o.pushes[v.id] || 0);
+                    const hasAny = pushVals.some((p) => p !== 0);
+                    const onlyPositive = hasAny && pushVals.every((p) => p >= 0);
+                    const summary = summarizeOption(o.pushes, variables);
                     return (
                       <div
                         key={o.id}
@@ -2345,30 +2349,47 @@ export default function DecisionLens() {
                             </Button>
                           )}
                         </div>
+                        <div
+                          className="mt-2 rounded-md bg-background/60 px-2 py-1 text-[11px] text-muted-foreground"
+                          aria-live="polite"
+                        >
+                          {summary}
+                        </div>
+                        {onlyPositive && (
+                          <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[11px] text-muted-foreground">
+                            <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-500" />
+                            <span>This option has no downside set — real strategies usually cost something. Consider what it trades away.</span>
+                          </div>
+                        )}
                         <div className="mt-3 grid gap-2">
-                          {variables.map((v) => (
-                            <div key={v.id} className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground" style={{ width: 92 }}>
-                                {v.name}
-                              </span>
-                              <Slider
-                                min={-60} max={60} step={1}
-                                value={[o.pushes[v.id] || 0]}
-                                onValueChange={(val) =>
-                                  updOpt(o.id, { pushes: { ...o.pushes, [v.id]: val[0] } })
-                                }
-                                className="flex-1"
-                                aria-label={o.name + (((o.pushes[v.id] || 0) > 0) ? " boosts " : ((o.pushes[v.id] || 0) < 0) ? " lowers " : " — no effect on ") + v.name}
-                              />
-                              <span
-                                className={"text-[10px] font-semibold uppercase tracking-wide text-right " + ((o.pushes[v.id] || 0) > 0 ? "text-helps" : (o.pushes[v.id] || 0) < 0 ? "text-hurts" : "text-dim")}
-                                style={{ width: 48 }}
-                                title={(o.pushes[v.id] || 0) > 0 ? "This option boosts " + v.name : (o.pushes[v.id] || 0) < 0 ? "This option lowers " + v.name : "This option doesn't move " + v.name}
-                              >
-                                {(o.pushes[v.id] || 0) > 0 ? "▲ boosts" : (o.pushes[v.id] || 0) < 0 ? "▼ lowers" : "—"}
-                              </span>
-                            </div>
-                          ))}
+                          {variables.map((v) => {
+                            const n = o.pushes[v.id] || 0;
+                            const label = pushLabel(n);
+                            const tone = n > 0 ? "text-helps" : n < 0 ? "text-hurts" : "text-dim";
+                            return (
+                              <div key={v.id} className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground" style={{ width: 92 }}>
+                                  {v.name}
+                                </span>
+                                <Slider
+                                  min={-60} max={60} step={1}
+                                  value={[n]}
+                                  onValueChange={(val) =>
+                                    updOpt(o.id, { pushes: { ...o.pushes, [v.id]: val[0] } })
+                                  }
+                                  className="flex-1"
+                                  aria-label={o.name + " " + label + " " + v.name + " (" + n + ")"}
+                                />
+                                <span
+                                  className={"text-[10px] font-semibold uppercase tracking-wide text-right " + tone}
+                                  style={{ width: 96 }}
+                                  title={o.name + " " + label + " " + v.name}
+                                >
+                                  {label}{n !== 0 ? " " + (n > 0 ? "+" : "") + n : ""}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                         <ActionPlanEditor
                           option={o}
@@ -2380,6 +2401,7 @@ export default function DecisionLens() {
                       </div>
                     );
                   })}
+
                 </div>
                 <div className="mt-4 flex justify-between">
                   <NavBtn dir="back" onClick={() => setStage("model")}>Back to the map</NavBtn>
