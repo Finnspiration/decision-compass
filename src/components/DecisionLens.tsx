@@ -2189,20 +2189,40 @@ export default function DecisionLens() {
           <TabsContent value="decide" className="mt-0">
             <div className="dl-decide">
               <Panel>
-                <SectionTag icon={Telescope} text={"How each option plays out · " + outcomeName} />
+                <div className="flex items-start justify-between gap-2">
+                  <SectionTag icon={Telescope} text={"How each option plays out · " + outcomeName} />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setChartOpen(true)}
+                    aria-label="Open larger trajectory chart"
+                    className="gap-1.5 -mt-1 -mr-1"
+                  >
+                    <Maximize2 size={14} />
+                    Expand
+                  </Button>
+                </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Each line shows how an option is likely to affect {outcomeName.toLowerCase()} over time. The shaded area is the range of how things could go — we're more confident about the near term than far ahead.
                 </p>
                 <p className="mt-1 text-xs text-dim">
                   Higher on the chart = better outlook. The ranking on the right is <b className="text-muted-foreground">relative</b> — it shows which option does best compared to the others, not whether things improve overall.
                 </p>
-                <TrajectoryChart
-                  runs={runs}
-                  horizon={horizon}
-                  focusId={focusOpt}
-                  best={best}
-                  mcBands={mc.bands}
-                />
+                <button
+                  type="button"
+                  onClick={() => setChartOpen(true)}
+                  aria-label="Open larger trajectory chart"
+                  className="block w-full text-left cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <TrajectoryChart
+                    runs={runs}
+                    horizon={horizon}
+                    focusId={focusOpt}
+                    best={best}
+                    mcBands={mc.bands}
+                  />
+                </button>
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   {runs.map((r) => (
                     <span key={r.option.id} className="flex items-center gap-1.5">
