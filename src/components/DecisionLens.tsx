@@ -562,7 +562,8 @@ function validateDraftedModel(raw: any): Model | null {
           pushes[k] = clampN((o.pushes as any)[k], -60, 60);
         }
       }
-      return { id: uid(), name: String(o?.name ?? "Option"), pushes };
+      const actions = sanitizeActions(o?.actions, ids);
+      return { id: uid(), name: String(o?.name ?? "Option"), pushes, ...(actions ? { actions } : {}) };
     });
   // Synthesize a fallback option rather than rejecting the whole model
   if (options.length === 0) {
