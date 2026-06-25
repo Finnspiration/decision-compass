@@ -1469,7 +1469,32 @@ export default function DecisionLens() {
                     ))}
 
                   </div>
+
+                  <div className="mt-4 border-t border-border pt-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Wand2 size={13} className="text-primary" />
+                        <span>Why does <b className="text-foreground">{best?.option.name ?? "this option"}</b> win?</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={runExplain}
+                        disabled={explaining || ranked.length === 0}
+                        className="gap-1.5"
+                      >
+                        {explaining ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                        {explanation ? "Re-explain" : "Explain"}
+                      </Button>
+                    </div>
+                    {explanation && (
+                      <p className="mt-2 rounded-lg border border-border bg-muted/60 p-3 text-xs leading-relaxed text-foreground">
+                        {explanation}
+                      </p>
+                    )}
+                  </div>
                 </Panel>
+
 
                 <Panel>
                   <SectionTag icon={Telescope} text="Respect the model error" />
