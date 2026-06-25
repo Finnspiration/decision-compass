@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
+  HelpCircle, Upload, FileText, Compass, MousePointerClick,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +15,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+
+const ONBOARD_KEY = "dl_onboarded";
 
 /* ============================================================================
    DECISION LENS — a generally-applicable, decision-focused world model.
@@ -479,6 +486,73 @@ export default function DecisionLens() {
   const [focusOpt, setFocusOpt] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(false);
 
+  // Onboarding state
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [tourStep, setTourStep] = useState<number | null>(null);
+  const [dontShow, setDontShow] = useState(false);
+  const decisionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const templatesPanelRef = useRef<HTMLDivElement | null>(null);
+  const stepperRefs = useRef<Array<HTMLButtonElement | null>>([null, null, null, null]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (!window.localStorage.getItem(ONBOARD_KEY)) setWelcomeOpen(true);
+    } catch { /* noop */ }
+  }, []);
+
+  function closeWelcome(persist: boolean) {
+    setWelcomeOpen(false);
+    if (persist && typeof window !== "undefined") {
+      try { window.localStorage.setItem(ONBOARD_KEY, "1"); } catch { /* noop */ }
+    }
+  }
+
+  function openHelp() { setDontShow(false); setWelcomeOpen(true); }
+
+  function startFromDocs() {
+    closeWelcome(dontShow);
+    setStage("frame");
+    requestAnimationFrame(() => uploadInputRef.current?.click());
+  }
+  function startFromText() {
+    closeWelcome(dontShow);
+    setStage("frame");
+    requestAnimationFrame(() => {
+      decisionTextareaRef.current?.focus();
+      decisionTextareaRef.current?.select();
+    });
+  }
+  function startFromTemplate() {
+    closeWelcome(dontShow);
+    setStage("frame");
+    requestAnimationFrame(() => {
+      templatesPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+  function startTour() {
+    closeWelcome(dontShow);
+    setTourStep(0);
+    setStage(STAGES[0].id);
+  }
+
+  async function handleUpload(file: File | null) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const trimmed = text.trim().slice(0, 4000);
+      if (trimmed) {
+        setDecision(trimmed);
+        toast.success("Document loaded", { description: "Decision Lens · ready to auto-draft." });
+        decisionTextareaRef.current?.focus();
+      }
+    } catch {
+      toast.error("Couldn't read file", { description: "Decision Lens · try a .txt or .md file." });
+    }
+  }
+
+
   async function runAutoDraft(text: string) {
     setDrafting(true);
     try {
@@ -638,27 +712,41 @@ export default function DecisionLens() {
               options you're weighing. Build it once, then compare trajectories instead of arguing about vibes.
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={shareLink}
-            className="shrink-0 gap-2"
-            aria-label="Copy shareable link to this decision"
-          >
-            <Share2 size={15} />
-            Share
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={openHelp}
+              aria-label="Open Decision Lens help"
+              title="How does Decision Lens work?"
+            >
+              <HelpCircle size={16} />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={shareLink}
+              className="gap-2"
+              aria-label="Copy shareable link to this decision"
+            >
+              <Share2 size={15} />
+              Share
+            </Button>
+          </div>
+
         </header>
 
         <Tabs value={stage} onValueChange={(v) => setStage(v as Stage)} className="w-full">
           <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
-            {STAGES.map((s) => {
+            {STAGES.map((s, i) => {
               const Icon = s.icon;
               return (
                 <TabsTrigger
                   key={s.id}
                   value={s.id}
+                  ref={(el) => { stepperRefs.current[i] = el; }}
                   className="flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-2 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                 >
                   <Icon size={15} />
@@ -667,6 +755,7 @@ export default function DecisionLens() {
               );
             })}
           </TabsList>
+
 
           {/* ---------------------------- FRAME ---------------------------- */}
           <TabsContent value="frame" className="mt-0">
@@ -677,11 +766,33 @@ export default function DecisionLens() {
                   What decision are you facing?
                 </label>
                 <Textarea
+                  ref={decisionTextareaRef}
                   value={decision}
                   onChange={(e) => setDecision(e.target.value)}
                   rows={3}
                   className="mt-2 resize-y bg-muted"
                 />
+
+                <div className="mt-3 flex items-center gap-2">
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept=".txt,.md,text/plain,text/markdown"
+                    className="hidden"
+                    onChange={(e) => { void handleUpload(e.target.files?.[0] ?? null); e.target.value = ""; }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => uploadInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Upload size={14} /> Upload a document
+                  </Button>
+                  <span className="text-xs text-dim">.txt or .md — we'll use its text as the decision brief.</span>
+                </div>
+
                 <div className="mt-4 dl-2">
                   <div>
                     <label className="block text-sm text-muted-foreground">
@@ -694,8 +805,12 @@ export default function DecisionLens() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-muted-foreground">
+                    <label className="flex items-center gap-1 text-sm text-muted-foreground">
                       Horizon: <span className="text-primary">{horizon} steps</span>
+                      <HelpPopover
+                        title="Horizon"
+                        body="How many steps forward we simulate each option. Short horizons show the immediate punch; long horizons reveal where feedback loops take you."
+                      />
                     </label>
                     <Slider
                       min={4}
@@ -722,31 +837,34 @@ export default function DecisionLens() {
                 </p>
               </Panel>
 
-              <Panel>
-                <SectionTag icon={GitBranch} text="Or start from a template" />
-                <div className="mt-3 grid gap-2">
-                  {TEMPLATES.map((tpl) => (
+              <div ref={templatesPanelRef}>
+                <Panel>
+                  <SectionTag icon={GitBranch} text="Or start from a template" />
+                  <div className="mt-3 grid gap-2">
+                    {TEMPLATES.map((tpl) => (
+                      <Button
+                        key={tpl.label}
+                        variant="secondary"
+                        disabled={drafting}
+                        onClick={() => { setDecision(tpl.decision); void runAutoDraft(tpl.key[0]); }}
+                        className="h-auto justify-between bg-muted px-4 py-3 text-left text-sm font-normal"
+                      >
+                        <span>{tpl.label}</span>
+                        <ArrowRight size={15} className="text-primary" />
+                      </Button>
+                    ))}
                     <Button
-                      key={tpl.label}
-                      variant="secondary"
-                      disabled={drafting}
-                      onClick={() => { setDecision(tpl.decision); void runAutoDraft(tpl.key[0]); }}
-                      className="h-auto justify-between bg-muted px-4 py-3 text-left text-sm font-normal"
+                      variant="outline"
+                      onClick={() => { loadModel(blankStarter()); setStage("model"); }}
+                      className="h-auto justify-between border-dashed bg-transparent px-4 py-3 text-left text-sm font-normal text-muted-foreground"
                     >
-                      <span>{tpl.label}</span>
-                      <ArrowRight size={15} className="text-primary" />
+                      <span>Start blank</span>
+                      <Plus size={15} />
                     </Button>
-                  ))}
-                  <Button
-                    variant="outline"
-                    onClick={() => { loadModel(blankStarter()); setStage("model"); }}
-                    className="h-auto justify-between border-dashed bg-transparent px-4 py-3 text-left text-sm font-normal text-muted-foreground"
-                  >
-                    <span>Start blank</span>
-                    <Plus size={15} />
-                  </Button>
-                </div>
-              </Panel>
+                  </div>
+                </Panel>
+              </div>
+
             </div>
           </TabsContent>
 
@@ -755,7 +873,13 @@ export default function DecisionLens() {
             <div className="dl-model">
               <Panel>
                 <div className="flex items-center justify-between">
-                  <SectionTag icon={Network} text="State variables" />
+                  <div className="flex items-center gap-1">
+                    <SectionTag icon={Network} text="State variables" />
+                    <HelpPopover
+                      title="Latent variable"
+                      body="A small number of underlying forces that actually drive the outcome — not symptoms. Examples: trust, demand, runway."
+                    />
+                  </div>
                   <Button
                     size="sm"
                     variant="secondary"
@@ -801,6 +925,10 @@ export default function DecisionLens() {
                           val={v.weight} min={-100} max={100}
                           tone={v.weight >= 0 ? "helps" : "hurts"}
                           onChange={(x) => updVar(v.id, { weight: x })}
+                          help={{
+                            title: "Weight (helps / hurts)",
+                            body: "How strongly this variable lifts (positive) or drags (negative) the outcome. Bigger magnitude = bigger swing.",
+                          }}
                         />
                       </div>
                     </div>
@@ -808,7 +936,13 @@ export default function DecisionLens() {
                 </div>
 
                 <div className="mt-5 flex items-center justify-between">
-                  <SectionTag icon={GitBranch} text="Influences (the loops)" />
+                  <div className="flex items-center gap-1">
+                    <SectionTag icon={GitBranch} text="Influences (the loops)" />
+                    <HelpPopover
+                      title="Influence (feedback loop)"
+                      body="A directed link saying one variable nudges another up or down each step. Chain a few together and you get a feedback loop — the engine of long-run behavior."
+                    />
+                  </div>
                   <Button
                     size="sm"
                     variant="secondary"
@@ -820,10 +954,11 @@ export default function DecisionLens() {
                 </div>
                 <div className="mt-3 grid gap-2">
                   {influences.length === 0 && (
-                    <p className="text-xs text-dim">
-                      No links yet. Add how one variable pushes another — that's what creates feedback loops.
-                    </p>
+                    <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                      <b className="text-foreground">No links yet.</b> Add how one variable pushes another — this is what creates the feedback loops that make outcomes diverge over time.
+                    </div>
                   )}
+
                   {influences.map((inf, idx) => (
                     <div key={idx} className="flex items-center gap-2 rounded-xl border border-border bg-muted p-2">
                       <VarSelect value={inf.from} vars={variables} onChange={(val) => updInf(idx, { from: val })} />
@@ -887,6 +1022,12 @@ export default function DecisionLens() {
                   Each option is an action that pushes the state every step. Drag a variable up if the option lifts
                   it, down if it drags it.
                 </p>
+                {options.every((o) => Object.values(o.pushes).every((p) => !p)) && (
+                  <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    <b className="text-foreground">No effects set yet.</b> Move at least one slider per option — that's how each option distinguishes itself in the simulation.
+                  </div>
+                )}
+
 
                 <div
                   className="mt-4 grid gap-4"
@@ -1057,6 +1198,28 @@ export default function DecisionLens() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <WelcomeDialog
+        open={welcomeOpen}
+        dontShow={dontShow}
+        setDontShow={setDontShow}
+        onClose={() => closeWelcome(dontShow)}
+        onDocs={startFromDocs}
+        onDescribe={startFromText}
+        onTemplate={startFromTemplate}
+        onTour={startTour}
+      />
+      <TourCoachmark
+        step={tourStep}
+        anchors={stepperRefs.current}
+        onNext={() => {
+          const next = (tourStep ?? 0) + 1;
+          if (next >= STAGES.length) { setTourStep(null); return; }
+          setTourStep(next);
+          setStage(STAGES[next].id);
+        }}
+        onSkip={() => setTourStep(null)}
+      />
     </div>
   );
 }
@@ -1091,7 +1254,7 @@ const TONE_TEXT: Record<Tone, string> = {
 };
 
 function SliderRow({
-  label, val, min, max, tone, onChange,
+  label, val, min, max, tone, onChange, help,
 }: {
   label: string;
   val: number;
@@ -1099,11 +1262,15 @@ function SliderRow({
   max: number;
   tone: Tone;
   onChange: (n: number) => void;
+  help?: { title: string; body: string };
 }) {
   return (
     <div>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{label}</span>
+        <span className="flex items-center gap-1">
+          {label}
+          {help && <HelpPopover title={help.title} body={help.body} />}
+        </span>
         <span className={TONE_TEXT[tone]}>{val}</span>
       </div>
       <Slider
@@ -1349,3 +1516,157 @@ function TrajectoryChartImpl({
   );
 }
 const TrajectoryChart = React.memo(TrajectoryChartImpl);
+
+/* ----------------------------- onboarding parts ------------------------- */
+
+function HelpPopover({ title, body }: { title: string; body: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={"What is " + title + "?"}
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <HelpCircle size={13} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" className="w-64 text-xs">
+        <div className="font-semibold text-foreground">{title}</div>
+        <p className="mt-1 text-muted-foreground">{body}</p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function WelcomeDialog({
+  open, dontShow, setDontShow, onClose, onDocs, onDescribe, onTemplate, onTour,
+}: {
+  open: boolean;
+  dontShow: boolean;
+  setDontShow: (v: boolean) => void;
+  onClose: () => void;
+  onDocs: () => void;
+  onDescribe: () => void;
+  onTemplate: () => void;
+  onTour: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Compass size={18} className="text-primary" />
+            Welcome to Decision Lens
+          </DialogTitle>
+          <DialogDescription>
+            Model a decision as a small system of forces, simulate your options, and compare outcomes — instead of arguing about vibes.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-lg border border-border bg-muted/40 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">The four stages</div>
+          <ol className="mt-2 grid gap-1 text-sm text-foreground">
+            <li><b className="text-primary">1. Frame</b> — name the decision and what success means.</li>
+            <li><b className="text-primary">2. Model</b> — list the few variables that drive it and the influences between them.</li>
+            <li><b className="text-primary">3. Options</b> — describe each option as a push on the system.</li>
+            <li><b className="text-primary">4. Decide</b> — roll them forward; compare trajectories and win-probabilities.</li>
+          </ol>
+        </div>
+
+        <div className="grid gap-2">
+          <Button onClick={onDocs} className="justify-start gap-2">
+            <FileText size={15} /> Map a decision from my documents
+          </Button>
+          <Button onClick={onDescribe} variant="secondary" className="justify-start gap-2">
+            <Sparkles size={15} /> Describe my decision
+          </Button>
+          <Button onClick={onTemplate} variant="secondary" className="justify-start gap-2">
+            <GitBranch size={15} /> Start from a template
+          </Button>
+          <Button onClick={onTour} variant="ghost" className="justify-start gap-2 text-muted-foreground">
+            <MousePointerClick size={15} /> Take the 60-second tour
+          </Button>
+        </div>
+
+        <DialogFooter className="flex-row items-center justify-between sm:justify-between">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={dontShow}
+              onChange={(e) => setDontShow(e.target.checked)}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            Don't show again
+          </label>
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const TOUR_COPY = [
+  "Frame: tell Decision Lens what you're choosing between and what success means.",
+  "Model: list the few latent variables that drive the outcome and the influences between them.",
+  "Options: describe each option as a push on the system — how it nudges each variable.",
+  "Decide: see ranked trajectories and win-probabilities, then pick with eyes open.",
+];
+
+function TourCoachmark({
+  step, anchors, onNext, onSkip,
+}: {
+  step: number | null;
+  anchors: Array<HTMLButtonElement | null>;
+  onNext: () => void;
+  onSkip: () => void;
+}) {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (step == null) { setRect(null); return; }
+    const el = anchors[step];
+    if (!el) return;
+    const update = () => setRect(el.getBoundingClientRect());
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [step, anchors]);
+
+  if (step == null || !rect) return null;
+  const top = rect.bottom + 10;
+  const left = Math.max(12, Math.min(window.innerWidth - 312, rect.left));
+  const isLast = step >= TOUR_COPY.length - 1;
+
+  return (
+    <div className="fixed inset-0 z-50" aria-live="polite">
+      <div className="absolute inset-0 bg-background/40 backdrop-blur-[1px]" onClick={onSkip} />
+      <div
+        className="absolute rounded-md ring-2 ring-primary ring-offset-2 ring-offset-background pointer-events-none"
+        style={{ top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 }}
+      />
+      <div
+        role="dialog"
+        aria-label="Decision Lens tour"
+        className="absolute w-[300px] rounded-lg border border-border bg-card p-4 shadow-lg"
+        style={{ top, left }}
+      >
+        <div className="text-xs font-semibold uppercase tracking-wider text-primary">
+          Step {step + 1} of {TOUR_COPY.length}
+        </div>
+        <p className="mt-1 text-sm text-foreground">{TOUR_COPY[step]}</p>
+        <div className="mt-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={onSkip} className="text-muted-foreground">Skip</Button>
+          <Button size="sm" onClick={onNext} className="gap-2">
+            {isLast ? "Finish" : "Next"}
+            {!isLast && <ArrowRight size={14} />}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
