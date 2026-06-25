@@ -1994,6 +1994,13 @@ export default function DecisionLens() {
                             </div>
                           ))}
                         </div>
+                        <ActionPlanEditor
+                          option={o}
+                          variables={variables}
+                          onChange={(actions) => updOpt(o.id, { actions })}
+                          onSuggest={() => runSuggestActions(o)}
+                          suggesting={!!actionLoading[o.id]}
+                        />
                       </div>
                     );
                   })}
