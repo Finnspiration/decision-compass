@@ -460,7 +460,7 @@ export default function DecisionLens() {
                       className="flex-1" style={{ minWidth: 60 }}
                       aria-label="Influence strength"
                     />
-                    <button onClick={() => setInfluences(influences.filter((_, i) => i !== idx))} aria-label="Remove influence" style={{ color: T.dim }}>
+                    <button onClick={() => setInfluences(influences.filter((_, i) => i !== idx))} aria-label="Remove influence" className="min-h-11 min-w-11 inline-flex items-center justify-center" style={{ color: T.dim }}>
                       <Trash2 size={14} />
                     </button>
                   </div>
