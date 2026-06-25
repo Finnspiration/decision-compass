@@ -1814,6 +1814,56 @@ export default function DecisionLens() {
 
           {/* ---------------------------- MODEL ---------------------------- */}
           <TabsContent value="model" className="mt-0">
+            {!coachDismissed && (() => {
+              const varCount = variables.length;
+              const step1Done = varCount >= 3 && varCount <= 6;
+              const step2Done = varCount > 0;
+              const step3Done = influences.length >= 2;
+              const Item = ({ done, children }: { done: boolean; children: React.ReactNode }) => (
+                <li className="flex items-start gap-2">
+                  {done ? (
+                    <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
+                  ) : (
+                    <Circle size={15} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                  )}
+                  <span className={done ? "text-foreground" : "text-muted-foreground"}>{children}</span>
+                </li>
+              );
+              return (
+                <div className="mb-5">
+                  <Panel className="border-primary/30 bg-primary/5">
+                    <div className="flex items-start justify-between gap-3">
+                      <SectionTag icon={Compass} text="Build a good model" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCoachDismissed(true)}
+                        className="-mt-1 h-7 px-2 text-xs text-muted-foreground"
+                        aria-label="Dismiss setup coach"
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                    <ul className="mt-3 grid list-none gap-2 p-0 text-sm">
+                      <Item done={step1Done}>
+                        <b>1.</b> List the few things that drive {outcomeName.toLowerCase()} (aim for 3–6)
+                        <span className="ml-1 text-xs text-muted-foreground">— {varCount} so far</span>
+                      </Item>
+                      <Item done={step2Done}>
+                        <b>2.</b> For each, set where it stands today and whether it helps or hurts.
+                      </Item>
+                      <Item done={step3Done}>
+                        <b>3.</b> Connect them with knock-on effects — aim for at least one loop.
+                        <span className="ml-1 text-xs text-muted-foreground">— {influences.length} so far</span>
+                      </Item>
+                    </ul>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Reopen anytime from the Help button in the header.
+                    </p>
+                  </Panel>
+                </div>
+              );
+            })()}
             {modelFindings.length > 0 && !sanityDismissed && (
               <div className="mb-5">
                 <Panel className="border-hurts/30 bg-hurts/5">
