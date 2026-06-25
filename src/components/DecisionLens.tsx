@@ -41,7 +41,45 @@ const ONBOARD_KEY = "dl_onboarded";
 /* --------------------------- model types -------------------------------- */
 type Variable = { id: string; name: string; value: number; weight: number; rationale?: string };
 type Influence = { from: string; to: string; strength: number; rationale?: string };
-type DecisionOption = { id: string; name: string; pushes: Record<string, number> };
+type DecisionAction = {
+  text: string;
+  targets?: string[];
+  effort?: "low" | "med" | "high";
+  when?: "now" | "soon" | "ongoing";
+};
+type DecisionOption = {
+  id: string;
+  name: string;
+  pushes: Record<string, number>;
+  actions?: DecisionAction[];
+};
+const EFFORTS = ["low", "med", "high"] as const;
+const WHENS = ["now", "soon", "ongoing"] as const;
+function sanitizeActions(raw: unknown, validIds: Set<string>): DecisionAction[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: DecisionAction[] = [];
+  for (const a of raw) {
+    if (!a || typeof a !== "object") continue;
+    const aa = a as Record<string, unknown>;
+    const text = typeof aa.text === "string" ? aa.text.trim().slice(0, 160) : "";
+    if (!text) continue;
+    const targetsSrc = Array.isArray(aa.targets) ? aa.targets : Array.isArray((aa as any).g) ? (aa as any).g : [];
+    const targets = (targetsSrc as unknown[])
+      .map((t) => String(t))
+      .filter((t) => validIds.has(t));
+    const effortRaw = (aa.effort ?? (aa as any).e) as unknown;
+    const effort = EFFORTS.includes(effortRaw as any) ? (effortRaw as DecisionAction["effort"]) : undefined;
+    const whenRaw = (aa.when ?? (aa as any).w) as unknown;
+    const when = WHENS.includes(whenRaw as any) ? (whenRaw as DecisionAction["when"]) : undefined;
+    const act: DecisionAction = { text };
+    if (targets.length) act.targets = targets;
+    if (effort) act.effort = effort;
+    if (when) act.when = when;
+    out.push(act);
+    if (out.length >= 8) break;
+  }
+  return out.length ? out : undefined;
+}
 type ModelSource = { name: string; type: "pdf" | "url" };
 type Model = {
   outcomeName: string;
@@ -61,7 +99,19 @@ function encodeModel(m: Model): string {
     h: m.horizon,
     v: m.variables.map((v) => ({ i: v.id, n: v.name, v: v.value, w: v.weight })),
     e: m.influences.map((i) => ({ f: i.from, t: i.to, s: i.strength })),
-    p: m.options.map((o) => ({ i: o.id, n: o.name, p: o.pushes })),
+    p: m.options.map((o) => {
+      const base: any = { i: o.id, n: o.name, p: o.pushes };
+      if (o.actions && o.actions.length) {
+        base.a = o.actions.map((a) => {
+          const x: any = { x: a.text };
+          if (a.targets && a.targets.length) x.g = a.targets;
+          if (a.effort) x.e = a.effort;
+          if (a.when) x.w = a.when;
+          return x;
+        });
+      }
+      return base;
+    }),
   };
   return encodeURIComponent(JSON.stringify(compact));
 }
@@ -96,7 +146,8 @@ function parseHashModel(hash: string): Model | null {
           pushes[k] = n;
         }
       }
-      return { id: String(o.i), name: String(o.n ?? ""), pushes };
+      const actions = sanitizeActions((o as any).a, ids);
+      return { id: String(o.i), name: String(o.n ?? ""), pushes, ...(actions ? { actions } : {}) };
     });
     if (options.some((o) => !o || !o.id)) return null;
     return { outcomeName, horizon, variables, influences, options };
@@ -337,9 +388,21 @@ const TEMPLATES = [
       { from: "moat", to: "demand", strength: 30 },
     ],
     options: [
-      { id: uid(), name: "Enter now", pushes: { demand: 30, moat: 20, runway: -40, focus: -30, risk: 40 } },
-      { id: uid(), name: "Wait & build", pushes: { demand: -5, moat: 35, runway: 10, focus: 25, risk: -20 } },
-      { id: uid(), name: "Partner in", pushes: { demand: 20, moat: 40, runway: -10, focus: 10, risk: -10 } },
+      { id: uid(), name: "Enter now", pushes: { demand: 30, moat: 20, runway: -40, focus: -30, risk: 40 }, actions: [
+        { text: "Ship MVP to 3 lighthouse customers within 30 days", targets: ["demand"], effort: "high", when: "now" },
+        { text: "Hire 2 senior engineers to staff launch team", targets: ["focus", "runway"], effort: "high", when: "now" },
+        { text: "Run weekly competitive teardown to defend positioning", targets: ["moat", "risk"], effort: "med", when: "ongoing" },
+      ] },
+      { id: uid(), name: "Wait & build", pushes: { demand: -5, moat: 35, runway: 10, focus: 25, risk: -20 }, actions: [
+        { text: "Spend a quarter hardening core IP before any go-to-market", targets: ["moat"], effort: "high", when: "now" },
+        { text: "Run 5 customer-discovery interviews per week", targets: ["demand"], effort: "low", when: "ongoing" },
+        { text: "Defer new hires; reallocate two engineers to platform", targets: ["runway", "focus"], effort: "med", when: "soon" },
+      ] },
+      { id: uid(), name: "Partner in", pushes: { demand: 20, moat: 40, runway: -10, focus: 10, risk: -10 }, actions: [
+        { text: "Shortlist 3 distribution partners and open term-sheet talks", targets: ["demand", "moat"], effort: "med", when: "now" },
+        { text: "Negotiate revenue-share to cap downside on runway", targets: ["runway", "risk"], effort: "med", when: "soon" },
+        { text: "Embed a joint product-marketing pod with the partner", targets: ["focus"], effort: "low", when: "ongoing" },
+      ] },
     ],
   },
   {
@@ -362,9 +425,21 @@ const TEMPLATES = [
       { from: "stress", to: "growth", strength: -30 },
     ],
     options: [
-      { id: uid(), name: "Stay & shape role", pushes: { growth: 15, income: 5, meaning: 20, network: 10, stress: -15 } },
-      { id: uid(), name: "Switch company", pushes: { growth: 35, income: 10, meaning: 15, network: 30, stress: 15 } },
-      { id: uid(), name: "Go independent", pushes: { growth: 40, income: -35, meaning: 35, network: 20, stress: 35 } },
+      { id: uid(), name: "Stay & shape role", pushes: { growth: 15, income: 5, meaning: 20, network: 10, stress: -15 }, actions: [
+        { text: "Pitch manager on a 20% scope shift toward a stretch project", targets: ["growth", "meaning"], effort: "low", when: "now" },
+        { text: "Set a hard boundary: no work after 7pm two nights a week", targets: ["stress"], effort: "low", when: "ongoing" },
+        { text: "Re-open compensation conversation at next cycle", targets: ["income"], effort: "med", when: "soon" },
+      ] },
+      { id: uid(), name: "Switch company", pushes: { growth: 35, income: 10, meaning: 15, network: 30, stress: 15 }, actions: [
+        { text: "Refresh CV and book 5 intro calls per week for 6 weeks", targets: ["network"], effort: "med", when: "now" },
+        { text: "Target roles in 2 adjacent domains to widen skill range", targets: ["growth"], effort: "med", when: "soon" },
+        { text: "Negotiate signing bonus to cover transition risk", targets: ["income", "stress"], effort: "low", when: "soon" },
+      ] },
+      { id: uid(), name: "Go independent", pushes: { growth: 40, income: -35, meaning: 35, network: 20, stress: 35 }, actions: [
+        { text: "Line up 2 anchor clients before quitting", targets: ["income"], effort: "high", when: "now" },
+        { text: "Build a 9-month cash buffer", targets: ["income", "stress"], effort: "high", when: "now" },
+        { text: "Publish weekly to compound an audience", targets: ["network", "meaning"], effort: "med", when: "ongoing" },
+      ] },
     ],
   },
   {
@@ -388,9 +463,21 @@ const TEMPLATES = [
       { from: "capability", to: "momentum", strength: 35 },
     ],
     options: [
-      { id: uid(), name: "Co-create", pushes: { trust: 25, momentum: 15, coalition: 40, capability: 25, threat: -35 } },
-      { id: uid(), name: "Mandate & push", pushes: { trust: -25, momentum: 35, coalition: -15, capability: 5, threat: 45 } },
-      { id: uid(), name: "Quick wins first", pushes: { trust: 15, momentum: 45, coalition: 20, capability: 25, threat: -5 } },
+      { id: uid(), name: "Co-create", pushes: { trust: 25, momentum: 15, coalition: 40, capability: 25, threat: -35 }, actions: [
+        { text: "Run a 2-day design summit with frontline reps from each team", targets: ["coalition", "trust"], effort: "med", when: "now" },
+        { text: "Publish a transparent decision log to all-hands weekly", targets: ["trust", "threat"], effort: "low", when: "ongoing" },
+        { text: "Fund a capability academy with rotating cohorts", targets: ["capability"], effort: "high", when: "soon" },
+      ] },
+      { id: uid(), name: "Mandate & push", pushes: { trust: -25, momentum: 35, coalition: -15, capability: 5, threat: 45 }, actions: [
+        { text: "CEO issues a 90-day deadline memo with named owners", targets: ["momentum"], effort: "low", when: "now" },
+        { text: "Tie 20% of leader bonuses to adoption metrics", targets: ["momentum", "coalition"], effort: "med", when: "soon" },
+        { text: "Shut down two legacy systems to force the switch", targets: ["momentum", "threat"], effort: "high", when: "soon" },
+      ] },
+      { id: uid(), name: "Quick wins first", pushes: { trust: 15, momentum: 45, coalition: 20, capability: 25, threat: -5 }, actions: [
+        { text: "Pick 3 visible pain points; ship fixes in 30 days", targets: ["momentum", "trust"], effort: "med", when: "now" },
+        { text: "Celebrate each win at all-hands with the team that shipped it", targets: ["coalition"], effort: "low", when: "ongoing" },
+        { text: "Pair every quick win with a short skills workshop", targets: ["capability"], effort: "low", when: "soon" },
+      ] },
     ],
   },
 ];
@@ -430,7 +517,7 @@ function templateFromBuiltin(tpl: (typeof TEMPLATES)[number]): Model {
     horizon: tpl.horizon,
     variables: tpl.variables.map((v) => ({ ...v })),
     influences: tpl.influences.map((i) => ({ ...i })),
-    options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes } })),
+    options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes }, ...((o as any).actions ? { actions: (o as any).actions.map((a: any) => ({ ...a, targets: a.targets ? [...a.targets] : undefined })) } : {}) })),
   };
 }
 
@@ -445,7 +532,9 @@ function blankStarter(): Model {
     ],
     influences: [],
     options: [
-      { id: uid(), name: "Option 1", pushes: {} },
+      { id: uid(), name: "Option 1", pushes: {}, actions: [
+        { text: "Describe the first concrete step a team would take this week", effort: "low", when: "now" },
+      ] },
       { id: uid(), name: "Option 2", pushes: {} },
     ],
   };
@@ -460,7 +549,7 @@ function keywordTemplate(decisionText: string): Model {
     horizon: tpl.horizon,
     variables: tpl.variables.map((v) => ({ ...v })),
     influences: tpl.influences.map((i) => ({ ...i })),
-    options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes } })),
+    options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes }, ...((o as any).actions ? { actions: (o as any).actions.map((a: any) => ({ ...a, targets: a.targets ? [...a.targets] : undefined })) } : {}) })),
   };
 }
 
@@ -511,7 +600,8 @@ function validateDraftedModel(raw: any): Model | null {
           pushes[k] = clampN((o.pushes as any)[k], -60, 60);
         }
       }
-      return { id: uid(), name: String(o?.name ?? "Option"), pushes };
+      const actions = sanitizeActions(o?.actions, ids);
+      return { id: uid(), name: String(o?.name ?? "Option"), pushes, ...(actions ? { actions } : {}) };
     });
   // Synthesize a fallback option rather than rejecting the whole model
   if (options.length === 0) {

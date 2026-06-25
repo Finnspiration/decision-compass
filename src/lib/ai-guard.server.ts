@@ -46,6 +46,12 @@ const slug = (s: unknown): string => {
   return raw.toLowerCase().replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
 };
 
+export type SafeAction = {
+  text: string;
+  targets?: string[];
+  effort?: "low" | "med" | "high";
+  when?: "now" | "soon" | "ongoing";
+};
 export type SafeModel = {
   outcomeName: string;
   horizon: number;
@@ -53,8 +59,10 @@ export type SafeModel = {
   sources?: Array<{ name: string; type: "pdf" | "url" }>;
   variables: Array<{ id: string; name: string; value: number; weight: number; rationale?: string }>;
   influences: Array<{ from: string; to: string; strength: number; rationale?: string }>;
-  options: Array<{ name: string; pushes: Record<string, number> }>;
+  options: Array<{ name: string; pushes: Record<string, number>; actions?: SafeAction[] }>;
 };
+const EFFORT_SET = new Set(["low", "med", "high"]);
+const WHEN_SET = new Set(["now", "soon", "ongoing"]);
 
 export function validateAndClampModel(raw: unknown): SafeModel {
   const r = (raw && typeof raw === "object") ? (raw as Record<string, unknown>) : {};
@@ -107,9 +115,33 @@ export function validateAndClampModel(raw: unknown): SafeModel {
       pushes[id] = clamp(val, -60, 60, 0);
       count++;
     }
+    let actions: SafeAction[] | undefined;
+    if (Array.isArray((o as any).actions)) {
+      const arr: SafeAction[] = [];
+      for (const a of (o as any).actions as unknown[]) {
+        if (!a || typeof a !== "object") continue;
+        const aa = a as Record<string, unknown>;
+        const text = sstr(aa.text, 160).trim();
+        if (!text) continue;
+        const targetsSrc = Array.isArray(aa.targets) ? aa.targets : [];
+        const targets = targetsSrc
+          .map((t) => slug(t))
+          .filter((t) => ids.has(t));
+        const effort = EFFORT_SET.has(aa.effort as string) ? (aa.effort as SafeAction["effort"]) : undefined;
+        const when = WHEN_SET.has(aa.when as string) ? (aa.when as SafeAction["when"]) : undefined;
+        const act: SafeAction = { text };
+        if (targets.length) act.targets = targets;
+        if (effort) act.effort = effort;
+        if (when) act.when = when;
+        arr.push(act);
+        if (arr.length >= 6) break;
+      }
+      if (arr.length) actions = arr;
+    }
     return {
       name: sstr(o.name ?? `Option ${i + 1}`, 80) || `Option ${i + 1}`,
       pushes,
+      ...(actions ? { actions } : {}),
     };
   });
   // Safety net: never return zero options — downstream UI requires at least one
