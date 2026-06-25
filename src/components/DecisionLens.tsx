@@ -5,6 +5,7 @@ import {
   Target, Network, GitBranch, Telescope, RotateCcw,
   HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
   BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle, AlertTriangle, Check,
+  Maximize2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { explainDecision, critiqueModel, suggestActions, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
