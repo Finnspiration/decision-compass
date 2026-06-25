@@ -88,14 +88,33 @@ function htmlToText(html: string): string {
     .trim();
 }
 
-async function fetchUrlText(rawUrl: string): Promise<{ name: string; text: string } | null> {
-  // Manual redirect handling to re-validate each hop against SSRF rules.
+export type SkipReason =
+  | "oversized"
+  | "not_pdf"
+  | "pdf_parse_failed"
+  | "private_host"
+  | "non_https"
+  | "timeout"
+  | "bad_content_type"
+  | "http_error"
+  | "empty";
+
+export type SkippedSource = { name: string; reason: SkipReason };
+
+class SkipError extends Error {
+  reason: SkipReason;
+  constructor(reason: SkipReason, msg?: string) { super(msg || reason); this.reason = reason; }
+}
+
+async function fetchUrlTextStrict(rawUrl: string): Promise<{ name: string; text: string }> {
   let current = rawUrl;
+  let lastName = rawUrl;
   for (let hop = 0; hop < 4; hop++) {
     let u: URL;
-    try { u = new URL(current); } catch { return null; }
-    if (u.protocol !== "https:") return null; // https only
-    if (isPrivateHost(u.hostname)) return null;
+    try { u = new URL(current); } catch { throw new SkipError("non_https", "invalid URL"); }
+    if (u.protocol !== "https:") throw new SkipError("non_https");
+    if (isPrivateHost(u.hostname)) throw new SkipError("private_host");
+    lastName = u.hostname + u.pathname;
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), URL_TIMEOUT_MS);
@@ -108,66 +127,71 @@ async function fetchUrlText(rawUrl: string): Promise<{ name: string; text: strin
       });
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get("location");
-        if (!loc) return null;
+        if (!loc) throw new SkipError("http_error", `redirect ${res.status} without location`);
         current = new URL(loc, u).toString();
         continue;
       }
-      if (!res.ok) return null;
+      if (!res.ok) throw new SkipError("http_error", `http ${res.status}`);
 
-      // Pre-check content-length and content-type
       const declared = Number(res.headers.get("content-length") || "0");
-      if (declared && declared > MAX_URL_BYTES) return null;
+      if (declared && declared > MAX_URL_BYTES) throw new SkipError("oversized");
       const ct = (res.headers.get("content-type") || "").toLowerCase();
-      if (ct && !/^(text\/|application\/(json|xml|xhtml))/.test(ct)) return null;
+      if (ct && !/^(text\/|application\/(json|xml|xhtml))/.test(ct)) throw new SkipError("bad_content_type", ct);
 
       const reader = res.body?.getReader();
-      if (!reader) return null;
+      if (!reader) throw new SkipError("empty");
       let received = 0;
       const chunks: Uint8Array[] = [];
-      let aborted = false;
+      let overflowed = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         if (received + value.length > MAX_URL_BYTES) {
           try { await reader.cancel(); } catch { /* */ }
-          aborted = true;
+          overflowed = true;
           break;
         }
         received += value.length;
         chunks.push(value);
       }
-      if (aborted && received === 0) return null;
+      if (overflowed && received === 0) throw new SkipError("oversized");
       const buf = new Uint8Array(received);
       let off = 0;
       for (const c of chunks) { buf.set(c, off); off += c.length; }
       const body = new TextDecoder("utf-8", { fatal: false }).decode(buf);
       const text = ct.includes("html") || /<\w+[\s>]/.test(body.slice(0, 200)) ? htmlToText(body) : body;
-      return { name: u.hostname + u.pathname, text };
-    } catch {
-      return null;
+      if (!text.trim()) throw new SkipError("empty");
+      return { name: lastName, text };
+    } catch (e) {
+      if (e instanceof SkipError) throw e;
+      if ((e as { name?: string })?.name === "AbortError") throw new SkipError("timeout");
+      throw new SkipError("http_error", (e as Error)?.message || "fetch failed");
     } finally {
       clearTimeout(timer);
     }
   }
-  return null;
+  throw new SkipError("http_error", "too many redirects");
 }
 
-async function extractPdfText(name: string, dataBase64: string): Promise<{ name: string; text: string } | null> {
+async function extractPdfTextStrict(name: string, dataBase64: string): Promise<{ name: string; text: string }> {
+  let bytes: Uint8Array;
+  try { bytes = decodeBase64ToBytes(dataBase64); }
+  catch { throw new SkipError("not_pdf", "invalid base64"); }
+  if (bytes.length === 0) throw new SkipError("empty");
+  if (bytes.length > MAX_PDF_BYTES) throw new SkipError("oversized");
+  if (!(bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d)) {
+    throw new SkipError("not_pdf");
+  }
   try {
-    const bytes = decodeBase64ToBytes(dataBase64);
-    if (bytes.length === 0 || bytes.length > MAX_PDF_BYTES) return null;
-    // PDF magic bytes "%PDF-"
-    if (!(bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d)) {
-      return null;
-    }
     const { extractText, getDocumentProxy } = await import("unpdf");
     const pdf = await getDocumentProxy(bytes);
     const { text } = await extractText(pdf, { mergePages: true });
     const joined = Array.isArray(text) ? text.join("\n") : String(text || "");
+    if (!joined.trim()) throw new SkipError("empty");
     return { name, text: joined };
   } catch (e) {
-    console.error("pdf extract failed", name, e);
-    return null;
+    if (e instanceof SkipError) throw e;
+    throw new SkipError("pdf_parse_failed", (e as Error)?.message || "unpdf failed");
   }
 }
 
@@ -217,11 +241,12 @@ async function callGateway(
   });
   if (!res.ok) {
     const t = await res.text().catch(() => "");
-    throw new Error(`AI gateway ${res.status}: ${t.slice(0, 200)}`);
+    console.error("ingestSources gateway error", { status: res.status, body: t.slice(0, 200) });
+    throw new Error(`AI_HTTP_ERROR: gateway ${res.status}`);
   }
   const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = json.choices?.[0]?.message?.content;
-  if (!content) throw new Error("AI gateway returned no content");
+  if (!content) throw new Error("AI_BAD_JSON: gateway returned no content");
   try {
     return JSON.parse(content);
   } catch {
@@ -230,38 +255,9 @@ async function callGateway(
       try { return JSON.parse(m[0]); } catch { /* fallthrough */ }
     }
     if (retry) return callGateway(apiKey, decisionText, labelled, false);
-    throw new Error("AI gateway returned non-JSON content");
+    throw new Error("AI_BAD_JSON: gateway returned non-JSON content");
   }
 }
-
-export const ingestSources = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => Input.parse(data))
-  .handler(async ({ data }): Promise<IngestResult> => {
-    const { rateLimit, validateAndClampModel } = await import("./ai-guard.server");
-    rateLimit("ingestSources", { perMinute: 6 });
-
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
-
-    const items: Array<{ name: string; text: string; kind: "pdf" | "url" }> = [];
-
-    for (const f of data.files) {
-      const r = await extractPdfText(f.name, f.dataBase64);
-      if (r && r.text.trim()) items.push({ name: r.name, text: r.text, kind: "pdf" });
-    }
-    const urlResults = await Promise.all(data.urls.map((u) => fetchUrlText(u)));
-    for (const r of urlResults) {
-      if (r && r.text.trim()) items.push({ name: r.name, text: r.text, kind: "url" });
-    }
-
-    const { labelled, sources } = budgetExcerpts(items, MAX_TOTAL_CHARS);
-    const parsed = await callGateway(apiKey, data.decisionText, labelled, true);
-    const safe = validateAndClampModel(parsed);
-    const result: IngestResult = { ...safe };
-    if (!Array.isArray(result.sources) || result.sources.length === 0) result.sources = sources;
-    return result;
-  });
-
 
 export type IngestResult = {
   outcomeName?: string;
@@ -271,4 +267,58 @@ export type IngestResult = {
   variables?: Array<{ id?: string; name?: string; value?: number; weight?: number; rationale?: string }>;
   influences?: Array<{ from?: string; to?: string; strength?: number; rationale?: string }>;
   options?: Array<{ name?: string; pushes?: Record<string, number> }>;
+  skipped?: SkippedSource[];
+  degraded?: boolean;
 };
+
+export const ingestSources = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => Input.parse(data))
+  .handler(async ({ data }): Promise<IngestResult> => {
+    const { rateLimit, validateAndClampModel, modelIsUsable } = await import("./ai-guard.server");
+    rateLimit("ingestSources", { perMinute: 6 });
+
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("AI_HTTP_ERROR: LOVABLE_API_KEY missing");
+
+    const items: Array<{ name: string; text: string; kind: "pdf" | "url" }> = [];
+    const skipped: SkippedSource[] = [];
+    const requestedSources = data.files.length + data.urls.length;
+
+    for (const f of data.files) {
+      try {
+        const r = await extractPdfTextStrict(f.name, f.dataBase64);
+        items.push({ name: r.name, text: r.text, kind: "pdf" });
+      } catch (e) {
+        const reason = e instanceof SkipError ? e.reason : "pdf_parse_failed";
+        console.error("ingestSources pdf skipped", { name: f.name, reason, msg: (e as Error)?.message });
+        skipped.push({ name: f.name, reason });
+      }
+    }
+
+    const urlResults = await Promise.allSettled(data.urls.map((u) => fetchUrlTextStrict(u)));
+    urlResults.forEach((r, i) => {
+      const rawName = data.urls[i];
+      if (r.status === "fulfilled") {
+        items.push({ name: r.value.name, text: r.value.text, kind: "url" });
+      } else {
+        const reason = r.reason instanceof SkipError ? r.reason.reason : "http_error";
+        console.error("ingestSources url skipped", { url: rawName, reason, msg: (r.reason as Error)?.message });
+        skipped.push({ name: rawName, reason });
+      }
+    });
+
+    const degraded = requestedSources > 0 && items.length === 0;
+    const { labelled, sources } = budgetExcerpts(items, MAX_TOTAL_CHARS);
+
+    const parsed = await callGateway(apiKey, data.decisionText, labelled, true);
+    const safe = validateAndClampModel(parsed);
+    if (!modelIsUsable(safe)) {
+      throw new Error("AI_BAD_JSON: model has no variables");
+    }
+    const result: IngestResult = { ...safe, skipped, degraded };
+    if (!Array.isArray(result.sources) || result.sources.length === 0) {
+      result.sources = sources;
+    }
+    return result;
+  });
+
