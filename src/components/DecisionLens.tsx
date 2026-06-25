@@ -729,7 +729,12 @@ export default function DecisionLens() {
     }
   }
 
-  function openHelp() { setDontShow(false); setWelcomeOpen(true); }
+  function openHelp() {
+    setDontShow(false);
+    setWelcomeOpen(true);
+    setCoachDismissed(false);
+    setSanityDismissed(false);
+  }
 
   function startFromDocs() {
     closeWelcome(dontShow);
