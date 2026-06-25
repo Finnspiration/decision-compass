@@ -270,41 +270,8 @@ export default function DecisionLens() {
   const best = ranked[0];
 
   /* --------------------------- shared UI bits --------------------------- */
-  const Panel = ({ children, className = "" }) => (
-    <div
-      className={"rounded-2xl border p-5 " + className}
-      style={{ background: `linear-gradient(180deg,${T.surface1},${T.surface2})`, borderColor: T.border }}
-    >
-      {children}
-    </div>
-  );
 
-  const Stepper = () => (
-    <div className="flex items-center gap-2 flex-wrap">
-      {STAGES.map((s, i) => {
-        const Icon = s.icon;
-        const active = stage === s.id;
-        const done = STAGES.findIndex((x) => x.id === stage) > i;
-        return (
-          <React.Fragment key={s.id}>
-            <button
-              onClick={() => setStage(s.id)}
-              className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium"
-              style={{
-                background: active ? T.primary : T.surface2,
-                color: active ? T.bgDeep : done ? T.ink : T.muted,
-                border: "1px solid " + (active ? T.primary : T.border),
-              }}
-            >
-              <Icon size={15} />
-              {s.label}
-            </button>
-            {i < STAGES.length - 1 && <ArrowRight size={14} style={{ color: T.border2 }} />}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
+
 
   /* ============================== render =============================== */
   return (
@@ -333,7 +300,7 @@ export default function DecisionLens() {
         </div>
 
         <div className="mb-6">
-          <Stepper />
+          <Stepper stage={stage} setStage={setStage} />
         </div>
 
         {/* ---------------------------- FRAME ---------------------------- */}
@@ -683,6 +650,47 @@ function SectionTag({ icon: Icon, text }) {
   );
 }
 
+function Panel({ children, className = "" }) {
+  return (
+    <div
+      className={"rounded-2xl border p-5 " + className}
+      style={{ background: `linear-gradient(180deg,${T.surface1},${T.surface2})`, borderColor: T.border }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Stepper({ stage, setStage }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {STAGES.map((s, i) => {
+        const Icon = s.icon;
+        const active = stage === s.id;
+        const done = STAGES.findIndex((x) => x.id === stage) > i;
+        return (
+          <React.Fragment key={s.id}>
+            <button
+              onClick={() => setStage(s.id)}
+              className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium"
+              style={{
+                background: active ? T.primary : T.surface2,
+                color: active ? T.bgDeep : done ? T.ink : T.muted,
+                border: "1px solid " + (active ? T.primary : T.border),
+              }}
+            >
+              <Icon size={15} />
+              {s.label}
+            </button>
+            {i < STAGES.length - 1 && <ArrowRight size={14} style={{ color: T.border2 }} />}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+
 function SliderRow({ label, val, min, max, color, onChange }) {
   return (
     <div>
@@ -727,7 +735,7 @@ function NavBtn({ dir, onClick, children }) {
 }
 
 /* ----------------------- live system map (SVG) --------------------------- */
-function SystemMap({ variables, influences }) {
+function SystemMapImpl({ variables, influences }) {
   const W = 460, H = 320, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 56;
   const pos = {};
   const n = variables.length;
@@ -776,9 +784,10 @@ function SystemMap({ variables, influences }) {
     </div>
   );
 }
+const SystemMap = React.memo(SystemMapImpl);
 
 /* ----------------------- trajectory chart (SVG) -------------------------- */
-function TrajectoryChart({ runs, horizon, focusId, best }) {
+function TrajectoryChartImpl({ runs, horizon, focusId, best }) {
   const W = 620, H = 320, pl = 36, pr = 14, pt = 14, pb = 26;
   const ix = (t) => pl + (t * (W - pl - pr)) / Math.max(horizon, 1);
   const iy = (v) => pt + ((100 - v) * (H - pt - pb)) / 100;
@@ -822,3 +831,4 @@ function TrajectoryChart({ runs, horizon, focusId, best }) {
     </div>
   );
 }
+const TrajectoryChart = React.memo(TrajectoryChartImpl);
