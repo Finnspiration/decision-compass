@@ -487,7 +487,11 @@ function validateDraftedModel(raw: any): Model | null {
       }
       return { id: uid(), name: String(o?.name ?? "Option"), pushes };
     });
-  if (options.length === 0) return null;
+  // Synthesize a fallback option rather than rejecting the whole model
+  if (options.length === 0) {
+    options.push({ id: uid(), name: "Status quo", pushes: {} });
+  }
+
 
   const summary = typeof raw.summary === "string" ? raw.summary.slice(0, 600) : undefined;
   const sources: ModelSource[] | undefined = Array.isArray(raw.sources)
