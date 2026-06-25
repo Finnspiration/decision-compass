@@ -2063,14 +2063,14 @@ export default function DecisionLens() {
                         <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
                         <span className="flex-1 text-sm">{r.option.name}</span>
                         <span className="flex flex-col items-end leading-tight">
-                          <span className="text-lg font-bold tabular-nums">
-                            {Math.round(r.winProb * 100)}%
+                          <span className="text-sm font-semibold tabular-nums text-foreground">
+                            ~{Math.round(r.winProb * 10)} of 10
                           </span>
                           <span className="text-[10px] text-dim tabular-nums">
-                            median {Math.round(r.score)}
+                            Outlook {Math.round(r.score)}
                           </span>
                         </span>
-                        {i === 0 && <span className="text-xs font-semibold text-helps">best in {Math.round(r.winProb * 100)}%</span>}
+                        {i === 0 && <span className="text-xs font-semibold text-helps">comes out ahead in ~{Math.round(r.winProb * 10)} of 10 likely futures</span>}
                       </button>
                     ))}
 
