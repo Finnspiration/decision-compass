@@ -146,7 +146,8 @@ function parseHashModel(hash: string): Model | null {
           pushes[k] = n;
         }
       }
-      return { id: String(o.i), name: String(o.n ?? ""), pushes };
+      const actions = sanitizeActions((o as any).a, ids);
+      return { id: String(o.i), name: String(o.n ?? ""), pushes, ...(actions ? { actions } : {}) };
     });
     if (options.some((o) => !o || !o.id)) return null;
     return { outcomeName, horizon, variables, influences, options };
