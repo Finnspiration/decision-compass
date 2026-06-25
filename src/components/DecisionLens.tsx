@@ -1146,10 +1146,10 @@ export default function DecisionLens() {
       });
       setCritique(res.suggestions);
       if (!res.suggestions.length) {
-        toast.success("Looks solid", { description: "Decision Lens · no critical gaps found." });
+        toast.success("Looks solid", { description: "Decision Lens · nothing major stood out." });
       }
     } catch (e) {
-      toast.error("Critique failed", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+      toast.error("Second opinion failed", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
     } finally {
       setCritiquing(false);
     }
