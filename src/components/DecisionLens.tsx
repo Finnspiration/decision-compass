@@ -5,6 +5,7 @@ import {
   Target, Network, GitBranch, Telescope, RotateCcw,
   HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
   BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle, AlertTriangle, Check,
+  Maximize2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { explainDecision, critiqueModel, suggestActions, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
@@ -704,6 +705,7 @@ export default function DecisionLens() {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [dontShow, setDontShow] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const decisionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const dropzoneRef = useRef<HTMLDivElement | null>(null);
@@ -2044,11 +2046,31 @@ export default function DecisionLens() {
 
               {/* live system map — transforms as you add variables & links */}
               <Panel>
-                <SectionTag icon={Network} text="Decision map" />
+                <div className="flex items-start justify-between gap-2">
+                  <SectionTag icon={Network} text="Decision map" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setMapOpen(true)}
+                    aria-label="Open larger decision map"
+                    className="gap-1.5 -mt-1 -mr-1"
+                  >
+                    <Maximize2 size={14} />
+                    Expand
+                  </Button>
+                </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Your map, live. Bubbles are the drivers (green helps your goal, red hurts it); arrows are the knock-on effects between them.
                 </p>
-                <SystemMap variables={variables} influences={influences} />
+                <button
+                  type="button"
+                  onClick={() => setMapOpen(true)}
+                  aria-label="Open larger decision map"
+                  className="block w-full text-left cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <SystemMap variables={variables} influences={influences} />
+                </button>
                 <div className="mt-3 flex justify-end">
                   <NavBtn dir="next" onClick={() => setStage("options")}>Set up your options</NavBtn>
                 </div>
@@ -2402,6 +2424,23 @@ export default function DecisionLens() {
               <BookmarkPlus size={14} /> Save
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mapOpen} onOpenChange={setMapOpen}>
+        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] flex flex-col gap-3">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Network size={16} className="text-primary" />
+              Decision map — {decision || "Untitled decision"}
+            </DialogTitle>
+            <DialogDescription>
+              Green bubbles help your goal · red hurts it · arrows show knock-on effects · bubble size grows with how strongly a driver matters.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <SystemMap variables={variables} influences={influences} fill />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -2882,7 +2921,15 @@ function NavBtn({ dir, onClick, children }: { dir: "next" | "back"; onClick: () 
 /* ----------------------- live system map (SVG) ---------------------------
    Kept as-is per spec — uses fixed SVG palette constants so node/arrow
    semantics (helps-green / hurts-red) stay legible against the chart bg. */
-function SystemMapImpl({ variables, influences }: { variables: Variable[]; influences: Influence[] }) {
+function SystemMapImpl({
+  variables,
+  influences,
+  fill = false,
+}: {
+  variables: Variable[];
+  influences: Influence[];
+  fill?: boolean;
+}) {
   const W = 460, H = 320, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 56;
   const pos: Record<string, { x: number; y: number }> = {};
   const n = variables.length;
@@ -2891,8 +2938,19 @@ function SystemMapImpl({ variables, influences }: { variables: Variable[]; influ
     pos[v.id] = { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) };
   });
   return (
-    <div className="mt-3 rounded-xl" style={{ background: SVG.inset, border: "1px solid " + SVG.border }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="System map">
+    <div
+      className={fill ? "h-full w-full rounded-xl" : "mt-3 rounded-xl"}
+      style={{ background: SVG.inset, border: "1px solid " + SVG.border }}
+    >
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={fill ? "100%" : undefined}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Decision map"
+        style={fill ? { display: "block" } : undefined}
+      >
         <defs>
           <marker id="dl-g" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
             <path d="M0,0 L6,3 L0,6 Z" fill={SVG.good} />
