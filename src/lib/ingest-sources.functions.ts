@@ -1,16 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10MB per PDF
+// base64 expands by ~4/3; cap raw string accordingly with slack
+const MAX_PDF_B64_CHARS = Math.ceil((MAX_PDF_BYTES * 4) / 3) + 1024;
+
 const FileItem = z.object({
   name: z.string().min(1).max(300),
-  dataBase64: z.string().min(1),
+  dataBase64: z.string().min(1).max(MAX_PDF_B64_CHARS, "PDF exceeds 10MB limit"),
 });
 
 const Input = z.object({
   files: z.array(FileItem).max(5).default([]),
-  urls: z.array(z.string().url()).max(8).default([]),
+  urls: z.array(z.string().url().max(2048)).max(8).default([]),
   decisionText: z.string().min(1).max(2000),
 });
+
 
 const SYSTEM_PROMPT =
   "You are a systems analyst applying world-model thinking. Given a decision and supporting source excerpts, model the decision as a compact dynamical system. Find 3–6 latent variables that actually drive the outcome (not surface facts); mark each as helping (+weight) or hurting (-weight) and where it stands today, with a one-line rationale grounded in the sources when possible. Add 2–5 influences forming at least one feedback loop, each with a rationale. Define 2–4 options that are genuinely different strategies; each option's pushes say how it nudges each variable per step. Provide a 1–2 sentence summary of what the documents told you, and list which sources you used. Return ONLY JSON.";
