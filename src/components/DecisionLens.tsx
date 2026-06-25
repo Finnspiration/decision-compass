@@ -463,9 +463,21 @@ const TEMPLATES = [
       { from: "capability", to: "momentum", strength: 35 },
     ],
     options: [
-      { id: uid(), name: "Co-create", pushes: { trust: 25, momentum: 15, coalition: 40, capability: 25, threat: -35 } },
-      { id: uid(), name: "Mandate & push", pushes: { trust: -25, momentum: 35, coalition: -15, capability: 5, threat: 45 } },
-      { id: uid(), name: "Quick wins first", pushes: { trust: 15, momentum: 45, coalition: 20, capability: 25, threat: -5 } },
+      { id: uid(), name: "Co-create", pushes: { trust: 25, momentum: 15, coalition: 40, capability: 25, threat: -35 }, actions: [
+        { text: "Run a 2-day design summit with frontline reps from each team", targets: ["coalition", "trust"], effort: "med", when: "now" },
+        { text: "Publish a transparent decision log to all-hands weekly", targets: ["trust", "threat"], effort: "low", when: "ongoing" },
+        { text: "Fund a capability academy with rotating cohorts", targets: ["capability"], effort: "high", when: "soon" },
+      ] },
+      { id: uid(), name: "Mandate & push", pushes: { trust: -25, momentum: 35, coalition: -15, capability: 5, threat: 45 }, actions: [
+        { text: "CEO issues a 90-day deadline memo with named owners", targets: ["momentum"], effort: "low", when: "now" },
+        { text: "Tie 20% of leader bonuses to adoption metrics", targets: ["momentum", "coalition"], effort: "med", when: "soon" },
+        { text: "Shut down two legacy systems to force the switch", targets: ["momentum", "threat"], effort: "high", when: "soon" },
+      ] },
+      { id: uid(), name: "Quick wins first", pushes: { trust: 15, momentum: 45, coalition: 20, capability: 25, threat: -5 }, actions: [
+        { text: "Pick 3 visible pain points; ship fixes in 30 days", targets: ["momentum", "trust"], effort: "med", when: "now" },
+        { text: "Celebrate each win at all-hands with the team that shipped it", targets: ["coalition"], effort: "low", when: "ongoing" },
+        { text: "Pair every quick win with a short skills workshop", targets: ["capability"], effort: "low", when: "soon" },
+      ] },
     ],
   },
 ];
