@@ -2276,13 +2276,38 @@ export default function DecisionLens() {
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Each option is a choice you could make. For each driver, say whether this option boosts it or lowers it.
+                  Each option is a different play. Show how it moves each driver — most good options boost some and cost others.
                 </p>
                 {options.every((o) => Object.values(o.pushes).every((p) => !p)) && (
                   <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                    <b className="text-foreground">Nothing set yet.</b> Move at least one slider per option — that's how each option stands apart when we look ahead.
+                    <b className="text-foreground">No effects set yet.</b> Move at least one slider per option — that's how each option stands apart when we look ahead.
                   </div>
                 )}
+                {(() => {
+                  const pairs: Array<[string, string]> = [];
+                  for (let i = 0; i < options.length; i++) {
+                    for (let j = i + 1; j < options.length; j++) {
+                      const a = options[i], b = options[j];
+                      const aHas = Object.values(a.pushes).some((p) => p);
+                      const bHas = Object.values(b.pushes).some((p) => p);
+                      if (!aHas || !bHas) continue;
+                      if (pushSimilarity(a.pushes, b.pushes, variables) >= 0.95) {
+                        pairs.push([a.name || "Option", b.name || "Option"]);
+                      }
+                    }
+                  }
+                  if (!pairs.length) return null;
+                  return (
+                    <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                      {pairs.map(([a, b], k) => (
+                        <div key={k}>
+                          <b className="text-foreground">‘{a}’ and ‘{b}’</b> look almost the same — make them genuinely different choices, or drop one.
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
 
 
                 <div
