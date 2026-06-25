@@ -347,13 +347,30 @@ export default function DecisionLens() {
   const [decision, setDecision] = useState(
     "Should we enter the new market now, wait and build, or partner in?"
   );
-  const seed = useMemo(() => autoDraftModel(decision), []); // initial demo model
+  const seed = useMemo(() => keywordTemplate(decision), []); // initial demo model
   const [outcomeName, setOutcomeName] = useState(seed.outcomeName);
   const [horizon, setHorizon] = useState(seed.horizon);
   const [variables, setVariables] = useState<Variable[]>(seed.variables);
   const [influences, setInfluences] = useState<Influence[]>(seed.influences);
   const [options, setOptions] = useState<DecisionOption[]>(seed.options);
   const [focusOpt, setFocusOpt] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
+
+  async function runAutoDraft(text: string) {
+    setDrafting(true);
+    try {
+      const m = await autoDraftModel(text);
+      loadModel(m);
+      setStage("model");
+      toast.success("Model drafted", { description: "Decision Lens · AI-built your starting system." });
+    } catch {
+      loadModel(keywordTemplate(text));
+      setStage("model");
+      toast.error("Couldn't reach the AI", { description: "Decision Lens · loaded a template instead." });
+    } finally {
+      setDrafting(false);
+    }
+  }
 
   function loadModel(m: Model) {
     setOutcomeName(m.outcomeName);
