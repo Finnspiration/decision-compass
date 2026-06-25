@@ -2260,19 +2260,33 @@ export default function DecisionLens() {
           <TabsContent value="options" className="mt-0">
             <div className="grid gap-5">
               <Panel>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <SectionTag icon={GitBranch} text="The options you're choosing between" />
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      setOptions([...options, { id: uid(), name: "Option " + (options.length + 1), pushes: {} }])
-                    }
-                    className="gap-1"
-                  >
-                    <Plus size={13} /> Add option
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => runImprove("options")}
+                      disabled={improvingOptions || variables.length === 0}
+                      className="gap-1.5"
+                      aria-label="Help me improve these options"
+                    >
+                      {improvingOptions ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                      {optionSuggestions ? "Get more strategies" : "✨ Help me improve this"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        setOptions([...options, { id: uid(), name: "Option " + (options.length + 1), pushes: {} }])
+                      }
+                      className="gap-1"
+                    >
+                      <Plus size={13} /> Add option
+                    </Button>
+                  </div>
                 </div>
+
                 <p className="mt-2 text-xs text-muted-foreground">
                   Each option is a different play. Show how it moves each driver — most good options boost some and cost others.
                 </p>
