@@ -712,17 +712,30 @@ export default function DecisionLens() {
               options you're weighing. Build it once, then compare trajectories instead of arguing about vibes.
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={shareLink}
-            className="shrink-0 gap-2"
-            aria-label="Copy shareable link to this decision"
-          >
-            <Share2 size={15} />
-            Share
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={openHelp}
+              aria-label="Open Decision Lens help"
+              title="How does Decision Lens work?"
+            >
+              <HelpCircle size={16} />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={shareLink}
+              className="gap-2"
+              aria-label="Copy shareable link to this decision"
+            >
+              <Share2 size={15} />
+              Share
+            </Button>
+          </div>
+
         </header>
 
         <Tabs value={stage} onValueChange={(v) => setStage(v as Stage)} className="w-full">
