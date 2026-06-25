@@ -172,7 +172,7 @@ const SVG = {
   good: "#7ee787",
   bad: "#ff6b81",
 };
-const FONT_DISPLAY = "Georgia,serif";
+const FONT_DISPLAY = '"Sora", system-ui, sans-serif';
 
 /* ----------------------------- engine -----------------------------------
    Unchanged from the verified prototype. Do not refactor. */
@@ -1274,53 +1274,104 @@ export default function DecisionLens() {
 
   /* ============================== render =============================== */
   return (
-    <div
-      className="min-h-screen w-full bg-background text-foreground"
-      style={{
-        backgroundImage:
-          "radial-gradient(1200px 700px at 70% -10%, var(--accent) 0%, var(--background) 60%)",
-      }}
-    >
-      <div className="mx-auto max-w-6xl px-5 py-8">
-        {/* header */}
-        <header className="mb-5 flex items-start justify-between gap-4">
+    <div className="flex min-h-screen w-full bg-background text-foreground">
+      {/* =============== Sidebar (persistent stage nav) =============== */}
+      <aside
+        className="hidden md:flex w-64 shrink-0 flex-col text-white shrink-0 sticky top-0 h-screen"
+        style={{ backgroundColor: "#3D6C87" }}
+      >
+        <div className="px-6 py-5 flex items-center gap-3 border-b border-white/10">
+          <div
+            className="w-9 h-9 rounded flex items-center justify-center font-bold text-white"
+            style={{ backgroundColor: "#A52A20", fontFamily: FONT_DISPLAY }}
+            aria-hidden
+          >
+            D
+          </div>
           <div>
-            <div className="text-xs font-semibold text-primary tracking-[0.18em]">
-              DECISION LENS · WORLD-MODEL THINKING
+            <div className="font-semibold text-base tracking-tight" style={{ fontFamily: FONT_DISPLAY }}>
+              Decision Lens
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-white/60">
+              World-model thinking
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 px-3 py-5 space-y-1" aria-label="Decision stages">
+          {STAGES.map((s, i) => {
+            const Icon = s.icon;
+            const active = stage === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                ref={(el) => { stepperRefs.current[i] = el as unknown as HTMLButtonElement | null; }}
+                onClick={() => setStage(s.id)}
+                aria-current={active ? "step" : undefined}
+                className={[
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors min-h-11",
+                  active
+                    ? "bg-white/10 text-white font-semibold border-l-4"
+                    : "text-white/75 hover:bg-white/10 hover:text-white border-l-4 border-transparent",
+                ].join(" ")}
+                style={active ? { borderLeftColor: "#A52A20" } : undefined}
+              >
+                <span
+                  className="inline-flex w-6 h-6 items-center justify-center rounded text-[11px] font-bold"
+                  style={{
+                    backgroundColor: active ? "#A52A20" : "rgba(255,255,255,0.12)",
+                    color: "#ffffff",
+                  }}
+                  aria-hidden
+                >
+                  {i + 1}
+                </span>
+                <Icon size={16} aria-hidden />
+                <span>{s.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="px-5 py-5 border-t border-white/10 space-y-2">
+          <Button
+            type="button"
+            onClick={shareLink}
+            className="w-full justify-center gap-2 text-white border-0"
+            style={{ backgroundColor: "#A52A20" }}
+          >
+            <Share2 size={15} />
+            Share decision
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={openHelp}
+            className="w-full justify-center gap-2 text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            <HelpCircle size={15} />
+            How it works
+          </Button>
+        </div>
+      </aside>
+
+      {/* =============== Main workspace =============== */}
+      <main className="flex-1 min-w-0 flex flex-col bg-background">
+        <header className="sticky top-0 z-10 h-16 px-4 md:px-8 flex items-center justify-between border-b bg-white">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Stage {STAGES.findIndex((s) => s.id === stage) + 1} of {STAGES.length} · {STAGES.find((s) => s.id === stage)?.label}
             </div>
             <h1
-              className="mt-1 text-3xl font-semibold tracking-tight text-foreground"
+              className="mt-0.5 text-base md:text-lg font-semibold truncate text-foreground"
               style={{ fontFamily: FONT_DISPLAY }}
+              title={decision}
             >
-              See where each choice leads — then decide with confidence.
+              {decision || "Untitled decision"}
             </h1>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Every decision comes down to a few things that really matter and how your choices move them.
-              Map those once, and you can see how each option is likely to play out — instead of going on gut feel.
-            </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={openHelp}
-              aria-label="Open Decision Lens help"
-              title="How does Decision Lens work?"
-            >
-              <HelpCircle size={16} />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={shareLink}
-              className="gap-2"
-              aria-label="Copy shareable link to this decision"
-            >
-              <Share2 size={15} />
-              Share
-            </Button>
             <Button
               type="button"
               variant="outline"
@@ -1330,29 +1381,41 @@ export default function DecisionLens() {
               aria-label="Save current model as a template"
             >
               <BookmarkPlus size={15} />
-              Save as template
+              <span className="hidden sm:inline">Save as template</span>
             </Button>
           </div>
-
         </header>
 
+        {/* Mobile stage nav */}
+        <div className="md:hidden border-b bg-white px-3 py-2 flex gap-2 overflow-x-auto">
+          {STAGES.map((s, i) => {
+            const active = stage === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setStage(s.id)}
+                className={[
+                  "shrink-0 px-3 py-2 rounded-md text-xs font-medium min-h-11",
+                  active ? "text-white" : "bg-secondary text-foreground",
+                ].join(" ")}
+                style={active ? { backgroundColor: "#3D6C87" } : undefined}
+              >
+                {i + 1}. {s.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex-1 px-4 md:px-8 py-6 md:py-8">
         <Tabs value={stage} onValueChange={(v) => setStage(v as Stage)} className="w-full">
-          <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
-            {STAGES.map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <TabsTrigger
-                  key={s.id}
-                  value={s.id}
-                  ref={(el) => { stepperRefs.current[i] = el; }}
-                  className="flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-2 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
-                >
-                  <Icon size={15} />
-                  {s.label}
-                </TabsTrigger>
-              );
-            })}
+          <TabsList className="sr-only">
+            {STAGES.map((s) => (
+              <TabsTrigger key={s.id} value={s.id}>{s.label}</TabsTrigger>
+            ))}
           </TabsList>
+
+
 
 
           {/* ---------------------------- FRAME ---------------------------- */}
@@ -2279,7 +2342,9 @@ export default function DecisionLens() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+        </div>
+      </main>
+
 
       <WelcomeDialog
         open={welcomeOpen}
