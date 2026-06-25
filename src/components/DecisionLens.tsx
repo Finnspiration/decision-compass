@@ -1096,6 +1096,9 @@ export default function DecisionLens() {
                           className="flex-1 h-9 bg-transparent text-sm font-medium"
                           aria-label={"Variable name: " + v.name}
                         />
+                        {v.rationale && (
+                          <HelpPopover title="Why this variable" body={v.rationale} />
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
