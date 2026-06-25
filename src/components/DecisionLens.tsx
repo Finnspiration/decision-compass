@@ -1236,7 +1236,8 @@ export default function DecisionLens() {
 
   // Invalidate stale AI output when the model changes
   useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
-  useEffect(() => { setCritique(null); }, [variables, influences, options]);
+  useEffect(() => { setModelSuggestions(null); }, [variables, influences]);
+  useEffect(() => { setOptionSuggestions(null); }, [options, variables]);
 
   // Cycle staged loading messages during ingest
   useEffect(() => {
@@ -1266,36 +1267,60 @@ export default function DecisionLens() {
     }
   }
 
-  async function runCritique() {
-    setCritiquing(true);
+  async function runImprove(focus: "model" | "options") {
+    const setLoading = focus === "model" ? setImprovingModel : setImprovingOptions;
+    const setResult = focus === "model" ? setModelSuggestions : setOptionSuggestions;
+    setLoading(true);
     try {
-      const res = await callCritique({
-        data: { model: { outcomeName, horizon, variables, influences, options } },
+      const res = await callImprove({
+        data: { focus, model: { outcomeName, horizon, variables, influences, options } },
       });
-      setCritique(res.suggestions);
+      setResult(res.suggestions);
       if (!res.suggestions.length) {
-        toast.success("Looks solid", { description: "Decision Lens · nothing major stood out." });
+        toast.success("Decision Lens · looks solid", { description: "No changes suggested — this looks solid." });
       }
     } catch (e) {
-      toast.error("Second opinion failed", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+      toast.error("Decision Lens · couldn't get suggestions", {
+        description: e instanceof Error ? e.message : "AI unavailable.",
+      });
     } finally {
-      setCritiquing(false);
+      setLoading(false);
     }
   }
 
-  function acceptSuggestion(s: CritiqueSuggestion) {
-    if (s.kind === "add_variable" && s.variable) {
+  function acceptSuggestion(s: ImproveSuggestion, source: "model" | "options") {
+    if (s.kind === "add_driver") {
       const ids = new Set(variables.map((v) => v.id));
       let id = s.variable.id || uid();
       while (ids.has(id)) id = id + "_" + Math.random().toString(36).slice(2, 4);
       setVariables([...variables, { ...s.variable, id }]);
-      toast.success("Driver added", { description: "Decision Lens · " + s.variable.name });
-    } else if (s.kind === "add_influence" && s.influence) {
-      setInfluences([...influences, s.influence]);
-      toast.success("Knock-on effect added", { description: "Decision Lens · linked two drivers." });
+      toast.success("Decision Lens · driver added", { description: s.variable.name });
+    } else if (s.kind === "add_influence") {
+      const dup = influences.some((i) => i.from === s.influence.from && i.to === s.influence.to);
+      if (dup) {
+        toast("Decision Lens · already linked", { description: "That knock-on effect is already in your map." });
+      } else {
+        setInfluences([...influences, s.influence]);
+        toast.success("Decision Lens · knock-on effect added", { description: "Linked two drivers." });
+      }
+    } else if (s.kind === "add_option") {
+      const taken = new Set(options.map((o) => o.name.trim().toLowerCase()));
+      if (taken.has(s.option.name.trim().toLowerCase())) {
+        toast("Decision Lens · option already exists", { description: s.option.name });
+      } else {
+        setOptions([...options, { id: uid(), name: s.option.name, pushes: { ...s.option.pushes } }]);
+        toast.success("Decision Lens · option added", { description: s.option.name });
+      }
     }
-    setCritique((cur) => (cur ? cur.filter((x) => x !== s) : cur));
+    const setResult = source === "model" ? setModelSuggestions : setOptionSuggestions;
+    setResult((cur) => (cur ? cur.filter((x) => x !== s) : cur));
   }
+
+  function dismissSuggestion(s: ImproveSuggestion, source: "model" | "options") {
+    const setResult = source === "model" ? setModelSuggestions : setOptionSuggestions;
+    setResult((cur) => (cur ? cur.filter((x) => x !== s) : cur));
+  }
+
 
   // Suggested probe: highest out-degree (ties → highest |weight|)
   const suggestedProbe = useMemo(() => {
