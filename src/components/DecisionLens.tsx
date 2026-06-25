@@ -2421,6 +2421,183 @@ function ActionPlanEditor({
   );
 }
 
+const WHEN_LABEL: Record<NonNullable<DecisionAction["when"]>, string> = {
+  now: "Now",
+  soon: "Soon",
+  ongoing: "Ongoing",
+};
+
+function ActionPlanReadout({
+  option, winProb, variables, decision, outcomeName, explanation,
+  suggesting, onSuggest, onGoOptions,
+}: {
+  option: DecisionOption;
+  winProb: number;
+  variables: Variable[];
+  decision: string;
+  outcomeName: string;
+  explanation: string | null;
+  suggesting: boolean;
+  onSuggest: () => void;
+  onGoOptions: () => void;
+}) {
+  const varById = useMemo(() => {
+    const m = new Map<string, Variable>();
+    for (const v of variables) m.set(v.id, v);
+    return m;
+  }, [variables]);
+
+  const actions = option.actions ?? [];
+  const groups: Record<"now" | "soon" | "ongoing", DecisionAction[]> = { now: [], soon: [], ongoing: [] };
+  for (const a of actions) {
+    const bucket = (a.when ?? "ongoing") as "now" | "soon" | "ongoing";
+    groups[bucket].push(a);
+  }
+
+  async function exportPlan() {
+    const winPct = Math.round(winProb * 100);
+    const lines: string[] = [];
+    lines.push(`# Decision Lens — Action plan`);
+    lines.push("");
+    lines.push(`**Decision:** ${decision || "(unnamed decision)"}`);
+    lines.push(`**Chosen strategy:** ${option.name}`);
+    lines.push(`**Win-probability (${outcomeName}):** ${winPct}%`);
+    lines.push("");
+    if (explanation) {
+      lines.push(`## Why this strategy`);
+      lines.push("");
+      lines.push(explanation);
+      lines.push("");
+    }
+    lines.push(`## Actions`);
+    (["now", "soon", "ongoing"] as const).forEach((k) => {
+      if (!groups[k].length) return;
+      lines.push("");
+      lines.push(`### ${WHEN_LABEL[k]}`);
+      for (const a of groups[k]) {
+        const targets = (a.targets ?? [])
+          .map((tid) => {
+            const v = varById.get(tid);
+            if (!v) return null;
+            const push = option.pushes[tid] ?? 0;
+            const arrow = push > 0 ? "▲" : push < 0 ? "▼" : "·";
+            return `${arrow} ${v.name}`;
+          })
+          .filter(Boolean) as string[];
+        const meta: string[] = [];
+        if (a.effort) meta.push(`effort: ${a.effort}`);
+        if (targets.length) meta.push(`drivers: ${targets.join(", ")}`);
+        lines.push(`- ${a.text}${meta.length ? `  _(${meta.join(" · ")})_` : ""}`);
+      }
+    });
+    const md = lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(md);
+      toast.success("Decision Lens · plan copied", {
+        description: `${option.name} — ${actions.length} action${actions.length === 1 ? "" : "s"} on clipboard as Markdown.`,
+      });
+    } catch {
+      toast.error("Decision Lens · couldn't copy plan", {
+        description: "Clipboard unavailable in this browser.",
+      });
+    }
+  }
+
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <SectionTag icon={PlayCircle} text={`Action plan — ${option.name}`} />
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={exportPlan}
+          disabled={actions.length === 0}
+          className="h-8 gap-1.5"
+          aria-label={`Export action plan for ${option.name} as Markdown`}
+        >
+          <Share2 size={13} /> Export plan
+        </Button>
+      </div>
+
+      {explanation && (
+        <div className="mt-3 rounded-lg border border-border bg-muted/60 p-3">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Why this strategy
+          </div>
+          <p className="text-xs leading-relaxed text-foreground">{explanation}</p>
+        </div>
+      )}
+
+      {actions.length === 0 ? (
+        <div className="mt-3 rounded-lg border border-dashed border-border bg-background/40 p-4 text-xs text-muted-foreground">
+          <p>
+            No actions yet — add them in <button onClick={onGoOptions} className="underline underline-offset-2 hover:text-foreground">Options</button>, or
+          </p>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={onSuggest}
+            disabled={suggesting}
+            className="mt-2 h-8 gap-1.5"
+            aria-label={`Generate actions for ${option.name}`}
+          >
+            {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+            Generate them
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          {(["now", "soon", "ongoing"] as const).map((k) => (
+            <div key={k} className="rounded-lg border border-border/60 bg-background/40 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  {WHEN_LABEL[k]}
+                </div>
+                <span className="text-[10px] tabular-nums text-dim">{groups[k].length}</span>
+              </div>
+              {groups[k].length === 0 ? (
+                <p className="text-[11px] text-dim">—</p>
+              ) : (
+                <ul className="grid list-none gap-2 p-0">
+                  {groups[k].map((a, i) => (
+                    <li key={i} className="rounded-md border border-border/50 bg-card/60 p-2">
+                      <p className="text-xs leading-snug text-foreground">{a.text}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        {a.effort && (
+                          <span className="rounded-full border border-border bg-secondary/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
+                            {a.effort}
+                          </span>
+                        )}
+                        {(a.targets ?? []).map((tid) => {
+                          const v = varById.get(tid);
+                          if (!v) return null;
+                          const push = option.pushes[tid] ?? 0;
+                          const arrow = push > 0 ? "▲" : push < 0 ? "▼" : "·";
+                          const tone = v.weight >= 0 ? "text-helps border-helps/40 bg-helps/10" : "text-hurts border-hurts/40 bg-hurts/10";
+                          return (
+                            <span
+                              key={tid}
+                              className={"inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] " + tone}
+                              aria-label={`${v.name} ${push > 0 ? "increases" : push < 0 ? "decreases" : "unchanged"}`}
+                            >
+                              <span aria-hidden>{arrow}</span>
+                              {v.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+
+
 function SectionTag({ icon: Icon, text }: { icon: React.ComponentType<{ size?: number; className?: string }>; text: string }) {
   return (
     <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
