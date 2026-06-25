@@ -191,6 +191,11 @@ export type MCBand = { t: number; p10: number; p50: number; p90: number };
  * sigma = 15% of their value on each run. Returns p10/p50/p90 of the outcome
  * index at every timestep across `runs` rollouts.
  */
+/* --- Monte-Carlo noise constants (shared by band + win-probability) --- */
+const MC_COEF_SIG = 0.25;    // ±25% multiplicative noise on strengths/pushes (per run)
+const MC_INIT_SIG = 3;       // Gaussian jitter on initial variable values (0-100 scale)
+const MC_PROCESS_SIG = 2.5;  // Per-step additive shock on each variable (compounds over horizon)
+
 function simulateMonteCarlo(
   vars: Variable[],
   influences: Influence[],
@@ -199,14 +204,13 @@ function simulateMonteCarlo(
   runs = 300
 ): MCBand[] {
   const samples: number[][] = Array.from({ length: horizon + 1 }, () => []);
-  const SIG = 0.15;
   for (let r = 0; r < runs; r++) {
-    const infNoise = influences.map(() => 1 + SIG * gaussSample());
+    const infNoise = influences.map(() => 1 + MC_COEF_SIG * gaussSample());
     const pushNoise: Record<string, number> = {};
-    if (pushes) for (const k of Object.keys(pushes)) pushNoise[k] = 1 + SIG * gaussSample();
+    if (pushes) for (const k of Object.keys(pushes)) pushNoise[k] = 1 + MC_COEF_SIG * gaussSample();
 
     const cur: Record<string, number> = {};
-    vars.forEach((v) => (cur[v.id] = v.value));
+    vars.forEach((v) => (cur[v.id] = clamp(v.value + MC_INIT_SIG * gaussSample())));
     const base = { ...cur };
     samples[0].push(outcomeOf(vars, cur));
     for (let t = 1; t <= horizon; t++) {
@@ -221,7 +225,8 @@ function simulateMonteCarlo(
         const rawPush = (pushes && pushes[v.id]) || 0;
         const push = (rawPush * (pushNoise[v.id] ?? 1)) / 100 * 4;
         const decay = 0.08 * (cur[v.id] - base[v.id]);
-        next[v.id] = clamp(cur[v.id] + push + e - decay);
+        const shock = MC_PROCESS_SIG * gaussSample();
+        next[v.id] = clamp(cur[v.id] + push + e - decay + shock);
       });
       Object.keys(next).forEach((k) => (cur[k] = next[k]));
       samples[t].push(outcomeOf(vars, cur));
@@ -232,6 +237,7 @@ function simulateMonteCarlo(
     return { t, p10: quantile(s, 0.1), p50: quantile(s, 0.5), p90: quantile(s, 0.9) };
   });
 }
+
 
 /**
  * Joint Monte-Carlo across all options sharing per-run noise, so we can
@@ -246,20 +252,29 @@ function winProbabilities(
   runs = 300
 ): Record<string, number> {
   if (options.length === 0) return {};
-  const SIG = 0.15;
   const wins: Record<string, number> = {};
   options.forEach((o) => (wins[o.id] = 0));
   for (let r = 0; r < runs; r++) {
-    const infNoise = influences.map(() => 1 + SIG * gaussSample());
+    // Shared per-run noise so options are compared on the same world.
+    const infNoise = influences.map(() => 1 + MC_COEF_SIG * gaussSample());
     const optPushNoise = options.map((o) => {
       const m: Record<string, number> = {};
-      if (o.pushes) for (const k of Object.keys(o.pushes)) m[k] = 1 + SIG * gaussSample();
+      if (o.pushes) for (const k of Object.keys(o.pushes)) m[k] = 1 + MC_COEF_SIG * gaussSample();
       return m;
     });
+    const initJitter: Record<string, number> = {};
+    vars.forEach((v) => (initJitter[v.id] = MC_INIT_SIG * gaussSample()));
+    // Shared per-step process shocks: same world for every option this run.
+    const shocks: Array<Record<string, number>> = [];
+    for (let t = 1; t <= horizon; t++) {
+      const s: Record<string, number> = {};
+      vars.forEach((v) => (s[v.id] = MC_PROCESS_SIG * gaussSample()));
+      shocks.push(s);
+    }
     let bestIdx = 0, bestVal = -Infinity;
     options.forEach((o, oi) => {
       const cur: Record<string, number> = {};
-      vars.forEach((v) => (cur[v.id] = v.value));
+      vars.forEach((v) => (cur[v.id] = clamp(v.value + initJitter[v.id])));
       const base = { ...cur };
       for (let t = 1; t <= horizon; t++) {
         const next: Record<string, number> = {};
@@ -273,7 +288,7 @@ function winProbabilities(
           const rawPush = (o.pushes && o.pushes[v.id]) || 0;
           const push = (rawPush * (optPushNoise[oi][v.id] ?? 1)) / 100 * 4;
           const decay = 0.08 * (cur[v.id] - base[v.id]);
-          next[v.id] = clamp(cur[v.id] + push + e - decay);
+          next[v.id] = clamp(cur[v.id] + push + e - decay + shocks[t - 1][v.id]);
         });
         Object.keys(next).forEach((k) => (cur[k] = next[k]));
       }
@@ -286,6 +301,7 @@ function winProbabilities(
   options.forEach((o) => (out[o.id] = wins[o.id] / runs));
   return out;
 }
+
 
 const MC_RUNS = 300;
 
