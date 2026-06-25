@@ -1708,7 +1708,7 @@ export default function DecisionLens() {
           <TabsContent value="model" className="mt-0">
             {modelFindings.length > 0 && !sanityDismissed && (
               <div className="mb-5">
-                <Panel className="border-warns/40 bg-warns/5">
+                <Panel className="border-hurts/30 bg-hurts/5">
                   <div className="flex items-start justify-between gap-3">
                     <SectionTag icon={AlertTriangle} text="Worth a second look" />
                     <Button
@@ -1724,7 +1724,7 @@ export default function DecisionLens() {
                   <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
                     {modelFindings.map((f) => (
                       <li key={f.id} className="flex items-start gap-2">
-                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-warns" />
+                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
                         <span className="leading-relaxed">{f.text}</span>
                       </li>
                     ))}
