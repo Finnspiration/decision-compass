@@ -2104,6 +2104,26 @@ export default function DecisionLens() {
                   </div>
                 </Panel>
 
+                {best && (() => {
+                  const focused = focusOpt ? ranked.find((r) => r.option.id === focusOpt) : null;
+                  const shown = focused ?? best;
+                  return (
+                    <ActionPlanReadout
+                      option={shown.option}
+                      winProb={shown.winProb}
+                      variables={variables}
+                      decision={decision}
+                      outcomeName={outcomeName}
+                      explanation={explanation}
+                      suggesting={!!actionLoading[shown.option.id]}
+                      onSuggest={() => runSuggestActions(shown.option)}
+                      onGoOptions={() => setStage("options")}
+                    />
+                  );
+                })()}
+
+
+
 
                 <Panel>
                   <SectionTag icon={Telescope} text="Respect the model error" />
