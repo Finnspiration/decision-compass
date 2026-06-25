@@ -532,7 +532,9 @@ function blankStarter(): Model {
     ],
     influences: [],
     options: [
-      { id: uid(), name: "Option 1", pushes: {} },
+      { id: uid(), name: "Option 1", pushes: {}, actions: [
+        { text: "Describe the first concrete step a team would take this week", effort: "low", when: "now" },
+      ] },
       { id: uid(), name: "Option 2", pushes: {} },
     ],
   };
