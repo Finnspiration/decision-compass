@@ -1282,14 +1282,14 @@ function TrajectoryChartImpl({
         {[0, Math.round(horizon / 2), horizon].map((m) => (
           <text key={m} x={ix(m)} y={H - 8} fill={SVG.dim} fontSize="10" textAnchor="middle">{m}</text>
         ))}
-        {bandRun && (() => {
+        {bandRun && mcBands && mcBands[bandRun.option.id] && (() => {
+          const band = mcBands[bandRun.option.id];
           let top = "", bot = "";
-          bandRun.traj.forEach((p, i) => {
-            const s = 1.4 * i;
-            top += `${ix(i)},${iy(Math.min(100, p.idx + s))} `;
-            bot = `${ix(i)},${iy(Math.max(0, p.idx - s))} ` + bot;
+          band.forEach((b, i) => {
+            top += `${ix(i)},${iy(b.p90)} `;
+            bot = `${ix(i)},${iy(b.p10)} ` + bot;
           });
-          return <polygon points={top + bot} fill={bandRun.color + "22"} />;
+          return <polygon points={top + bot} fill={bandRun.color + "33"} />;
         })()}
         {runs.map((r) => {
           const focused = !focusId || r.option.id === focusId;
