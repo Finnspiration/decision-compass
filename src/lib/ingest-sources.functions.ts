@@ -202,29 +202,24 @@ async function callGateway(
 
 export const ingestSources = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<Record<string, unknown>> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
 
     const items: Array<{ name: string; text: string; kind: "pdf" | "url" }> = [];
 
-    // PDFs
     for (const f of data.files) {
       const r = await extractPdfText(f.name, f.dataBase64);
       if (r && r.text.trim()) items.push({ name: r.name, text: r.text, kind: "pdf" });
     }
-    // URLs (in parallel)
     const urlResults = await Promise.all(data.urls.map((u) => fetchUrlText(u)));
     for (const r of urlResults) {
       if (r && r.text.trim()) items.push({ name: r.name, text: r.text, kind: "url" });
     }
 
     const { labelled, sources } = budgetExcerpts(items, MAX_TOTAL_CHARS);
-    const parsed = await callGateway(apiKey, data.decisionText, labelled, true);
-
-    // attach sources if missing
-    if (parsed && typeof parsed === "object" && !(parsed as any).sources) {
-      (parsed as any).sources = sources;
-    }
-    return parsed;
+    const parsed = (await callGateway(apiKey, data.decisionText, labelled, true)) as Record<string, unknown> | null;
+    const result: Record<string, unknown> = (parsed && typeof parsed === "object") ? { ...parsed } : {};
+    if (!Array.isArray(result.sources)) result.sources = sources;
+    return result;
   });
