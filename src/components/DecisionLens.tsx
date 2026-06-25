@@ -1774,6 +1774,17 @@ export default function DecisionLens() {
                               {ingesting ? "Mapping…" : "Map my decision"}
                             </Button>
                             <Button
+                              type="button"
+                              onClick={() => { void runSuggestDecisions(); }}
+                              disabled={busy}
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                            >
+                              {suggestingDecisions ? <Loader2 size={14} className="animate-spin" /> : <Lightbulb size={14} />}
+                              {suggestingDecisions ? "Reading sources…" : (decisionSuggestions ? "Suggest different decisions" : "Suggest decisions from sources")}
+                            </Button>
+                            <Button
                               onClick={() => { void runAutoDraft(decision); }}
                               disabled={busy}
                               variant="ghost"
@@ -1796,6 +1807,68 @@ export default function DecisionLens() {
                           </Button>
                         )}
                       </div>
+
+                      {/* AI-suggested decisions from sources */}
+                      {decisionSuggestions && decisionSuggestions.length > 0 && (
+                        <div className="mt-4 rounded-xl border border-border bg-card p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <Lightbulb size={15} className="text-primary" />
+                                Pick a decision to frame
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Based on what your sources keep coming back to. Pick one to drop into the question above — you can still edit it.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              aria-label="Dismiss suggestions"
+                              onClick={() => setDecisionSuggestions(null)}
+                              className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-md text-dim hover:text-foreground hover:bg-muted"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <ul className="mt-3 space-y-2">
+                            {decisionSuggestions.map((d, i) => (
+                              <li
+                                key={i}
+                                className="rounded-lg border border-border bg-background p-3 hover:border-primary/60 transition-colors"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-foreground break-words">
+                                      {d.question}
+                                    </div>
+                                    {d.rationale && (
+                                      <div className="mt-1 text-xs text-muted-foreground break-words">
+                                        {d.rationale}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => pickSuggestedDecision(d.question)}
+                                    className="shrink-0 gap-1"
+                                  >
+                                    <Check size={14} />
+                                    Use this
+                                  </Button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                          <button
+                            type="button"
+                            onClick={() => setDecisionSuggestions(null)}
+                            className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                          >
+                            Write my own instead
+                          </button>
+                        </div>
+                      )}
 
                       {/* Optional refinements */}
                       <div className="mt-6 border-t border-border pt-4">
