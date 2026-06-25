@@ -3,8 +3,10 @@ import { toast } from "sonner";
 import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
-  HelpCircle, Upload, FileText, Compass, MousePointerClick,
+  HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { explainDecision, critiqueModel, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
