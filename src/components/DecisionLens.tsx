@@ -1240,69 +1240,144 @@ export default function DecisionLens() {
                   </div>
                 </div>
 
-                <div className="mt-4 dl-2">
-                  <div>
-                    <label className="block text-sm text-muted-foreground">
-                      What does success mean? (outcome label)
-                    </label>
-                    <Input
-                      value={outcomeName}
-                      onChange={(e) => setOutcomeName(e.target.value)}
-                      className="mt-2 bg-muted"
-                    />
-                  </div>
-                  <div>
-                    <label className="flex items-center gap-1 text-sm text-muted-foreground">
-                      Horizon: <span className="text-primary">{horizon} steps</span>
-                      <HelpPopover
-                        title="Horizon"
-                        body="How many steps forward we simulate each option. Short horizons show the immediate punch; long horizons reveal where feedback loops take you."
-                      />
-                    </label>
-                    <Slider
-                      min={4}
-                      max={36}
-                      step={1}
-                      value={[horizon]}
-                      onValueChange={(v) => setHorizon(v[0])}
-                      className="mt-4"
-                      aria-label="Horizon"
-                    />
-                  </div>
-                </div>
-
                 {(() => {
                   const hasSources = pdfFiles.length > 0 || urls.length > 0;
+                  const nSrc = pdfFiles.length + urls.length;
+                  const busy = ingesting || drafting;
+                  const ingestMessages = [
+                    "Reading your sources…",
+                    "Extracting the key drivers…",
+                    "Mapping the feedback loops…",
+                    "Laying out your options…",
+                  ];
                   return (
                     <>
-                      <div className="mt-5 flex flex-wrap items-center gap-2">
-                        <Button
-                          onClick={() => { void runIngest(); }}
-                          disabled={ingesting || drafting}
-                          className="gap-2"
-                        >
-                          {ingesting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                          {ingesting ? "Mapping…" : "Map my decision"}
-                        </Button>
-                        <Button
-                          onClick={() => { void runAutoDraft(decision); }}
-                          disabled={drafting || ingesting}
-                          variant="secondary"
-                          className="gap-2"
-                        >
-                          {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                          {drafting
-                            ? "Drafting…"
-                            : hasSources
-                              ? "Ignore sources & draft from text"
-                              : "Auto-draft (no sources)"}
-                        </Button>
+                      {/* Stateful guidance callout */}
+                      <div className="mt-5 rounded-xl border border-primary/40 bg-primary/10 p-4">
+                        {ingesting ? (
+                          <div>
+                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                              <Loader2 size={16} className="animate-spin text-primary" />
+                              {ingestMessages[ingestStep]}
+                            </div>
+                            <div className="mt-3 flex gap-1.5">
+                              {ingestMessages.map((_, i) => (
+                                <div
+                                  key={i}
+                                  className={
+                                    "h-1 flex-1 rounded-full transition-colors " +
+                                    (i <= ingestStep ? "bg-primary" : "bg-primary/20")
+                                  }
+                                />
+                              ))}
+                            </div>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              This can take up to ~30s for large PDFs.
+                            </p>
+                          </div>
+                        ) : hasSources ? (
+                          <div>
+                            <ul className="space-y-1.5 text-sm">
+                              <li className="flex items-center gap-2 text-foreground">
+                                <CheckCircle2 size={15} className="text-primary" />
+                                <span><b>Step 1</b> — {nSrc} source{nSrc === 1 ? "" : "s"} attached</span>
+                              </li>
+                              <li className="flex items-center gap-2 text-muted-foreground">
+                                <Circle size={15} className="text-muted-foreground/60" />
+                                <span><b>Step 2</b> (optional) — refine your question above</span>
+                              </li>
+                              <li className="flex items-center gap-2 text-foreground">
+                                <PlayCircle size={15} className="text-primary" />
+                                <span><b>Step 3</b> — click “Map my decision” below</span>
+                              </li>
+                            </ul>
+                            <p className="mt-3 text-xs text-muted-foreground">
+                              Decision Lens will read your sources on the server and build the variables, feedback loops, and options — about 10–30 seconds.
+                            </p>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-sm font-medium text-foreground">Two ways to start</div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Upload PDFs or paste links above and Decision Lens will read them to build your decision landscape — or skip sources and let AI draft from your question alone.
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      <p className="mt-2 text-xs text-dim">
-                        {hasSources
-                          ? "Decision Lens · sources attached. ‘Map my decision’ grounds the model in them; ‘Ignore sources’ drafts from your decision text alone."
-                          : "Decision Lens · Lovable AI builds your starter system — grounded in your sources when provided, otherwise from the decision text alone."}
-                      </p>
+
+                      {/* Action row */}
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        {hasSources ? (
+                          <>
+                            <Button
+                              onClick={() => { void runIngest(); }}
+                              disabled={busy}
+                              size="lg"
+                              className="gap-2"
+                            >
+                              {ingesting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                              {ingesting ? "Mapping…" : "Map my decision"}
+                            </Button>
+                            <Button
+                              onClick={() => { void runAutoDraft(decision); }}
+                              disabled={busy}
+                              variant="ghost"
+                              size="sm"
+                              className="gap-2"
+                            >
+                              {drafting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                              {drafting ? "Drafting…" : "Skip sources & draft from text"}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            onClick={() => { void runAutoDraft(decision); }}
+                            disabled={busy}
+                            size="lg"
+                            className="gap-2"
+                          >
+                            {drafting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                            {drafting ? "Drafting…" : "Auto-draft from my question"}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Optional refinements */}
+                      <div className="mt-6 border-t border-border pt-4">
+                        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          Optional refinements
+                        </div>
+                        <div className="mt-3 dl-2">
+                          <div>
+                            <label className="block text-sm text-muted-foreground">
+                              What does success mean? (outcome label)
+                            </label>
+                            <Input
+                              value={outcomeName}
+                              onChange={(e) => setOutcomeName(e.target.value)}
+                              className="mt-2 bg-muted"
+                            />
+                          </div>
+                          <div>
+                            <label className="flex items-center gap-1 text-sm text-muted-foreground">
+                              Horizon: <span className="text-primary">{horizon} steps</span>
+                              <HelpPopover
+                                title="Horizon"
+                                body="How many steps forward we simulate each option. Short horizons show the immediate punch; long horizons reveal where feedback loops take you."
+                              />
+                            </label>
+                            <Slider
+                              min={4}
+                              max={36}
+                              step={1}
+                              value={[horizon]}
+                              onValueChange={(v) => setHorizon(v[0])}
+                              className="mt-4"
+                              aria-label="Horizon"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </>
                   );
                 })()}
