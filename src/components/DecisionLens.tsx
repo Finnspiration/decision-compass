@@ -2883,7 +2883,15 @@ function NavBtn({ dir, onClick, children }: { dir: "next" | "back"; onClick: () 
 /* ----------------------- live system map (SVG) ---------------------------
    Kept as-is per spec — uses fixed SVG palette constants so node/arrow
    semantics (helps-green / hurts-red) stay legible against the chart bg. */
-function SystemMapImpl({ variables, influences }: { variables: Variable[]; influences: Influence[] }) {
+function SystemMapImpl({
+  variables,
+  influences,
+  fill = false,
+}: {
+  variables: Variable[];
+  influences: Influence[];
+  fill?: boolean;
+}) {
   const W = 460, H = 320, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 56;
   const pos: Record<string, { x: number; y: number }> = {};
   const n = variables.length;
@@ -2892,8 +2900,19 @@ function SystemMapImpl({ variables, influences }: { variables: Variable[]; influ
     pos[v.id] = { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) };
   });
   return (
-    <div className="mt-3 rounded-xl" style={{ background: SVG.inset, border: "1px solid " + SVG.border }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="System map">
+    <div
+      className={fill ? "h-full w-full rounded-xl" : "mt-3 rounded-xl"}
+      style={{ background: SVG.inset, border: "1px solid " + SVG.border }}
+    >
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={fill ? "100%" : undefined}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Decision map"
+        style={fill ? { display: "block" } : undefined}
+      >
         <defs>
           <marker id="dl-g" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
             <path d="M0,0 L6,3 L0,6 Z" fill={SVG.good} />
