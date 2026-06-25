@@ -965,19 +965,28 @@ export default function DecisionLens() {
               <Panel>
                 <SectionTag icon={Telescope} text={"Rollout · " + outcomeName} />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Each line is one option's {outcomeName.toLowerCase()} over {horizon} steps. The shaded band on the
-                  leading option is model error — it widens with the horizon, so trust the near term.
+                  Each line is one option's {outcomeName.toLowerCase()} over {horizon} steps. The shaded fan on the
+                  focused option is the p10–p90 range from Monte-Carlo rollouts — it widens as model noise
+                  compounds, so trust the near term.
                 </p>
-                <TrajectoryChart runs={runs} horizon={horizon} focusId={focusOpt} best={best} />
-                <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <TrajectoryChart
+                  runs={runs}
+                  horizon={horizon}
+                  focusId={focusOpt}
+                  best={best}
+                  mcBands={mc.bands}
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   {runs.map((r) => (
                     <span key={r.option.id} className="flex items-center gap-1.5">
                       <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
                       {r.option.name}
                     </span>
                   ))}
+                  <span className="ml-auto text-dim">simulations: {MC_RUNS}</span>
                 </div>
               </Panel>
+
 
               <div className="grid gap-5">
                 <Panel>
