@@ -1859,7 +1859,7 @@ export default function DecisionLens() {
                 <div className="mt-3 grid gap-2">
                   {influences.length === 0 && (
                     <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                      <b className="text-foreground">No links yet.</b> Add how one variable pushes another — this is what creates the feedback loops that make outcomes diverge over time.
+                      <b className="text-foreground">No knock-on effects yet.</b> Add how one driver moves another — that's what makes the options play out differently over time.
                     </div>
                   )}
 
