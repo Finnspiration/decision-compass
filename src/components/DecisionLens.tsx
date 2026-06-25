@@ -1051,6 +1051,67 @@ export default function DecisionLens() {
   );
   const best = ranked[0];
 
+  // Per-option start/end of the most-likely (p50) outlook path.
+  const deltas = useMemo(() => {
+    const out: Record<string, { start: number; end: number; delta: number }> = {};
+    for (const o of options) {
+      const band = mc.bands[o.id];
+      if (!band || band.length === 0) continue;
+      const start = band[0].p50;
+      const end = band[band.length - 1].p50;
+      out[o.id] = { start, end, delta: end - start };
+    }
+    return out;
+  }, [mc, options]);
+  const allTrendDown = useMemo(
+    () => options.length > 0 && options.every((o) => {
+      const d = deltas[o.id];
+      return d ? d.end < d.start : false;
+    }),
+    [deltas, options]
+  );
+
+  // Model-sanity checks: surface obvious modelling mistakes.
+  const HURT_WORDS = ["depletion", "burn", "risk", "cost", "churn", "saturation", "debt", "loss", "attrition", "drag"];
+  const HELP_WORDS = ["growth", "advantage", "moat", "reach", "trust", "quality", "retention", "momentum"];
+  const [sanityDismissed, setSanityDismissed] = useState(false);
+  const modelFindings = useMemo(() => {
+    const findings: Array<{ id: string; text: React.ReactNode }> = [];
+    for (const v of variables) {
+      const lower = v.name.toLowerCase();
+      const hurt = HURT_WORDS.some((w) => lower.includes(w));
+      const help = HELP_WORDS.some((w) => lower.includes(w));
+      if (hurt && v.weight > 0) {
+        findings.push({
+          id: "sign:" + v.id,
+          text: <>'<b className="text-foreground">{v.name}</b>' is set as <b>helping</b> your goal — does that match reality?</>,
+        });
+      } else if (help && v.weight < 0) {
+        findings.push({
+          id: "sign:" + v.id,
+          text: <>'<b className="text-foreground">{v.name}</b>' is set as <b>hurting</b> your goal — does that match reality?</>,
+        });
+      }
+    }
+    if (variables.length > 0 && options.length > 0) {
+      const dominant = [...variables].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))[0];
+      const noOneMoves = options.every((o) => Math.abs((o.pushes?.[dominant.id] ?? 0)) < 5);
+      if (noOneMoves) {
+        findings.push({
+          id: "dominant:" + dominant.id,
+          text: <>No option meaningfully moves '<b className="text-foreground">{dominant.name}</b>', which is the strongest driver in your model.</>,
+        });
+      }
+    }
+    if (allTrendDown) {
+      findings.push({
+        id: "trend-down",
+        text: <>Every option's outlook gets worse over time. Either a driver's sign is wrong, or no option pushes hard enough on what matters.</>,
+      });
+    }
+    return findings;
+  }, [variables, options, allTrendDown]);
+
   /* --------------------------- AI assistance --------------------------- */
   const callExplain = useServerFn(explainDecision);
   const callCritique = useServerFn(critiqueModel);
