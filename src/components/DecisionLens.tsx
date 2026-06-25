@@ -2084,6 +2084,13 @@ export default function DecisionLens() {
                   ))}
                 </div>
 
+                {modelHealth.noDownside && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                    <span>Every real decision has a downside — consider adding something this could hurt (a risk).</span>
+                  </div>
+                )}
+
                 <div className="mt-5 flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     <SectionTag icon={GitBranch} text="Knock-on effects" />
@@ -2108,32 +2115,67 @@ export default function DecisionLens() {
                     </div>
                   )}
 
-                  {influences.map((inf, idx) => (
-                    <div key={idx} className="flex items-center gap-2 rounded-xl border border-border bg-muted p-2">
-                      <VarSelect value={inf.from} vars={variables} onChange={(val) => updInf(idx, { from: val })} />
-                      <ArrowRight
-                        size={14}
-                        className={inf.strength >= 0 ? "text-helps" : "text-hurts"}
-                      />
-                      <VarSelect value={inf.to} vars={variables} onChange={(val) => updInf(idx, { to: val })} />
-                      <Slider
-                        min={-100} max={100} step={1} value={[inf.strength]}
-                        onValueChange={(val) => updInf(idx, { strength: val[0] })}
-                        className="flex-1 min-w-[60px]"
-                        aria-label="Knock-on effect strength"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setInfluences(influences.filter((_, i) => i !== idx))}
-                        aria-label="Remove knock-on effect"
-                        className="text-dim"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
-                  ))}
+                  {influences.map((inf, idx) => {
+                    const fromName = variables.find((v) => v.id === inf.from)?.name ?? "—";
+                    const toName = variables.find((v) => v.id === inf.to)?.name ?? "—";
+                    const label = strengthLabel(inf.strength);
+                    const tone = inf.strength >= 0 ? "text-helps" : "text-hurts";
+                    return (
+                      <div key={idx} className="rounded-xl border border-border bg-muted p-3">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
+                          <span className="text-muted-foreground">When</span>
+                          <VarSelect value={inf.from} vars={variables} onChange={(val) => updInf(idx, { from: val })} />
+                          <span className="text-muted-foreground">rises,</span>
+                          <VarSelect value={inf.to} vars={variables} onChange={(val) => updInf(idx, { to: val })} />
+                          <span className="text-muted-foreground">goes</span>
+                          <span className={"font-medium " + tone} aria-live="polite">{label}</span>
+                          {inf.rationale && (
+                            <HelpPopover title="Why this knock-on effect" body={inf.rationale} />
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setInfluences(influences.filter((_, i) => i !== idx))}
+                            aria-label={`Remove knock-on effect from ${fromName} to ${toName}`}
+                            className="ml-auto text-dim"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                        <div className="mt-2 flex items-center gap-3">
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground w-20 shrink-0">Strength</span>
+                          <Slider
+                            min={-100} max={100} step={1} value={[inf.strength]}
+                            onValueChange={(val) => updInf(idx, { strength: val[0] })}
+                            className="flex-1"
+                            aria-label={`Knock-on effect strength from ${fromName} to ${toName} — currently ${label}`}
+                          />
+                          <span className={"text-xs tabular-nums w-10 text-right " + tone}>
+                            {inf.strength > 0 ? "+" : ""}{inf.strength}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {(modelHealth.orphans.length > 0 || modelHealth.noLoops) && (
+                  <div className="mt-3 grid gap-2">
+                    {modelHealth.orphans.slice(0, 2).map((v) => (
+                      <div key={v.id} className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
+                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                        <span>‘{v.name}’ isn't connected to anything yet — does it affect, or get affected by, the others?</span>
+                      </div>
+                    ))}
+                    {modelHealth.noLoops && (
+                      <div className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/60 p-2 text-xs text-foreground dark:border-amber-400/30 dark:bg-amber-400/10">
+                        <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" />
+                        <span>Nothing loops back yet. Decisions get interesting when one driver feeds another that feeds it back.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
               </Panel>
               </div>
 
