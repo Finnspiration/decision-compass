@@ -729,6 +729,7 @@ export default function DecisionLens() {
   const [decision, setDecision] = useState(
     "Should we enter the new market now, wait and build, or partner in?"
   );
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once on mount only
   const seed = useMemo(() => keywordTemplate(decision), []); // initial demo model
   const [outcomeName, setOutcomeName] = useState(seed.outcomeName);
   const [horizon, setHorizon] = useState(seed.horizon);
@@ -1145,7 +1146,6 @@ export default function DecisionLens() {
     });
     const winProb = winProbabilities(variables, influences, options, horizon, MC_RUNS);
     return { bands, winProb };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variables, influences, options, horizon]);
 
   const ranked = useMemo(
@@ -1182,8 +1182,6 @@ export default function DecisionLens() {
   );
 
   // Model-sanity checks: surface obvious modelling mistakes.
-  const HURT_WORDS = ["depletion", "burn", "risk", "cost", "churn", "saturation", "debt", "loss", "attrition", "drag"];
-  const HELP_WORDS = ["growth", "advantage", "moat", "reach", "trust", "quality", "retention", "momentum"];
   const [sanityDismissed, setSanityDismissed] = useState(false);
   const [coachDismissed, setCoachDismissed] = useState(false);
   const modelFindings = useMemo(() => {
@@ -3565,7 +3563,8 @@ function TrajectoryChartImpl({
   const tipLineH = 14;
   const tipPad = 8;
   const tipH = hoverStep != null ? tipPad * 2 + tipLineH * (runs.length + 1) : 0;
-  let tipX = 0, tipY = pt + 4;
+  let tipX = 0;
+  const tipY = pt + 4;
   if (hoverStep != null) {
     const hx = ix(hoverStep);
     tipX = hx + 10;

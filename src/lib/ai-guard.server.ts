@@ -39,6 +39,7 @@ const clamp = (n: unknown, lo: number, hi: number, dflt = 0): number => {
 };
 const sstr = (s: unknown, max: number): string => {
   if (typeof s !== "string") return "";
+  // eslint-disable-next-line no-control-regex -- intentionally strips control chars
   return s.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max);
 };
 const slug = (s: unknown): string => {
