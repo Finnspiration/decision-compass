@@ -2185,6 +2185,16 @@ export default function DecisionLens() {
 
                   </div>
 
+                  {allTrendDown && (
+                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
+                      <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
+                      <span className="leading-relaxed">
+                        All options trend downward in this model — "comes out ahead" means <b className="text-foreground">loses the least</b>. To find options that <i>improve</i> the outlook, revisit the <button type="button" onClick={() => setStage("model")} className="underline underline-offset-2 hover:text-foreground">Model tab</button>.
+                      </span>
+                    </div>
+                  )}
+
+
                   <div className="mt-4 border-t border-border pt-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
