@@ -591,6 +591,9 @@ export default function DecisionLens() {
   const [dragOver, setDragOver] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | undefined>();
   const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
+  const [aiAttachedCount, setAiAttachedCount] = useState(0);
+  const [aiSkippedCount, setAiSkippedCount] = useState(0);
+  const [aiHighlight, setAiHighlight] = useState(false);
 
   // User templates (gallery)
   const [userTemplates, setUserTemplates] = useState<UserTemplate[]>(() => loadUserTemplatesFromStorage());
