@@ -1231,11 +1231,11 @@ export default function DecisionLens() {
               className="mt-1 text-3xl font-semibold tracking-tight text-foreground"
               style={{ fontFamily: FONT_DISPLAY }}
             >
-              Model the system. Roll the options forward. Then choose.
+              See where each choice leads — then decide with confidence.
             </h1>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Any decision is a small system: a few latent variables, the feedback loops between them, and the
-              options you're weighing. Build it once, then compare trajectories instead of arguing about vibes.
+              Every decision comes down to a few things that really matter and how your choices move them.
+              Map those once, and you can see how each option is likely to play out — instead of going on gut feel.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
