@@ -172,7 +172,7 @@ const SVG = {
   good: "#7ee787",
   bad: "#ff6b81",
 };
-const FONT_DISPLAY = "Georgia,serif";
+const FONT_DISPLAY = '"Sora", system-ui, sans-serif';
 
 /* ----------------------------- engine -----------------------------------
    Unchanged from the verified prototype. Do not refactor. */
