@@ -4107,8 +4107,8 @@ function Panel({ children, className = "" }: { children: React.ReactNode; classN
 type Tone = "primary" | "helps" | "hurts";
 const TONE_VAR: Record<Tone, CSSProperties | undefined> = {
   primary: undefined,
-  helps: { ["--primary" as any]: "var(--helps)" } as CSSProperties,
-  hurts: { ["--primary" as any]: "var(--hurts)" } as CSSProperties,
+  helps: { "--primary": "var(--helps)" } as Record<string, string>,
+  hurts: { "--primary": "var(--hurts)" } as Record<string, string>,
 };
 const TONE_TEXT: Record<Tone, string> = {
   primary: "text-primary",
