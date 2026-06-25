@@ -153,6 +153,129 @@ function simulate(
   return traj;
 }
 
+/* ----------------------------- Monte Carlo ------------------------------- */
+// Standard-normal sample via Box-Muller. Used to perturb pushes & influences.
+function gaussSample(): number {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function quantile(sortedAsc: number[], q: number): number {
+  if (sortedAsc.length === 0) return 0;
+  const pos = (sortedAsc.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  if (lo === hi) return sortedAsc[lo];
+  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (pos - lo);
+}
+
+export type MCBand = { t: number; p10: number; p50: number; p90: number };
+
+/**
+ * Monte-Carlo rollout for one option. Reuses the same per-step math as `simulate`,
+ * but perturbs influence strengths and option pushes by Gaussian noise with
+ * sigma = 15% of their value on each run. Returns p10/p50/p90 of the outcome
+ * index at every timestep across `runs` rollouts.
+ */
+function simulateMonteCarlo(
+  vars: Variable[],
+  influences: Influence[],
+  pushes: Record<string, number> | undefined,
+  horizon: number,
+  runs = 300
+): MCBand[] {
+  const samples: number[][] = Array.from({ length: horizon + 1 }, () => []);
+  const SIG = 0.15;
+  for (let r = 0; r < runs; r++) {
+    const infNoise = influences.map(() => 1 + SIG * gaussSample());
+    const pushNoise: Record<string, number> = {};
+    if (pushes) for (const k of Object.keys(pushes)) pushNoise[k] = 1 + SIG * gaussSample();
+
+    const cur: Record<string, number> = {};
+    vars.forEach((v) => (cur[v.id] = v.value));
+    const base = { ...cur };
+    samples[0].push(outcomeOf(vars, cur));
+    for (let t = 1; t <= horizon; t++) {
+      const next: Record<string, number> = {};
+      vars.forEach((v) => {
+        let e = 0;
+        influences.forEach((i, ii) => {
+          if (i.to !== v.id) return;
+          const s = i.strength * infNoise[ii];
+          e += (s / 100) * ((cur[i.from] - 50) / 50) * 6;
+        });
+        const rawPush = (pushes && pushes[v.id]) || 0;
+        const push = (rawPush * (pushNoise[v.id] ?? 1)) / 100 * 4;
+        const decay = 0.08 * (cur[v.id] - base[v.id]);
+        next[v.id] = clamp(cur[v.id] + push + e - decay);
+      });
+      Object.keys(next).forEach((k) => (cur[k] = next[k]));
+      samples[t].push(outcomeOf(vars, cur));
+    }
+  }
+  return samples.map((arr, t) => {
+    const s = [...arr].sort((a, b) => a - b);
+    return { t, p10: quantile(s, 0.1), p50: quantile(s, 0.5), p90: quantile(s, 0.9) };
+  });
+}
+
+/**
+ * Joint Monte-Carlo across all options sharing per-run noise, so we can
+ * count "wins" — the share of runs where each option has the highest final
+ * outcome index. Same noise model as `simulateMonteCarlo`.
+ */
+function winProbabilities(
+  vars: Variable[],
+  influences: Influence[],
+  options: DecisionOption[],
+  horizon: number,
+  runs = 300
+): Record<string, number> {
+  if (options.length === 0) return {};
+  const SIG = 0.15;
+  const wins: Record<string, number> = {};
+  options.forEach((o) => (wins[o.id] = 0));
+  for (let r = 0; r < runs; r++) {
+    const infNoise = influences.map(() => 1 + SIG * gaussSample());
+    const optPushNoise = options.map((o) => {
+      const m: Record<string, number> = {};
+      if (o.pushes) for (const k of Object.keys(o.pushes)) m[k] = 1 + SIG * gaussSample();
+      return m;
+    });
+    let bestIdx = 0, bestVal = -Infinity;
+    options.forEach((o, oi) => {
+      const cur: Record<string, number> = {};
+      vars.forEach((v) => (cur[v.id] = v.value));
+      const base = { ...cur };
+      for (let t = 1; t <= horizon; t++) {
+        const next: Record<string, number> = {};
+        vars.forEach((v) => {
+          let e = 0;
+          influences.forEach((i, ii) => {
+            if (i.to !== v.id) return;
+            const s = i.strength * infNoise[ii];
+            e += (s / 100) * ((cur[i.from] - 50) / 50) * 6;
+          });
+          const rawPush = (o.pushes && o.pushes[v.id]) || 0;
+          const push = (rawPush * (optPushNoise[oi][v.id] ?? 1)) / 100 * 4;
+          const decay = 0.08 * (cur[v.id] - base[v.id]);
+          next[v.id] = clamp(cur[v.id] + push + e - decay);
+        });
+        Object.keys(next).forEach((k) => (cur[k] = next[k]));
+      }
+      const finalIdx = outcomeOf(vars, cur);
+      if (finalIdx > bestVal) { bestVal = finalIdx; bestIdx = oi; }
+    });
+    wins[options[bestIdx].id]++;
+  }
+  const out: Record<string, number> = {};
+  options.forEach((o) => (out[o.id] = wins[o.id] / runs));
+  return out;
+}
+
+const MC_RUNS = 300;
+
 /* --------------------------- starter templates --------------------------- */
 const TEMPLATES = [
   {
@@ -440,14 +563,31 @@ export default function DecisionLens() {
       })),
     [options, variables, influences, horizon]
   );
+
+  // Monte-Carlo: per-option uncertainty fans + joint win probabilities.
+  const mc = useMemo(() => {
+    const bands: Record<string, MCBand[]> = {};
+    options.forEach((o) => {
+      bands[o.id] = simulateMonteCarlo(variables, influences, o.pushes, horizon, MC_RUNS);
+    });
+    const winProb = winProbabilities(variables, influences, options, horizon, MC_RUNS);
+    return { bands, winProb };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variables, influences, options, horizon]);
+
   const ranked = useMemo(
     () =>
       [...runs]
-        .map((r) => ({ ...r, score: r.traj[r.traj.length - 1].idx }))
-        .sort((a, b) => b.score - a.score),
-    [runs]
+        .map((r) => ({
+          ...r,
+          score: r.traj[r.traj.length - 1].idx,
+          winProb: mc.winProb[r.option.id] ?? 0,
+        }))
+        .sort((a, b) => (b.winProb - a.winProb) || (b.score - a.score)),
+    [runs, mc]
   );
   const best = ranked[0];
+
 
   /* ---------------------------- mutators ------------------------------- */
   function updVar(id: string, patch: Partial<Variable>) {
@@ -825,19 +965,28 @@ export default function DecisionLens() {
               <Panel>
                 <SectionTag icon={Telescope} text={"Rollout · " + outcomeName} />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Each line is one option's {outcomeName.toLowerCase()} over {horizon} steps. The shaded band on the
-                  leading option is model error — it widens with the horizon, so trust the near term.
+                  Each line is one option's {outcomeName.toLowerCase()} over {horizon} steps. The shaded fan on the
+                  focused option is the p10–p90 range from Monte-Carlo rollouts — it widens as model noise
+                  compounds, so trust the near term.
                 </p>
-                <TrajectoryChart runs={runs} horizon={horizon} focusId={focusOpt} best={best} />
-                <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <TrajectoryChart
+                  runs={runs}
+                  horizon={horizon}
+                  focusId={focusOpt}
+                  best={best}
+                  mcBands={mc.bands}
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   {runs.map((r) => (
                     <span key={r.option.id} className="flex items-center gap-1.5">
                       <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
                       {r.option.name}
                     </span>
                   ))}
+                  <span className="ml-auto text-dim">simulations: {MC_RUNS}</span>
                 </div>
               </Panel>
+
 
               <div className="grid gap-5">
                 <Panel>
@@ -862,12 +1011,18 @@ export default function DecisionLens() {
                         <span className="w-[18px] text-sm font-semibold text-dim">{i + 1}</span>
                         <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
                         <span className="flex-1 text-sm">{r.option.name}</span>
-                        <span className="text-lg font-bold tabular-nums">
-                          {Math.round(r.score)}
+                        <span className="flex flex-col items-end leading-tight">
+                          <span className="text-lg font-bold tabular-nums">
+                            {Math.round(r.winProb * 100)}%
+                          </span>
+                          <span className="text-[10px] text-dim tabular-nums">
+                            median {Math.round(r.score)}
+                          </span>
                         </span>
-                        {i === 0 && <span className="text-xs font-semibold text-helps">best</span>}
+                        {i === 0 && <span className="text-xs font-semibold text-helps">best in {Math.round(r.winProb * 100)}%</span>}
                       </button>
                     ))}
+
                   </div>
                 </Panel>
 
@@ -1064,12 +1219,13 @@ const SystemMap = React.memo(SystemMapImpl);
 /* ----------------------- trajectory chart (SVG) -------------------------- */
 type Run = { option: DecisionOption; color: string; traj: TrajPoint[] };
 function TrajectoryChartImpl({
-  runs, horizon, focusId, best,
+  runs, horizon, focusId, best, mcBands,
 }: {
   runs: Run[];
   horizon: number;
   focusId: string | null;
   best?: Run & { score: number };
+  mcBands?: Record<string, MCBand[]>;
 }) {
   const W = 620, H = 320, pl = 36, pr = 14, pt = 14, pb = 26;
   const ix = (t: number) => pl + (t * (W - pl - pr)) / Math.max(horizon, 1);
@@ -1126,14 +1282,14 @@ function TrajectoryChartImpl({
         {[0, Math.round(horizon / 2), horizon].map((m) => (
           <text key={m} x={ix(m)} y={H - 8} fill={SVG.dim} fontSize="10" textAnchor="middle">{m}</text>
         ))}
-        {bandRun && (() => {
+        {bandRun && mcBands && mcBands[bandRun.option.id] && (() => {
+          const band = mcBands[bandRun.option.id];
           let top = "", bot = "";
-          bandRun.traj.forEach((p, i) => {
-            const s = 1.4 * i;
-            top += `${ix(i)},${iy(Math.min(100, p.idx + s))} `;
-            bot = `${ix(i)},${iy(Math.max(0, p.idx - s))} ` + bot;
+          band.forEach((b, i) => {
+            top += `${ix(i)},${iy(b.p90)} `;
+            bot = `${ix(i)},${iy(b.p10)} ` + bot;
           });
-          return <polygon points={top + bot} fill={bandRun.color + "22"} />;
+          return <polygon points={top + bot} fill={bandRun.color + "33"} />;
         })()}
         {runs.map((r) => {
           const focused = !focusId || r.option.id === focusId;
