@@ -2572,7 +2572,7 @@ function ActionPlanReadout({
                             <span
                               key={tid}
                               className={"inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] " + tone}
-                              aria-label={`${v.name} ${push > 0 ? "increases" : push < 0 ? "decreases" : "unchanged"}`}
+                              aria-label={`${v.name} ${push > 0 ? "boosted" : push < 0 ? "lowered" : "unchanged"}`}
                             >
                               <span aria-hidden>{arrow}</span>
                               {v.name}
