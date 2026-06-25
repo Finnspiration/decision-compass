@@ -513,9 +513,10 @@ export default function DecisionLens() {
                         onChange={(e) => upd(setOptions, options, o.id, { name: e.target.value })}
                         className="flex-1 rounded-md px-2 py-1 text-sm font-medium"
                         style={{ background: "transparent", border: "1px solid " + T.border, color: T.ink }}
+                        aria-label={"Option name: " + o.name}
                       />
                       {options.length > 1 && (
-                        <button onClick={() => setOptions(options.filter((x) => x.id !== o.id))} aria-label={"Remove " + o.name} style={{ color: T.dim }}>
+                        <button onClick={() => setOptions(options.filter((x) => x.id !== o.id))} aria-label={"Remove " + o.name} className="min-h-11 min-w-11 inline-flex items-center justify-center" style={{ color: T.dim }}>
                           <X size={15} />
                         </button>
                       )}
