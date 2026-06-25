@@ -1734,13 +1734,13 @@ export default function DecisionLens() {
                           {s.message}
                           {s.kind === "add_variable" && s.variable && (
                             <div className="mt-1 text-dim">
-                              → add variable <b className="text-foreground">{s.variable.name}</b>{" "}
-                              ({s.variable.weight >= 0 ? "helps" : "hurts"} {Math.abs(s.variable.weight)})
+                              → add driver <b className="text-foreground">{s.variable.name}</b>{" "}
+                              ({s.variable.weight >= 0 ? "helps" : "hurts"} your goal · {Math.abs(s.variable.weight)})
                             </div>
                           )}
                           {s.kind === "add_influence" && s.influence && (
                             <div className="mt-1 text-dim">
-                              → link <b className="text-foreground">{variables.find((v) => v.id === s.influence!.from)?.name ?? s.influence.from}</b>
+                              → knock-on: <b className="text-foreground">{variables.find((v) => v.id === s.influence!.from)?.name ?? s.influence.from}</b>
                               {" → "}
                               <b className="text-foreground">{variables.find((v) => v.id === s.influence!.to)?.name ?? s.influence.to}</b>
                               {" "}({s.influence.strength >= 0 ? "+" : ""}{s.influence.strength})
