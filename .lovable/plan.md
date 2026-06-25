@@ -1,10 +1,11 @@
-Add an "Expand" affordance to the trajectory chart in the Decide tab, mirroring the Decision Map expand pattern.
+Fix the unreadable red hover on lower-ranked options in the Decide tab "Which option looks best" list.
 
-## Changes (src/components/DecisionLens.tsx only)
+## Root cause
+The non-winning option buttons use `hover:bg-accent`. In this palette `--accent` is the brand red `#A52A20` with white foreground, which makes the row text hard to read on hover (and clashes with the red used elsewhere for warnings/hurts).
 
-1. **State**: Add `chartOpen` useState alongside existing `mapOpen`.
-2. **Chart panel header**: Add a `Maximize2` icon button (min-h-11 min-w-11, ghost variant, aria-label "Expand chart") next to the "How each option plays out…" title. Make the chart container itself clickable (button role, keyboard accessible) to open the dialog.
-3. **Dialog**: Add a shadcn `Dialog` rendering `TrajectoryChart` at 90vw × 85vh with the same caption, delta chips, and "Universal Decline" warning currently shown below the small chart, plus a short legend (shaded band = range of possible futures, line = median).
-4. **TrajectoryChartImpl**: Already supports responsive sizing via SVG viewBox from the map work — confirm it scales; if it uses a fixed width/height, add a `fill` prop (like SystemMap) so the dialog version fills its container.
+## Change (src/components/DecisionLens.tsx only)
+- In the ranked options list (the `ranked.map((r, i) => …)` buttons around line 2240), replace `hover:bg-accent` with a neutral hover that matches the rest of the app's surface treatment: `hover:bg-muted/70` (and keep `bg-muted`).
+- Add `hover:border-primary/30` for a subtle brand cue without changing text color.
+- Leave the #1 (winning) row's `border-helps/40 bg-helps/10` styling untouched.
 
-No engine, simulation, or data changes. Keyboard accessible, branded toasts unchanged.
+No engine, layout, or other changes.
