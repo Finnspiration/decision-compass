@@ -33,7 +33,7 @@ export const draftModel = createServerFn({ method: "POST" })
     rateLimit("draftModel", { perMinute: 10 });
 
     const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+    if (!apiKey) throw new Error("AI_HTTP_ERROR: LOVABLE_API_KEY missing");
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,23 +53,25 @@ export const draftModel = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new Error(`AI gateway ${res.status}: ${body.slice(0, 200)}`);
+      console.error("draftModel gateway error", { status: res.status, body: body.slice(0, 200) });
+      throw new Error(`AI_HTTP_ERROR: gateway ${res.status}`);
     }
 
     const json = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
     const content = json.choices?.[0]?.message?.content;
-    if (!content) throw new Error("AI gateway returned no content");
+    if (!content) throw new Error("AI_BAD_JSON: gateway returned no content");
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(content);
     } catch {
       const m = content.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error("AI gateway returned non-JSON content");
-      parsed = JSON.parse(m[0]);
+      if (!m) throw new Error("AI_BAD_JSON: gateway returned non-JSON content");
+      try { parsed = JSON.parse(m[0]); } catch { throw new Error("AI_BAD_JSON: gateway returned non-JSON content"); }
     }
     return validateAndClampModel(parsed) as DraftedModel;
   });
+
 
