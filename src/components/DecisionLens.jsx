@@ -392,7 +392,7 @@ export default function DecisionLens() {
                   onClick={() =>
                     setVariables([...variables, { id: uid(), name: "New driver", value: 50, weight: 40 }])
                   }
-                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
+                  className="min-h-11 min-w-11 inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
                   style={{ background: T.surface2, border: "1px solid " + T.border, color: T.ink }}
                 >
                   <Plus size={13} /> Add
