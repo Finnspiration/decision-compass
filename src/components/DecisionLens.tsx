@@ -2772,6 +2772,94 @@ export default function DecisionLens() {
 const EFFORT_OPTS: DecisionAction["effort"][] = ["low", "med", "high"];
 const WHEN_OPTS: DecisionAction["when"][] = ["now", "soon", "ongoing"];
 
+function SuggestionList({
+  suggestions, variables, onAccept, onDismiss,
+}: {
+  suggestions: ImproveSuggestion[] | null;
+  variables: Variable[];
+  onAccept: (s: ImproveSuggestion) => void;
+  onDismiss: (s: ImproveSuggestion) => void;
+}) {
+  if (suggestions === null) return null;
+  if (suggestions.length === 0) {
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">
+        No changes suggested — this looks solid.
+      </p>
+    );
+  }
+  const varName = (id: string) => variables.find((v) => v.id === id)?.name ?? id;
+  return (
+    <ul className="mt-3 grid list-none gap-2 p-0">
+      {suggestions.map((s, i) => {
+        const Icon =
+          s.kind === "add_driver" ? Plus :
+          s.kind === "add_influence" ? GitBranch :
+          s.kind === "add_option" ? Compass :
+          Lightbulb;
+        return (
+          <li
+            key={i}
+            className="flex items-start gap-3 rounded-lg border border-border bg-muted/60 p-2.5 text-xs"
+          >
+            <Icon size={13} className="mt-0.5 shrink-0 text-primary" />
+            <div className="flex-1 leading-relaxed text-foreground">
+              {s.message}
+              {s.kind === "add_driver" && (
+                <div className="mt-1 text-dim">
+                  → add driver <b className="text-foreground">{s.variable.name}</b>{" "}
+                  <span className={s.variable.weight >= 0 ? "text-helps" : "text-hurts"}>
+                    ({s.variable.weight >= 0 ? "helps" : "hurts"} your goal)
+                  </span>
+                </div>
+              )}
+              {s.kind === "add_influence" && (
+                <div className="mt-1 text-dim">
+                  → when <b className="text-foreground">{varName(s.influence.from)}</b> rises,{" "}
+                  <b className="text-foreground">{varName(s.influence.to)}</b> goes{" "}
+                  <span className={s.influence.strength >= 0 ? "text-helps" : "text-hurts"}>
+                    {strengthLabel(s.influence.strength)}
+                  </span>
+                </div>
+              )}
+              {s.kind === "add_option" && (
+                <div className="mt-1 text-dim">
+                  → new option <b className="text-foreground">{s.option.name}</b>:{" "}
+                  {summarizeOption(s.option.pushes, variables)}
+                </div>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {s.kind !== "note" && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => onAccept(s)}
+                  className="h-7 gap-1 px-2 text-[11px]"
+                  aria-label="Add this suggestion"
+                >
+                  <Plus size={11} /> Add
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onDismiss(s)}
+                className="h-7 px-2 text-[11px] text-dim"
+                aria-label="Dismiss this suggestion"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+
+
 function ActionPlanEditor({
   option, variables, onChange, onSuggest, suggesting,
 }: {
