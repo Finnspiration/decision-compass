@@ -210,23 +210,6 @@ const STAGES = [
 ];
 
 // Responsive grid + control theming, driven by the theme tokens above.
-const DL_CSS = `
-.dl-root{
-  --dl-border:${T.border}; --dl-primary:${T.primary};
-}
-.dl-frame,.dl-model,.dl-decide,.dl-2{display:grid;gap:20px;grid-template-columns:1fr}
-.dl-2{gap:14px}
-@media(min-width:560px){.dl-2{grid-template-columns:1fr 1fr}}
-@media(min-width:880px){
-  .dl-frame{grid-template-columns:1.1fr 0.9fr}
-  .dl-model{grid-template-columns:0.95fr 1.05fr}
-  .dl-decide{grid-template-columns:1.2fr 0.8fr}
-}
-.dl-root input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;background:var(--dl-border);outline:none}
-.dl-root input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--dl-primary);border:none;cursor:pointer;box-shadow:0 0 0 4px rgba(110,168,254,.16)}
-.dl-root input[type=range]::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:var(--dl-primary);cursor:pointer}
-.dl-root button:focus-visible,.dl-root input:focus-visible,.dl-root textarea:focus-visible,.dl-root select:focus-visible{outline:2px solid var(--dl-primary);outline-offset:2px}
-`;
 
 /* =============================== component ================================ */
 export default function DecisionLens() {
@@ -283,7 +266,7 @@ export default function DecisionLens() {
         fontFamily: FONT_BODY,
       }}
     >
-      <style>{DL_CSS}</style>
+      
       <div className="mx-auto max-w-6xl px-5 py-8">
         {/* header */}
         <div className="mb-5">
