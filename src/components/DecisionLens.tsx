@@ -250,8 +250,7 @@ function blankStarter(): Model {
   };
 }
 
-// >>> Replace this body with an LLM call in Lovable. <<<
-function autoDraftModel(decisionText: string): Model {
+function keywordTemplate(decisionText: string): Model {
   const t = (decisionText || "").toLowerCase();
   const hit = TEMPLATES.find((tpl) => tpl.key.some((k) => t.includes(k)));
   const tpl = hit || TEMPLATES[0];
@@ -262,6 +261,73 @@ function autoDraftModel(decisionText: string): Model {
     influences: tpl.influences.map((i) => ({ ...i })),
     options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes } })),
   };
+}
+
+const clampN = (n: unknown, lo: number, hi: number): number => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return (lo + hi) / 2;
+  return Math.max(lo, Math.min(hi, x));
+};
+
+function validateDraftedModel(raw: any): Model | null {
+  if (!raw || typeof raw !== "object") return null;
+  if (!Array.isArray(raw.variables) || raw.variables.length === 0) return null;
+  const variables: Variable[] = raw.variables
+    .map((v: any) => {
+      const id = String(v?.id ?? "").trim();
+      if (!id) return null;
+      return {
+        id,
+        name: String(v?.name ?? id),
+        value: clampN(v?.value, 0, 100),
+        weight: clampN(v?.weight, -100, 100),
+      };
+    })
+    .filter(Boolean) as Variable[];
+  if (variables.length === 0) return null;
+  const ids = new Set(variables.map((v) => v.id));
+
+  const influences: Influence[] = (Array.isArray(raw.influences) ? raw.influences : [])
+    .map((i: any) => ({
+      from: String(i?.from ?? ""),
+      to: String(i?.to ?? ""),
+      strength: clampN(i?.strength, -100, 100),
+    }))
+    .filter((i: Influence) => ids.has(i.from) && ids.has(i.to));
+
+  const options: DecisionOption[] = (Array.isArray(raw.options) ? raw.options : [])
+    .map((o: any) => {
+      const pushes: Record<string, number> = {};
+      if (o?.pushes && typeof o.pushes === "object") {
+        for (const k of Object.keys(o.pushes)) {
+          if (!ids.has(k)) continue;
+          pushes[k] = clampN((o.pushes as any)[k], -60, 60);
+        }
+      }
+      return { id: uid(), name: String(o?.name ?? "Option"), pushes };
+    });
+  if (options.length === 0) return null;
+
+  return {
+    outcomeName: String(raw.outcomeName ?? "Outcome"),
+    horizon: Math.round(clampN(raw.horizon, 4, 36)),
+    variables,
+    influences,
+    options,
+  };
+}
+
+async function autoDraftModel(decisionText: string): Promise<Model> {
+  try {
+    const { draftModel } = await import("@/lib/draft-model.functions");
+    const raw = await draftModel({ data: { decisionText } });
+    const m = validateDraftedModel(raw);
+    if (!m) throw new Error("Invalid model JSON");
+    return m;
+  } catch (err) {
+    console.error("autoDraftModel failed", err);
+    throw err;
+  }
 }
 
 /* ------------------------------- palette --------------------------------
