@@ -1146,10 +1146,10 @@ export default function DecisionLens() {
       });
       setCritique(res.suggestions);
       if (!res.suggestions.length) {
-        toast.success("Looks solid", { description: "Decision Lens · no critical gaps found." });
+        toast.success("Looks solid", { description: "Decision Lens · nothing major stood out." });
       }
     } catch (e) {
-      toast.error("Critique failed", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+      toast.error("Second opinion failed", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
     } finally {
       setCritiquing(false);
     }
@@ -1161,10 +1161,10 @@ export default function DecisionLens() {
       let id = s.variable.id || uid();
       while (ids.has(id)) id = id + "_" + Math.random().toString(36).slice(2, 4);
       setVariables([...variables, { ...s.variable, id }]);
-      toast.success("Variable added", { description: "Decision Lens · " + s.variable.name });
+      toast.success("Driver added", { description: "Decision Lens · " + s.variable.name });
     } else if (s.kind === "add_influence" && s.influence) {
       setInfluences([...influences, s.influence]);
-      toast.success("Influence added", { description: "Decision Lens · linked drivers." });
+      toast.success("Knock-on effect added", { description: "Decision Lens · linked two drivers." });
     }
     setCritique((cur) => (cur ? cur.filter((x) => x !== s) : cur));
   }
@@ -1231,11 +1231,11 @@ export default function DecisionLens() {
               className="mt-1 text-3xl font-semibold tracking-tight text-foreground"
               style={{ fontFamily: FONT_DISPLAY }}
             >
-              Model the system. Roll the options forward. Then choose.
+              See where each choice leads — then decide with confidence.
             </h1>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Any decision is a small system: a few latent variables, the feedback loops between them, and the
-              options you're weighing. Build it once, then compare trajectories instead of arguing about vibes.
+              Every decision comes down to a few things that really matter and how your choices move them.
+              Map those once, and you can see how each option is likely to play out — instead of going on gut feel.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -1316,7 +1316,7 @@ export default function DecisionLens() {
                     Sources (optional)
                     <HelpPopover
                       title="Sources"
-                      body="Drop PDFs or paste URLs. We extract their text on the server and ground the AI model in their content."
+                      body="Drop PDFs or paste links. We'll read them and use them as the starting point for your decision map."
                     />
                   </div>
                   <input
@@ -1414,8 +1414,8 @@ export default function DecisionLens() {
                   const busy = ingesting || drafting;
                   const ingestMessages = [
                     "Reading your sources…",
-                    "Extracting the key drivers…",
-                    "Mapping the feedback loops…",
+                    "Picking out what really matters…",
+                    "Spotting the knock-on effects…",
                     "Laying out your options…",
                   ];
                   return (
@@ -1460,14 +1460,14 @@ export default function DecisionLens() {
                               </li>
                             </ul>
                             <p className="mt-3 text-xs text-muted-foreground">
-                              Decision Lens will read your sources on the server and build the variables, feedback loops, and options — about 10–30 seconds.
+                              Decision Lens will read your sources and lay out the drivers, knock-on effects, and options for you — about 10–30 seconds.
                             </p>
                           </div>
                         ) : (
                           <div>
                             <div className="text-sm font-medium text-foreground">Two ways to start</div>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Upload PDFs or paste links above and Decision Lens will read them to build your decision landscape — or skip sources and let AI draft from your question alone.
+                              Upload PDFs or paste links above and Decision Lens will read them to map your decision — or skip sources and let AI draft from your question alone.
                             </p>
                           </div>
                         )}
@@ -1528,10 +1528,10 @@ export default function DecisionLens() {
                           </div>
                           <div>
                             <label className="flex items-center gap-1 text-sm text-muted-foreground">
-                              Horizon: <span className="text-primary">{horizon} steps</span>
+                              How far ahead: <span className="text-primary">{horizon} steps</span>
                               <HelpPopover
-                                title="Horizon"
-                                body="How many steps forward we simulate each option. Short horizons show the immediate punch; long horizons reveal where feedback loops take you."
+                                title="How far ahead you're looking"
+                                body="A short range shows the quick wins. A longer range shows how things play out once the knock-on effects kick in."
                               />
                             </label>
                             <Slider
@@ -1541,7 +1541,7 @@ export default function DecisionLens() {
                               value={[horizon]}
                               onValueChange={(v) => setHorizon(v[0])}
                               className="mt-4"
-                              aria-label="Horizon"
+                              aria-label="How far ahead you're looking"
                             />
                           </div>
                         </div>
@@ -1653,7 +1653,7 @@ export default function DecisionLens() {
                     <p className="mt-2 text-sm text-foreground">{aiSummary}</p>
                   )}
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Built from your sources — review and adjust anything below, then move to Options → Decide.
+                    Built from your sources — tweak anything below, then move on to Options → Decide.
                   </p>
                   {aiAttachedCount > 0 && (
                     <p className="mt-2 text-xs text-foreground">
@@ -1679,7 +1679,7 @@ export default function DecisionLens() {
                     </div>
                   )}
                   <p className="mt-3 text-xs text-dim">
-                    Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each variable to see why the AI included it.
+                    Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each driver to see why the AI included it.
                   </p>
                   <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <Button
@@ -1705,10 +1705,10 @@ export default function DecisionLens() {
               <Panel>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <SectionTag icon={Lightbulb} text="AI critique" />
+                    <SectionTag icon={Lightbulb} text="Second opinion" />
                     <HelpPopover
-                      title="AI critique"
-                      body="Looks for missing drivers, weak feedback loops, near-duplicate options, or a missing risk variable. Accept any suggestion to add it to your model."
+                      title="Second opinion"
+                      body="Spots things you may have missed — an important factor, a downside to consider, or two options that look too alike."
                     />
                   </div>
                   <Button
@@ -1719,7 +1719,7 @@ export default function DecisionLens() {
                     className="gap-1.5"
                   >
                     {critiquing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                    {critique ? "Re-run critique" : "Critique my model"}
+                    {critique ? "Get another second opinion" : "Get a second opinion"}
                   </Button>
                 </div>
                 {critique && critique.length > 0 && (
@@ -1734,13 +1734,13 @@ export default function DecisionLens() {
                           {s.message}
                           {s.kind === "add_variable" && s.variable && (
                             <div className="mt-1 text-dim">
-                              → add variable <b className="text-foreground">{s.variable.name}</b>{" "}
-                              ({s.variable.weight >= 0 ? "helps" : "hurts"} {Math.abs(s.variable.weight)})
+                              → add driver <b className="text-foreground">{s.variable.name}</b>{" "}
+                              ({s.variable.weight >= 0 ? "helps" : "hurts"} your goal · {Math.abs(s.variable.weight)})
                             </div>
                           )}
                           {s.kind === "add_influence" && s.influence && (
                             <div className="mt-1 text-dim">
-                              → link <b className="text-foreground">{variables.find((v) => v.id === s.influence!.from)?.name ?? s.influence.from}</b>
+                              → knock-on: <b className="text-foreground">{variables.find((v) => v.id === s.influence!.from)?.name ?? s.influence.from}</b>
                               {" → "}
                               <b className="text-foreground">{variables.find((v) => v.id === s.influence!.to)?.name ?? s.influence.to}</b>
                               {" "}({s.influence.strength >= 0 ? "+" : ""}{s.influence.strength})
@@ -1758,12 +1758,12 @@ export default function DecisionLens() {
                 )}
                 {critique && critique.length === 0 && (
                   <p className="mt-3 text-xs text-muted-foreground">
-                    No critical gaps found — your model looks coherent.
+                    Nothing major stands out — your map looks coherent.
                   </p>
                 )}
                 {!critique && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Get 2–4 suggestions: missing drivers, weak feedback loops, duplicate options, or absent risks.
+                    Get a few suggestions: a factor you might be missing, a downside to weigh, or options that are too similar.
                   </p>
                 )}
               </Panel>
@@ -1776,10 +1776,10 @@ export default function DecisionLens() {
               <Panel>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <SectionTag icon={Network} text="State variables" />
+                    <SectionTag icon={Network} text="What's driving this decision" />
                     <HelpPopover
-                      title="Latent variable"
-                      body="A small number of underlying forces that actually drive the outcome — not symptoms. Examples: trust, demand, runway."
+                      title="What's a driver?"
+                      body="The handful of things that genuinely move your outcome — like trust, demand, or cash on hand. Not surface details."
                     />
                   </div>
                   <Button
@@ -1794,8 +1794,7 @@ export default function DecisionLens() {
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  The few things that actually drive {outcomeName.toLowerCase()}. Set where each stands today and
-                  whether it helps or hurts.
+                  The few things that actually move {outcomeName.toLowerCase()}. Set where each stands today and whether it helps or hurts your goal.
                 </p>
                 <div className="mt-3 grid gap-3">
                   {variables.map((v) => (
@@ -1805,10 +1804,10 @@ export default function DecisionLens() {
                           value={v.name}
                           onChange={(e) => updVar(v.id, { name: e.target.value })}
                           className="flex-1 h-9 bg-transparent text-sm font-medium"
-                          aria-label={"Variable name: " + v.name}
+                          aria-label={"Driver name: " + v.name}
                         />
                         {v.rationale && (
-                          <HelpPopover title="Why this variable" body={v.rationale} />
+                          <HelpPopover title="Why this driver" body={v.rationale} />
                         )}
                         <Button
                           variant="ghost"
@@ -1826,13 +1825,13 @@ export default function DecisionLens() {
                           onChange={(x) => updVar(v.id, { value: x })}
                         />
                         <SliderRow
-                          label={v.weight >= 0 ? "Helps outcome" : "Hurts outcome"}
+                          label={v.weight >= 0 ? "Helps your goal" : "Hurts your goal"}
                           val={v.weight} min={-100} max={100}
                           tone={v.weight >= 0 ? "helps" : "hurts"}
                           onChange={(x) => updVar(v.id, { weight: x })}
                           help={{
-                            title: "Weight (helps / hurts)",
-                            body: "How strongly this variable lifts (positive) or drags (negative) the outcome. Bigger magnitude = bigger swing.",
+                            title: "Helps or hurts your goal",
+                            body: "How strongly this driver pushes the outcome up (helps) or pulls it down (hurts). Bigger number = bigger swing.",
                           }}
                         />
                       </div>
@@ -1842,10 +1841,10 @@ export default function DecisionLens() {
 
                 <div className="mt-5 flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <SectionTag icon={GitBranch} text="Influences (the loops)" />
+                    <SectionTag icon={GitBranch} text="Knock-on effects" />
                     <HelpPopover
-                      title="Influence (feedback loop)"
-                      body="A directed link saying one variable nudges another up or down each step. Chain a few together and you get a feedback loop — the engine of long-run behavior."
+                      title="Knock-on effects"
+                      body="How one driver affects another over time — for example, more trust lowers fear, or faster growth raises burn."
                     />
                   </div>
                   <Button
@@ -1860,7 +1859,7 @@ export default function DecisionLens() {
                 <div className="mt-3 grid gap-2">
                   {influences.length === 0 && (
                     <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                      <b className="text-foreground">No links yet.</b> Add how one variable pushes another — this is what creates the feedback loops that make outcomes diverge over time.
+                      <b className="text-foreground">No knock-on effects yet.</b> Add how one driver moves another — that's what makes the options play out differently over time.
                     </div>
                   )}
 
@@ -1876,13 +1875,13 @@ export default function DecisionLens() {
                         min={-100} max={100} step={1} value={[inf.strength]}
                         onValueChange={(val) => updInf(idx, { strength: val[0] })}
                         className="flex-1 min-w-[60px]"
-                        aria-label="Influence strength"
+                        aria-label="Knock-on effect strength"
                       />
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => setInfluences(influences.filter((_, i) => i !== idx))}
-                        aria-label="Remove influence"
+                        aria-label="Remove knock-on effect"
                         className="text-dim"
                       >
                         <Trash2 size={14} />
@@ -1895,13 +1894,13 @@ export default function DecisionLens() {
 
               {/* live system map — transforms as you add variables & links */}
               <Panel>
-                <SectionTag icon={Network} text="System map" />
+                <SectionTag icon={Network} text="Decision map" />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Your model, live. Nodes are state variables (green helps, red hurts); arrows are influences.
+                  Your map, live. Bubbles are the drivers (green helps your goal, red hurts it); arrows are the knock-on effects between them.
                 </p>
                 <SystemMap variables={variables} influences={influences} />
                 <div className="mt-3 flex justify-end">
-                  <NavBtn dir="next" onClick={() => setStage("options")}>Define options</NavBtn>
+                  <NavBtn dir="next" onClick={() => setStage("options")}>Set up your options</NavBtn>
                 </div>
               </Panel>
             </div>
@@ -1925,12 +1924,11 @@ export default function DecisionLens() {
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Each option is an action that pushes the state every step. Drag a variable up if the option lifts
-                  it, down if it drags it.
+                  Each option is a choice you could make. For each driver, say whether this option boosts it or lowers it.
                 </p>
                 {options.every((o) => Object.values(o.pushes).every((p) => !p)) && (
                   <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                    <b className="text-foreground">No effects set yet.</b> Move at least one slider per option — that's how each option distinguishes itself in the simulation.
+                    <b className="text-foreground">Nothing set yet.</b> Move at least one slider per option — that's how each option stands apart when we look ahead.
                   </div>
                 )}
 
@@ -1983,13 +1981,14 @@ export default function DecisionLens() {
                                   updOpt(o.id, { pushes: { ...o.pushes, [v.id]: val[0] } })
                                 }
                                 className="flex-1"
-                                aria-label={o.name + " effect on " + v.name}
+                                aria-label={o.name + (((o.pushes[v.id] || 0) > 0) ? " boosts " : ((o.pushes[v.id] || 0) < 0) ? " lowers " : " — no effect on ") + v.name}
                               />
                               <span
-                                className="text-xs text-dim text-right"
-                                style={{ width: 26 }}
+                                className={"text-[10px] font-semibold uppercase tracking-wide text-right " + ((o.pushes[v.id] || 0) > 0 ? "text-helps" : (o.pushes[v.id] || 0) < 0 ? "text-hurts" : "text-dim")}
+                                style={{ width: 48 }}
+                                title={(o.pushes[v.id] || 0) > 0 ? "This option boosts " + v.name : (o.pushes[v.id] || 0) < 0 ? "This option lowers " + v.name : "This option doesn't move " + v.name}
                               >
-                                {o.pushes[v.id] > 0 ? "+" : ""}{o.pushes[v.id] || 0}
+                                {(o.pushes[v.id] || 0) > 0 ? "▲ boosts" : (o.pushes[v.id] || 0) < 0 ? "▼ lowers" : "—"}
                               </span>
                             </div>
                           ))}
@@ -2006,8 +2005,8 @@ export default function DecisionLens() {
                   })}
                 </div>
                 <div className="mt-4 flex justify-between">
-                  <NavBtn dir="back" onClick={() => setStage("model")}>Back to model</NavBtn>
-                  <NavBtn dir="next" onClick={() => setStage("decide")}>Roll forward &amp; decide</NavBtn>
+                  <NavBtn dir="back" onClick={() => setStage("model")}>Back to the map</NavBtn>
+                  <NavBtn dir="next" onClick={() => setStage("decide")}>See how each plays out</NavBtn>
                 </div>
               </Panel>
             </div>
@@ -2017,11 +2016,9 @@ export default function DecisionLens() {
           <TabsContent value="decide" className="mt-0">
             <div className="dl-decide">
               <Panel>
-                <SectionTag icon={Telescope} text={"Rollout · " + outcomeName} />
+                <SectionTag icon={Telescope} text={"How each option plays out · " + outcomeName} />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Each line is one option's {outcomeName.toLowerCase()} over {horizon} steps. The shaded fan on the
-                  focused option is the p10–p90 range from Monte-Carlo rollouts — it widens as model noise
-                  compounds, so trust the near term.
+                  Each line shows how an option is likely to affect {outcomeName.toLowerCase()} over time. The shaded area is the range of how things could go — we're more confident about the near term than far ahead.
                 </p>
                 <TrajectoryChart
                   runs={runs}
@@ -2037,14 +2034,14 @@ export default function DecisionLens() {
                       {r.option.name}
                     </span>
                   ))}
-                  <span className="ml-auto text-dim">simulations: {MC_RUNS}</span>
+                  <span className="ml-auto text-dim">based on {MC_RUNS} possible futures</span>
                 </div>
               </Panel>
 
 
               <div className="grid gap-5">
                 <Panel>
-                  <SectionTag icon={Target} text="Ranked options" />
+                  <SectionTag icon={Target} text="Which option looks best" />
                   <div className="mt-3 grid gap-2">
                     {ranked.map((r, i) => (
                       <button
@@ -2066,14 +2063,14 @@ export default function DecisionLens() {
                         <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
                         <span className="flex-1 text-sm">{r.option.name}</span>
                         <span className="flex flex-col items-end leading-tight">
-                          <span className="text-lg font-bold tabular-nums">
-                            {Math.round(r.winProb * 100)}%
+                          <span className="text-sm font-semibold tabular-nums text-foreground">
+                            ~{Math.round(r.winProb * 10)} of 10
                           </span>
                           <span className="text-[10px] text-dim tabular-nums">
-                            median {Math.round(r.score)}
+                            Outlook {Math.round(r.score)}
                           </span>
                         </span>
-                        {i === 0 && <span className="text-xs font-semibold text-helps">best in {Math.round(r.winProb * 100)}%</span>}
+                        {i === 0 && <span className="text-xs font-semibold text-helps">comes out ahead in ~{Math.round(r.winProb * 10)} of 10 likely futures</span>}
                       </button>
                     ))}
 
@@ -2126,28 +2123,26 @@ export default function DecisionLens() {
 
 
                 <Panel>
-                  <SectionTag icon={Telescope} text="Respect the model error" />
+                  <SectionTag icon={Telescope} text="Things to keep in mind" />
                   <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
                     <li>
-                      <b className="text-foreground">Load-bearing:</b> the gap between #1 and #2 is{" "}
-                      {Math.round(best.score - (ranked[1]?.score ?? best.score))} pts. If that's thin, this is a
-                      near-tie — don't over-trust the ranking.
+                      <b className="text-foreground">How close is the race:</b> the gap in outlook between #1 and #2 is{" "}
+                      {Math.round(best.score - (ranked[1]?.score ?? best.score))} points. If that's small, this is basically a tie — don't over-trust the ranking.
                     </li>
                     <li>
-                      <b className="text-foreground">Decays with horizon:</b> reliability falls off after a few
-                      steps. Re-run as reality comes in.
+                      <b className="text-foreground">Near term is more reliable:</b> the further out you look, the fuzzier things get. Revisit this as new information comes in.
                     </li>
                     <li>
-                      <b className="text-foreground">Cheapest probe:</b>{" "}
+                      <b className="text-foreground">Cheapest thing to check first:</b>{" "}
                       {suggestedProbe ? (
-                        <>measure <b className="text-primary">{suggestedProbe.variable.name}</b> before committing — it feeds {suggestedProbe.outDegree} downstream {suggestedProbe.outDegree === 1 ? "link" : "links"}.</>
+                        <>get a read on <b className="text-primary">{suggestedProbe.variable.name}</b> before you commit — it affects {suggestedProbe.outDegree} other {suggestedProbe.outDegree === 1 ? "driver" : "drivers"}.</>
                       ) : (
-                        <>measure whichever upstream variable feeds the most arrows before committing.</>
+                        <>get a read on whichever driver feeds the most arrows before you commit.</>
                       )}
                     </li>
                     {best.winProb >= 0.95 && Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
                       <li>
-                        <b className="text-foreground">Robust lead:</b> in this model, #1 wins in essentially every plausible world. Stress-test it by lowering its strongest variable weight or strengthening a competing influence.
+                        <b className="text-foreground">Strong lead:</b> #1 comes out ahead in almost every likely future. To pressure-test it, try lowering its strongest helping driver or strengthening a knock-on effect that works against it.
                       </li>
                     )}
                   </ul>
@@ -2158,7 +2153,7 @@ export default function DecisionLens() {
                     onClick={() => setStage("model")}
                     className="mt-3 gap-2"
                   >
-                    <RotateCcw size={13} /> Adjust the model
+                    <RotateCcw size={13} /> Tweak the map
                   </Button>
                 </Panel>
               </div>
@@ -2200,7 +2195,7 @@ export default function DecisionLens() {
               Save as template
             </DialogTitle>
             <DialogDescription>
-              Decision Lens · stores your current model in this browser for reuse.
+              Decision Lens · saves your current map in this browser so you can reuse it.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2 grid gap-2">
@@ -2285,7 +2280,7 @@ function ActionPlanEditor({
 
       {actions.length === 0 && (
         <p className="mt-2 text-xs text-muted-foreground">
-          No actions yet. Add a step the team would execute, or let AI suggest some.
+          No actions yet. Add a step your team would actually take, or let AI suggest a few.
         </p>
       )}
 
@@ -2313,14 +2308,13 @@ function ActionPlanEditor({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-amber-500"
-                        aria-label="Action targets a variable this option doesn't push"
+                        aria-label="This action affects a driver the option doesn't move"
                       >
                         <AlertTriangle size={14} />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent side="top" className="w-64 text-xs">
-                      This action targets a variable the option's sliders don't move. Either
-                      adjust the pushes above or remove the unrelated target.
+                      This action affects a driver the option's sliders don't move. Either adjust the sliders above or drop the unrelated driver.
                     </PopoverContent>
                   </Popover>
                 )}
@@ -2461,7 +2455,7 @@ function ActionPlanReadout({
     lines.push("");
     lines.push(`**Decision:** ${decision || "(unnamed decision)"}`);
     lines.push(`**Chosen strategy:** ${option.name}`);
-    lines.push(`**Win-probability (${outcomeName}):** ${winPct}%`);
+    lines.push(`**Comes out ahead in ~${Math.round(winPct/10)} of 10 likely futures** (${outcomeName})`);
     lines.push("");
     if (explanation) {
       lines.push(`## Why this strategy`);
@@ -2486,7 +2480,7 @@ function ActionPlanReadout({
           .filter(Boolean) as string[];
         const meta: string[] = [];
         if (a.effort) meta.push(`effort: ${a.effort}`);
-        if (targets.length) meta.push(`drivers: ${targets.join(", ")}`);
+        if (targets.length) meta.push(`drivers it moves: ${targets.join(", ")}`);
         lines.push(`- ${a.text}${meta.length ? `  _(${meta.join(" · ")})_` : ""}`);
       }
     });
@@ -2542,7 +2536,7 @@ function ActionPlanReadout({
             aria-label={`Generate actions for ${option.name}`}
           >
             {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-            Generate them
+            Suggest some
           </Button>
         </div>
       ) : (
@@ -2578,7 +2572,7 @@ function ActionPlanReadout({
                             <span
                               key={tid}
                               className={"inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] " + tone}
-                              aria-label={`${v.name} ${push > 0 ? "increases" : push < 0 ? "decreases" : "unchanged"}`}
+                              aria-label={`${v.name} ${push > 0 ? "boosted" : push < 0 ? "lowered" : "unchanged"}`}
                             >
                               <span aria-hidden>{arrow}</span>
                               {v.name}
@@ -2936,7 +2930,7 @@ function WelcomeDialog({
             Welcome to Decision Lens
           </DialogTitle>
           <DialogDescription>
-            Turn a messy decision into a clear, operational plan. Upload your documents or describe the decision, AI maps the forces and options, Monte-Carlo simulates each one — and you walk away with a sequenced action plan for the winning strategy.
+            Turn a messy decision into a clear, do-this-next plan. Upload your documents or describe the decision in plain words. AI maps the few things that really matter and your options, then shows how each one is likely to play out — so you walk away with a sequenced action plan for the strongest choice.
           </DialogDescription>
         </DialogHeader>
 
@@ -2944,10 +2938,10 @@ function WelcomeDialog({
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">How it works</div>
           <ol className="mt-2 grid gap-1 text-sm text-foreground">
             <li><b className="text-primary">1. Add your material</b> — drop PDFs or paste links (or just describe it).</li>
-            <li><b className="text-primary">2. AI maps the landscape</b> — variables, feedback loops, options, and concrete actions.</li>
-            <li><b className="text-primary">3. Tune & critique</b> — adjust anything; ask AI to critique what's missing.</li>
-            <li><b className="text-primary">4. Decide with Monte-Carlo</b> — 300 simulated rollouts give each option a win-probability.</li>
-            <li><b className="text-primary">5. Get an action plan</b> — sequenced Now / Soon / Ongoing steps you can export as Markdown.</li>
+            <li><b className="text-primary">2. AI maps the picture</b> — the drivers, the knock-on effects, the options, and concrete actions.</li>
+            <li><b className="text-primary">3. Tweak & second-opinion</b> — adjust anything; ask AI what you might be missing.</li>
+            <li><b className="text-primary">4. See how each plays out</b> — we look across many possible futures to see which option comes out ahead.</li>
+            <li><b className="text-primary">5. Get an action plan</b> — sequenced Now / Soon / Ongoing steps you can copy as Markdown.</li>
           </ol>
         </div>
 
@@ -2986,11 +2980,11 @@ function WelcomeDialog({
 }
 
 const TOUR_COPY = [
-  "Start here: drop PDFs or paste links, then click Map my decision — AI reads them and drafts variables, options, and a first cut of actions.",
-  "Prefer to type? Describe the decision in your own words and let AI draft the model from scratch.",
-  "Review the variables and feedback loops. Click 'Critique my model' to have AI flag missing forces or biased framings.",
-  "Shape each option as pushes on the system — then hit ✨ Suggest actions to turn it into concrete, driver-linked steps.",
-  "Decide tab: Monte-Carlo runs 300 rollouts to give each option a win-probability, explains why the leader wins, and hands you a Now / Soon / Ongoing action plan you can export.",
+  "Start here: drop PDFs or paste links, then click Map my decision — AI reads them and lays out the drivers, options, and first-cut actions.",
+  "Prefer to type? Describe the decision in your own words and let AI draft the map from scratch.",
+  "Look over the drivers and knock-on effects. Click 'Get a second opinion' to have AI flag things you might be missing.",
+  "Set how each option moves the drivers — then hit ✨ Suggest actions to turn it into concrete next steps.",
+  "Decide tab: we look across many possible futures to see which option comes out ahead, explain why, and hand you a Now / Soon / Ongoing action plan you can copy.",
 ];
 
 
