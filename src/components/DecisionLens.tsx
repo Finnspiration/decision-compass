@@ -2046,11 +2046,31 @@ export default function DecisionLens() {
 
               {/* live system map — transforms as you add variables & links */}
               <Panel>
-                <SectionTag icon={Network} text="Decision map" />
+                <div className="flex items-start justify-between gap-2">
+                  <SectionTag icon={Network} text="Decision map" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setMapOpen(true)}
+                    aria-label="Open larger decision map"
+                    className="gap-1.5 -mt-1 -mr-1"
+                  >
+                    <Maximize2 size={14} />
+                    Expand
+                  </Button>
+                </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Your map, live. Bubbles are the drivers (green helps your goal, red hurts it); arrows are the knock-on effects between them.
                 </p>
-                <SystemMap variables={variables} influences={influences} />
+                <button
+                  type="button"
+                  onClick={() => setMapOpen(true)}
+                  aria-label="Open larger decision map"
+                  className="block w-full text-left cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <SystemMap variables={variables} influences={influences} />
+                </button>
                 <div className="mt-3 flex justify-end">
                   <NavBtn dir="next" onClick={() => setStage("options")}>Set up your options</NavBtn>
                 </div>
