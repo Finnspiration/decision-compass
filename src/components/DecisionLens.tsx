@@ -1,6 +1,7 @@
-import React, { useMemo, useRef, useState, type CSSProperties } from "react";
+import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { toast } from "sonner";
 import {
-  Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2,
+  Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2,
   Target, Network, GitBranch, Telescope, RotateCcw,
 } from "lucide-react";
 
@@ -38,6 +39,58 @@ type Model = {
   influences: Influence[];
   options: DecisionOption[];
 };
+
+/* --------------------------- URL hash codec ----------------------------- */
+function encodeModel(m: Model): string {
+  // Compact JSON; URL-safe via encodeURIComponent. Correctness over cleverness.
+  const compact = {
+    o: m.outcomeName,
+    h: m.horizon,
+    v: m.variables.map((v) => ({ i: v.id, n: v.name, v: v.value, w: v.weight })),
+    e: m.influences.map((i) => ({ f: i.from, t: i.to, s: i.strength })),
+    p: m.options.map((o) => ({ i: o.id, n: o.name, p: o.pushes })),
+  };
+  return encodeURIComponent(JSON.stringify(compact));
+}
+
+function parseHashModel(hash: string): Model | null {
+  try {
+    const m = hash.match(/[#&]m=([^&]+)/);
+    if (!m) return null;
+    const raw = JSON.parse(decodeURIComponent(m[1]));
+    if (!raw || typeof raw !== "object") return null;
+    const outcomeName = String(raw.o ?? "");
+    const horizon = Number(raw.h);
+    if (!outcomeName || !Number.isFinite(horizon) || horizon < 1 || horizon > 200) return null;
+    if (!Array.isArray(raw.v) || !Array.isArray(raw.e) || !Array.isArray(raw.p)) return null;
+    const variables: Variable[] = raw.v.map((v: any) => ({
+      id: String(v.i), name: String(v.n ?? ""),
+      value: Number(v.v), weight: Number(v.w),
+    }));
+    if (variables.some((v) => !v.id || !Number.isFinite(v.value) || !Number.isFinite(v.weight))) return null;
+    const ids = new Set(variables.map((v) => v.id));
+    const influences: Influence[] = raw.e.map((i: any) => ({
+      from: String(i.f), to: String(i.t), strength: Number(i.s),
+    }));
+    if (influences.some((i) => !ids.has(i.from) || !ids.has(i.to) || !Number.isFinite(i.strength))) return null;
+    const options: DecisionOption[] = raw.p.map((o: any) => {
+      const pushes: Record<string, number> = {};
+      if (o.p && typeof o.p === "object") {
+        for (const k of Object.keys(o.p)) {
+          if (!ids.has(k)) return null as any;
+          const n = Number((o.p as any)[k]);
+          if (!Number.isFinite(n)) return null as any;
+          pushes[k] = n;
+        }
+      }
+      return { id: String(o.i), name: String(o.n ?? ""), pushes };
+    });
+    if (options.some((o) => !o || !o.id)) return null;
+    return { outcomeName, horizon, variables, influences, options };
+  } catch {
+    return null;
+  }
+}
 
 /* --------------------------- SVG palette --------------------------------
    SystemMap and TrajectoryChart SVGs are kept "as-is" per spec.
@@ -245,6 +298,56 @@ export default function DecisionLens() {
     setFocusOpt(null);
   }
 
+  const model: Model = useMemo(
+    () => ({ outcomeName, horizon, variables, influences, options }),
+    [outcomeName, horizon, variables, influences, options]
+  );
+
+  // Load model from #m= on first mount
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    if (typeof window === "undefined") return;
+    const m = parseHashModel(window.location.hash);
+    if (m) loadModel(m);
+  }, []);
+
+  // Debounced write of model to #m=
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handle = window.setTimeout(() => {
+      try {
+        const encoded = encodeModel(model);
+        const newHash = "#m=" + encoded;
+        if (window.location.hash !== newHash) {
+          window.history.replaceState(null, "", window.location.pathname + window.location.search + newHash);
+        }
+      } catch {
+        /* noop */
+      }
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [model]);
+
+  async function shareLink() {
+    try {
+      const encoded = encodeModel(model);
+      const url = `${window.location.origin}${window.location.pathname}${window.location.search}#m=${encoded}`;
+      window.history.replaceState(null, "", url);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = url; document.body.appendChild(ta); ta.select();
+        document.execCommand("copy"); document.body.removeChild(ta);
+      }
+      toast.success("Copied!", { description: "Decision Lens · share link ready to paste." });
+    } catch {
+      toast.error("Couldn't copy link", { description: "Decision Lens · try copying the URL manually." });
+    }
+  }
+
   const runs = useMemo(
     () =>
       options.map((o, i) => ({
@@ -296,20 +399,33 @@ export default function DecisionLens() {
     >
       <div className="mx-auto max-w-6xl px-5 py-8">
         {/* header */}
-        <header className="mb-5">
-          <div className="text-xs font-semibold text-primary tracking-[0.18em]">
-            DECISION LENS · WORLD-MODEL THINKING
+        <header className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold text-primary tracking-[0.18em]">
+              DECISION LENS · WORLD-MODEL THINKING
+            </div>
+            <h1
+              className="mt-1 text-3xl font-semibold tracking-tight text-foreground"
+              style={{ fontFamily: FONT_DISPLAY }}
+            >
+              Model the system. Roll the options forward. Then choose.
+            </h1>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              Any decision is a small system: a few latent variables, the feedback loops between them, and the
+              options you're weighing. Build it once, then compare trajectories instead of arguing about vibes.
+            </p>
           </div>
-          <h1
-            className="mt-1 text-3xl font-semibold tracking-tight text-foreground"
-            style={{ fontFamily: FONT_DISPLAY }}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={shareLink}
+            className="shrink-0 gap-2"
+            aria-label="Copy shareable link to this decision"
           >
-            Model the system. Roll the options forward. Then choose.
-          </h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Any decision is a small system: a few latent variables, the feedback loops between them, and the
-            options you're weighing. Build it once, then compare trajectories instead of arguing about vibes.
-          </p>
+            <Share2 size={15} />
+            Share
+          </Button>
         </header>
 
         <Tabs value={stage} onValueChange={(v) => setStage(v as Stage)} className="w-full">
