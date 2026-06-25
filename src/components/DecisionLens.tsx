@@ -1011,12 +1011,18 @@ export default function DecisionLens() {
                         <span className="w-[18px] text-sm font-semibold text-dim">{i + 1}</span>
                         <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
                         <span className="flex-1 text-sm">{r.option.name}</span>
-                        <span className="text-lg font-bold tabular-nums">
-                          {Math.round(r.score)}
+                        <span className="flex flex-col items-end leading-tight">
+                          <span className="text-lg font-bold tabular-nums">
+                            {Math.round(r.winProb * 100)}%
+                          </span>
+                          <span className="text-[10px] text-dim tabular-nums">
+                            median {Math.round(r.score)}
+                          </span>
                         </span>
-                        {i === 0 && <span className="text-xs font-semibold text-helps">best</span>}
+                        {i === 0 && <span className="text-xs font-semibold text-helps">best in {Math.round(r.winProb * 100)}%</span>}
                       </button>
                     ))}
+
                   </div>
                 </Panel>
 
