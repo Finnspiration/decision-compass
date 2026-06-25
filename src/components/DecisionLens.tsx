@@ -2005,8 +2005,8 @@ export default function DecisionLens() {
                   })}
                 </div>
                 <div className="mt-4 flex justify-between">
-                  <NavBtn dir="back" onClick={() => setStage("model")}>Back to model</NavBtn>
-                  <NavBtn dir="next" onClick={() => setStage("decide")}>Roll forward &amp; decide</NavBtn>
+                  <NavBtn dir="back" onClick={() => setStage("model")}>Back to the map</NavBtn>
+                  <NavBtn dir="next" onClick={() => setStage("decide")}>See how each plays out</NavBtn>
                 </div>
               </Panel>
             </div>
