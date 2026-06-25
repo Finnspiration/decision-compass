@@ -2107,6 +2107,9 @@ export default function DecisionLens() {
                 <p className="mt-2 text-xs text-muted-foreground">
                   Each line shows how an option is likely to affect {outcomeName.toLowerCase()} over time. The shaded area is the range of how things could go — we're more confident about the near term than far ahead.
                 </p>
+                <p className="mt-1 text-xs text-dim">
+                  Higher on the chart = better outlook. The ranking on the right is <b className="text-muted-foreground">relative</b> — it shows which option does best compared to the others, not whether things improve overall.
+                </p>
                 <TrajectoryChart
                   runs={runs}
                   horizon={horizon}
@@ -2123,7 +2126,26 @@ export default function DecisionLens() {
                   ))}
                   <span className="ml-auto text-dim">based on {MC_RUNS} possible futures</span>
                 </div>
+                <div className="mt-3 grid gap-1.5 border-t border-border pt-3">
+                  {runs.map((r) => {
+                    const d = deltas[r.option.id];
+                    if (!d) return null;
+                    const delta = Math.round(d.delta);
+                    const tone = delta >= 2 ? "text-helps" : delta <= -2 ? "text-hurts" : "text-dim";
+                    const glyph = delta >= 2 ? "▲" : delta <= -2 ? "▼" : "→";
+                    const sign = delta > 0 ? "+" : "";
+                    return (
+                      <div key={r.option.id} className="flex items-center gap-2 text-xs">
+                        <span className="inline-block h-2 w-2 rounded" style={{ background: r.color }} />
+                        <span className="flex-1 truncate text-muted-foreground">{r.option.name}</span>
+                        <span className="tabular-nums text-dim">starts {Math.round(d.start)} → ends {Math.round(d.end)}</span>
+                        <span className={"tabular-nums font-semibold w-14 text-right " + tone}>{glyph} {sign}{delta}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </Panel>
+
 
 
               <div className="grid gap-5">
