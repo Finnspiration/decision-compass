@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
+  HelpCircle, Upload, FileText, Compass, MousePointerClick,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +15,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+
+const ONBOARD_KEY = "dl_onboarded";
 
 /* ============================================================================
    DECISION LENS — a generally-applicable, decision-focused world model.
