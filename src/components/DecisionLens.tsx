@@ -651,8 +651,10 @@ export default function DecisionLens() {
   }
   function startTour() {
     closeWelcome(dontShow);
-    setTourStep(0);
     setStage(STAGES[0].id);
+    requestAnimationFrame(() => {
+      setTourStep(dropzoneRef.current ? 0 : 1);
+    });
   }
 
   function addPdfFiles(incoming: File[]) {
