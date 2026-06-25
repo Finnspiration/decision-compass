@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { toast } from "sonner";
 import {
-  Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2,
+  Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
 } from "lucide-react";
 
