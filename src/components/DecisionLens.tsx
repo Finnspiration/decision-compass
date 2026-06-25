@@ -5,8 +5,9 @@ import {
   Target, Network, GitBranch, Telescope, RotateCcw,
   HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
   BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle, AlertTriangle, Check,
-  Maximize2,
+  Maximize2, ChevronDown,
 } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { useServerFn } from "@tanstack/react-start";
 import { explainDecision, critiqueModel, suggestActions, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
 
@@ -2255,38 +2256,45 @@ export default function DecisionLens() {
 
 
               <Panel>
-                <SectionTag icon={Telescope} text="Things to keep in mind" />
-                <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
-                  <li>
-                    <b className="text-foreground">How close is the race:</b> the gap in outlook between #1 and #2 is{" "}
-                    {Math.round((best?.score ?? 0) - (ranked[1]?.score ?? best?.score ?? 0))} points. If that's small, this is basically a tie — don't over-trust the ranking.
-                  </li>
-                  <li>
-                    <b className="text-foreground">Near term is more reliable:</b> the further out you look, the fuzzier things get. Revisit this as new information comes in.
-                  </li>
-                  <li>
-                    <b className="text-foreground">Cheapest thing to check first:</b>{" "}
-                    {suggestedProbe ? (
-                      <>get a read on <b className="text-primary">{suggestedProbe.variable.name}</b> before you commit — it affects {suggestedProbe.outDegree} other {suggestedProbe.outDegree === 1 ? "driver" : "drivers"}.</>
-                    ) : (
-                      <>get a read on whichever driver feeds the most arrows before you commit.</>
-                    )}
-                  </li>
-                  {best && best.winProb >= 0.95 && Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
-                    <li>
-                      <b className="text-foreground">Strong lead:</b> #1 comes out ahead in almost every likely future. To pressure-test it, try lowering its strongest helping driver or strengthening a knock-on effect that works against it.
-                    </li>
-                  )}
-                </ul>
+                <Collapsible defaultOpen>
+                  <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
+                    <SectionTag icon={Telescope} text="Things to keep in mind" />
+                    <ChevronDown size={14} className="text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <ul className="mt-3 grid list-none gap-2 p-0 text-xs text-muted-foreground">
+                      <li>
+                        <b className="text-foreground">How close is the race:</b> the gap in outlook between #1 and #2 is{" "}
+                        {Math.round((best?.score ?? 0) - (ranked[1]?.score ?? best?.score ?? 0))} points. If that's small, this is basically a tie — don't over-trust the ranking.
+                      </li>
+                      <li>
+                        <b className="text-foreground">Near term is more reliable:</b> the further out you look, the fuzzier things get. Revisit this as new information comes in.
+                      </li>
+                      <li>
+                        <b className="text-foreground">Cheapest thing to check first:</b>{" "}
+                        {suggestedProbe ? (
+                          <>get a read on <b className="text-primary">{suggestedProbe.variable.name}</b> before you commit — it affects {suggestedProbe.outDegree} other {suggestedProbe.outDegree === 1 ? "driver" : "drivers"}.</>
+                        ) : (
+                          <>get a read on whichever driver feeds the most arrows before you commit.</>
+                        )}
+                      </li>
+                      {best && best.winProb >= 0.95 && Math.round(best.score - (ranked[1]?.score ?? best.score)) >= 10 && (
+                        <li>
+                          <b className="text-foreground">Strong lead:</b> #1 comes out ahead in almost every likely future. To pressure-test it, try lowering its strongest helping driver or strengthening a knock-on effect that works against it.
+                        </li>
+                      )}
+                    </ul>
 
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setStage("model")}
-                  className="mt-3 gap-2"
-                >
-                  <RotateCcw size={13} /> Tweak the map
-                </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setStage("model")}
+                      className="mt-3 gap-2"
+                    >
+                      <RotateCcw size={13} /> Tweak the map
+                    </Button>
+                  </CollapsibleContent>
+                </Collapsible>
               </Panel>
 
               <Panel>
@@ -2787,95 +2795,102 @@ function ActionPlanReadout({
 
   return (
     <Panel>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <SectionTag icon={PlayCircle} text={`Action plan — ${option.name}`} />
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={exportPlan}
-          disabled={actions.length === 0}
-          className="h-8 gap-1.5"
-          aria-label={`Export action plan for ${option.name} as Markdown`}
-        >
-          <Share2 size={13} /> Export plan
-        </Button>
-      </div>
-
-      {explanation && (
-        <div className="mt-3 rounded-lg border border-border bg-muted/60 p-3">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Why this strategy
-          </div>
-          <p className="text-xs leading-relaxed text-foreground">{explanation}</p>
-        </div>
-      )}
-
-      {actions.length === 0 ? (
-        <div className="mt-3 rounded-lg border border-dashed border-border bg-background/40 p-4 text-xs text-muted-foreground">
-          <p>
-            No actions yet — add them in <button onClick={onGoOptions} className="underline underline-offset-2 hover:text-foreground">Options</button>, or
-          </p>
+      <Collapsible defaultOpen>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <CollapsibleTrigger className="group flex flex-1 items-center justify-between gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
+            <SectionTag icon={PlayCircle} text={`Action plan — ${option.name}`} />
+            <ChevronDown size={14} className="text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
+          </CollapsibleTrigger>
           <Button
             size="sm"
             variant="secondary"
-            onClick={onSuggest}
-            disabled={suggesting}
-            className="mt-2 h-8 gap-1.5"
-            aria-label={`Generate actions for ${option.name}`}
+            onClick={exportPlan}
+            disabled={actions.length === 0}
+            className="h-8 gap-1.5"
+            aria-label={`Export action plan for ${option.name} as Markdown`}
           >
-            {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-            Suggest some
+            <Share2 size={13} /> Export plan
           </Button>
         </div>
-      ) : (
-        <div className="mt-3 grid gap-3 md:grid-cols-3">
-          {(["now", "soon", "ongoing"] as const).map((k) => (
-            <div key={k} className="rounded-lg border border-border/60 bg-background/40 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {WHEN_LABEL[k]}
-                </div>
-                <span className="text-[10px] tabular-nums text-dim">{groups[k].length}</span>
+
+        <CollapsibleContent>
+          {explanation && (
+            <div className="mt-3 rounded-lg border border-border bg-muted/60 p-3">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Why this strategy
               </div>
-              {groups[k].length === 0 ? (
-                <p className="text-[11px] text-dim">—</p>
-              ) : (
-                <ul className="grid list-none gap-2 p-0">
-                  {groups[k].map((a, i) => (
-                    <li key={i} className="rounded-md border border-border/50 bg-card/60 p-2">
-                      <p className="text-xs leading-snug text-foreground">{a.text}</p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                        {a.effort && (
-                          <span className="rounded-full border border-border bg-secondary/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
-                            {a.effort}
-                          </span>
-                        )}
-                        {(a.targets ?? []).map((tid) => {
-                          const v = varById.get(tid);
-                          if (!v) return null;
-                          const push = option.pushes[tid] ?? 0;
-                          const arrow = push > 0 ? "▲" : push < 0 ? "▼" : "·";
-                          const tone = v.weight >= 0 ? "text-helps border-helps/40 bg-helps/10" : "text-hurts border-hurts/40 bg-hurts/10";
-                          return (
-                            <span
-                              key={tid}
-                              className={"inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] " + tone}
-                              aria-label={`${v.name} ${push > 0 ? "boosted" : push < 0 ? "lowered" : "unchanged"}`}
-                            >
-                              <span aria-hidden>{arrow}</span>
-                              {v.name}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <p className="text-xs leading-relaxed text-foreground">{explanation}</p>
             </div>
-          ))}
-        </div>
-      )}
+          )}
+
+          {actions.length === 0 ? (
+            <div className="mt-3 rounded-lg border border-dashed border-border bg-background/40 p-4 text-xs text-muted-foreground">
+              <p>
+                No actions yet — add them in <button onClick={onGoOptions} className="underline underline-offset-2 hover:text-foreground">Options</button>, or
+              </p>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={onSuggest}
+                disabled={suggesting}
+                className="mt-2 h-8 gap-1.5"
+                aria-label={`Generate actions for ${option.name}`}
+              >
+                {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                Suggest some
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              {(["now", "soon", "ongoing"] as const).map((k) => (
+                <div key={k} className="rounded-lg border border-border/60 bg-background/40 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {WHEN_LABEL[k]}
+                    </div>
+                    <span className="text-[10px] tabular-nums text-dim">{groups[k].length}</span>
+                  </div>
+                  {groups[k].length === 0 ? (
+                    <p className="text-[11px] text-dim">—</p>
+                  ) : (
+                    <ul className="grid list-none gap-2 p-0">
+                      {groups[k].map((a, i) => (
+                        <li key={i} className="rounded-md border border-border/50 bg-card/60 p-2">
+                          <p className="text-xs leading-snug text-foreground">{a.text}</p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                            {a.effort && (
+                              <span className="rounded-full border border-border bg-secondary/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
+                                {a.effort}
+                              </span>
+                            )}
+                            {(a.targets ?? []).map((tid) => {
+                              const v = varById.get(tid);
+                              if (!v) return null;
+                              const push = option.pushes[tid] ?? 0;
+                              const arrow = push > 0 ? "▲" : push < 0 ? "▼" : "·";
+                              const tone = v.weight >= 0 ? "text-helps border-helps/40 bg-helps/10" : "text-hurts border-hurts/40 bg-hurts/10";
+                              return (
+                                <span
+                                  key={tid}
+                                  className={"inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] " + tone}
+                                  aria-label={`${v.name} ${push > 0 ? "boosted" : push < 0 ? "lowered" : "unchanged"}`}
+                                >
+                                  <span aria-hidden>{arrow}</span>
+                                  {v.name}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
     </Panel>
   );
 }
