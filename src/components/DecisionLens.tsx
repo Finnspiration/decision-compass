@@ -2034,7 +2034,7 @@ export default function DecisionLens() {
                       {r.option.name}
                     </span>
                   ))}
-                  <span className="ml-auto text-dim">simulations: {MC_RUNS}</span>
+                  <span className="ml-auto text-dim">based on {MC_RUNS} possible futures</span>
                 </div>
               </Panel>
 
