@@ -763,6 +763,86 @@ export default function DecisionLens() {
   );
   const best = ranked[0];
 
+  /* --------------------------- AI assistance --------------------------- */
+  const callExplain = useServerFn(explainDecision);
+  const callCritique = useServerFn(critiqueModel);
+  const [explaining, setExplaining] = useState(false);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [critiquing, setCritiquing] = useState(false);
+  const [critique, setCritique] = useState<CritiqueSuggestion[] | null>(null);
+
+  // Invalidate stale AI output when the model changes
+  useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
+  useEffect(() => { setCritique(null); }, [variables, influences, options]);
+
+  async function runExplain() {
+    if (!ranked.length) return;
+    setExplaining(true);
+    try {
+      const res = await callExplain({
+        data: {
+          model: { outcomeName, horizon, variables, influences, options },
+          ranked: ranked.map((r) => ({ name: r.option.name, score: r.score, winProb: r.winProb })),
+        },
+      });
+      setExplanation(res.explanation);
+    } catch (e) {
+      toast.error("Couldn't explain", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+    } finally {
+      setExplaining(false);
+    }
+  }
+
+  async function runCritique() {
+    setCritiquing(true);
+    try {
+      const res = await callCritique({
+        data: { model: { outcomeName, horizon, variables, influences, options } },
+      });
+      setCritique(res.suggestions);
+      if (!res.suggestions.length) {
+        toast.success("Looks solid", { description: "Decision Lens · no critical gaps found." });
+      }
+    } catch (e) {
+      toast.error("Critique failed", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+    } finally {
+      setCritiquing(false);
+    }
+  }
+
+  function acceptSuggestion(s: CritiqueSuggestion) {
+    if (s.kind === "add_variable" && s.variable) {
+      const ids = new Set(variables.map((v) => v.id));
+      let id = s.variable.id || uid();
+      while (ids.has(id)) id = id + "_" + Math.random().toString(36).slice(2, 4);
+      setVariables([...variables, { ...s.variable, id }]);
+      toast.success("Variable added", { description: "Decision Lens · " + s.variable.name });
+    } else if (s.kind === "add_influence" && s.influence) {
+      setInfluences([...influences, s.influence]);
+      toast.success("Influence added", { description: "Decision Lens · linked drivers." });
+    }
+    setCritique((cur) => (cur ? cur.filter((x) => x !== s) : cur));
+  }
+
+  // Suggested probe: highest out-degree (ties → highest |weight|)
+  const suggestedProbe = useMemo(() => {
+    if (!variables.length) return null;
+    const outDeg = new Map<string, number>();
+    for (const v of variables) outDeg.set(v.id, 0);
+    for (const i of influences) outDeg.set(i.from, (outDeg.get(i.from) ?? 0) + 1);
+    let bestVar = variables[0];
+    let bestDeg = outDeg.get(bestVar.id) ?? 0;
+    for (const v of variables) {
+      const d = outDeg.get(v.id) ?? 0;
+      if (d > bestDeg || (d === bestDeg && Math.abs(v.weight) > Math.abs(bestVar.weight))) {
+        bestVar = v; bestDeg = d;
+      }
+    }
+    return { variable: bestVar, outDegree: bestDeg };
+  }, [variables, influences]);
+
+
+
 
   /* ---------------------------- mutators ------------------------------- */
   function updVar(id: string, patch: Partial<Variable>) {
