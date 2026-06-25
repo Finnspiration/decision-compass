@@ -705,6 +705,7 @@ export default function DecisionLens() {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [dontShow, setDontShow] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const decisionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const dropzoneRef = useRef<HTMLDivElement | null>(null);
