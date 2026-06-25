@@ -36,6 +36,51 @@ function strengthLabel(s: number): string {
   return "up a lot";
 }
 
+function pushLabel(n: number): string {
+  if (n <= -40) return "strongly lowers";
+  if (n < 0) return "lowers";
+  if (n === 0) return "no effect";
+  if (n < 40) return "boosts";
+  return "strongly boosts";
+}
+
+/** One-line plain-language summary of an option's pushes. */
+function summarizeOption(
+  pushes: Record<string, number>,
+  variables: Array<{ id: string; name: string }>
+): string {
+  const named = variables
+    .map((v) => ({ name: v.name, val: pushes[v.id] || 0 }))
+    .filter((x) => x.val !== 0);
+  if (named.length === 0) return "No effects set yet.";
+  const pos = named.filter((x) => x.val > 0).sort((a, b) => b.val - a.val);
+  const neg = named.filter((x) => x.val < 0).sort((a, b) => a.val - b.val);
+  const join = (arr: Array<{ name: string }>) =>
+    arr.length <= 2
+      ? arr.map((x) => x.name).join(" & ")
+      : arr.slice(0, 2).map((x) => x.name).join(" & ") + ` +${arr.length - 2}`;
+  const parts: string[] = [];
+  if (pos.length) parts.push(`Boosts ${join(pos)}`);
+  if (neg.length) parts.push(`costs ${join(neg)}`);
+  return parts.join(" · ");
+}
+
+/** Cosine similarity over shared variable ids. */
+function pushSimilarity(
+  a: Record<string, number>,
+  b: Record<string, number>,
+  variables: Array<{ id: string }>
+): number {
+  let dot = 0, na = 0, nb = 0;
+  for (const v of variables) {
+    const x = a[v.id] || 0, y = b[v.id] || 0;
+    dot += x * y; na += x * x; nb += y * y;
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / Math.sqrt(na * nb);
+}
+
+
 /* ============================================================================
    DECISION LENS — a generally-applicable, decision-focused world model.
 
