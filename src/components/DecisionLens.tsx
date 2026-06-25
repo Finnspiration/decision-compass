@@ -651,8 +651,10 @@ export default function DecisionLens() {
   }
   function startTour() {
     closeWelcome(dontShow);
-    setTourStep(0);
     setStage(STAGES[0].id);
+    requestAnimationFrame(() => {
+      setTourStep(dropzoneRef.current ? 0 : 1);
+    });
   }
 
   function addPdfFiles(incoming: File[]) {
@@ -1997,15 +1999,18 @@ export default function DecisionLens() {
       />
       <TourCoachmark
         step={tourStep}
-        anchors={stepperRefs.current}
+        anchors={[dropzoneRef.current, ...stepperRefs.current]}
         onNext={() => {
           const next = (tourStep ?? 0) + 1;
-          if (next >= STAGES.length) { setTourStep(null); return; }
+          if (next > STAGES.length) { setTourStep(null); return; }
           setTourStep(next);
-          setStage(STAGES[next].id);
+          // next=1 → Frame tab, next=2 → Model, etc.
+          const stageIdx = Math.max(0, next - 1);
+          if (stageIdx < STAGES.length) setStage(STAGES[stageIdx].id);
         }}
         onSkip={() => setTourStep(null)}
       />
+
 
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent className="max-w-md">
@@ -2380,34 +2385,35 @@ function WelcomeDialog({
             Welcome to Decision Lens
           </DialogTitle>
           <DialogDescription>
-            Model a decision as a small system of forces, simulate your options, and compare outcomes — instead of arguing about vibes.
+            Turn a messy decision into a clear model. Upload your documents or describe the decision, and AI maps the forces at play — then simulate your options and see which one wins most often.
           </DialogDescription>
         </DialogHeader>
 
         <div className="rounded-lg border border-border bg-muted/40 p-3">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">The four stages</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">How it works</div>
           <ol className="mt-2 grid gap-1 text-sm text-foreground">
-            <li><b className="text-primary">1. Frame</b> — name the decision and what success means.</li>
-            <li><b className="text-primary">2. Model</b> — list the few variables that drive it and the influences between them.</li>
-            <li><b className="text-primary">3. Options</b> — describe each option as a push on the system.</li>
-            <li><b className="text-primary">4. Decide</b> — roll them forward; compare trajectories and win-probabilities.</li>
+            <li><b className="text-primary">1. Add your material</b> — drop PDFs or paste links (or just describe it).</li>
+            <li><b className="text-primary">2. AI builds the landscape</b> — the variables, feedback loops, and options.</li>
+            <li><b className="text-primary">3. Tune & critique</b> — adjust anything; ask AI to critique your model.</li>
+            <li><b className="text-primary">4. Decide</b> — roll options forward and compare win-probabilities.</li>
           </ol>
         </div>
 
         <div className="grid gap-2">
-          <Button onClick={onDocs} className="justify-start gap-2">
-            <FileText size={15} /> Map a decision from my documents
+          <Button onClick={onDocs} size="lg" className="justify-start gap-2">
+            <FileText size={16} /> Map a decision from my documents
           </Button>
-          <Button onClick={onDescribe} variant="secondary" className="justify-start gap-2">
+          <Button onClick={onDescribe} variant="outline" className="justify-start gap-2">
             <Sparkles size={15} /> Describe my decision
           </Button>
-          <Button onClick={onTemplate} variant="secondary" className="justify-start gap-2">
+          <Button onClick={onTemplate} variant="outline" className="justify-start gap-2">
             <GitBranch size={15} /> Start from a template
           </Button>
           <Button onClick={onTour} variant="ghost" className="justify-start gap-2 text-muted-foreground">
             <MousePointerClick size={15} /> Take the 60-second tour
           </Button>
         </div>
+
 
         <DialogFooter className="flex-row items-center justify-between sm:justify-between">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -2427,17 +2433,18 @@ function WelcomeDialog({
 }
 
 const TOUR_COPY = [
-  "Frame: tell Decision Lens what you're choosing between and what success means.",
-  "Model: list the few latent variables that drive the outcome and the influences between them.",
-  "Options: describe each option as a push on the system — how it nudges each variable.",
-  "Decide: see ranked trajectories and win-probabilities, then pick with eyes open.",
+  "Start here: drop PDFs or paste links, then click Map my decision — AI reads them and builds your model.",
+  "Or just describe the decision and let AI draft it.",
+  "Review the variables and influences. Click 'Critique my model' to have AI spot what's missing.",
+  "Describe each option as a push on the system.",
+  "Compare trajectories and win-probabilities, then choose.",
 ];
 
 function TourCoachmark({
   step, anchors, onNext, onSkip,
 }: {
   step: number | null;
-  anchors: Array<HTMLButtonElement | null>;
+  anchors: Array<HTMLElement | null>;
   onNext: () => void;
   onSkip: () => void;
 }) {
