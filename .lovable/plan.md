@@ -1,12 +1,10 @@
-## Plan: Mount Decision Lens at `/`
+## Problem
 
-1. Copy the uploaded `DecisionLens.jsx` into the project as `src/components/DecisionLens.jsx` (kept as JSX, unchanged — the project allows JS alongside TS, and keeping it as-is satisfies the "exactly as provided" constraint).
-2. Replace `src/routes/index.tsx` placeholder with a route that imports and renders `<DecisionLens />`. Update `head()` meta to "Decision Lens" with a one-sentence description.
-3. Verify `lucide-react` is already installed (it ships with the shadcn template — no install needed). If missing, add it.
-4. Let the dev server rebuild and confirm the page renders without errors.
+The root route fails to load with `Failed to fetch dynamically imported module: /src/routes/index.tsx?tsr-split=component`. The TanStack code-splitter's transformed output still references `/src/components/DecisionLens.jsx`, but that file was renamed to `DecisionLens.tsx` in the shadcn refactor. The cached split chunk 404s, so the whole page errors.
 
-No refactors to `simulate`, `outcomeOf`, `autoDraftModel`, or any styling. No new dependencies beyond `lucide-react`.
+## Fix
 
-### Technical notes
-- File stays `.jsx` to preserve the component byte-for-byte; Vite handles JSX in this project.
-- Root layout (`__root.tsx`) already provides the shell; the component renders its own full-screen dark theme inside.
+1. Restart the Vite dev server so the code-splitter re-resolves `@/components/DecisionLens` to the new `.tsx` file and invalidates the stale `.jsx` chunk.
+2. Verify the preview loads (no console "Failed to fetch dynamically imported module" error) and the Frame → Model → Options → Decide tabs render.
+
+No source changes needed — `src/routes/index.tsx` already imports `@/components/DecisionLens` (extensionless), and `src/components/DecisionLens.tsx` exists and typechecks clean.
