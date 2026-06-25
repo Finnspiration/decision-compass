@@ -2986,12 +2986,14 @@ function WelcomeDialog({
 }
 
 const TOUR_COPY = [
-  "Start here: drop PDFs or paste links, then click Map my decision — AI reads them and builds your model.",
-  "Or just describe the decision and let AI draft it.",
-  "Review the variables and influences. Click 'Critique my model' to have AI spot what's missing.",
-  "Describe each option as a push on the system.",
-  "Compare trajectories and win-probabilities, then choose.",
+  "Start here: drop PDFs or paste links, then click Map my decision — AI reads them and drafts variables, options, and a first cut of actions.",
+  "Prefer to type? Describe the decision in your own words and let AI draft the model from scratch.",
+  "Review the variables and feedback loops. Click 'Critique my model' to have AI flag missing forces or biased framings.",
+  "Shape each option as pushes on the system — then hit ✨ Suggest actions to turn it into concrete, driver-linked steps.",
+  "Decide tab: Monte-Carlo runs 300 rollouts to give each option a win-probability, explains why the leader wins, and hands you a Now / Soon / Ongoing action plan you can export.",
 ];
+
+
 
 function TourCoachmark({
   step, anchors, onNext, onSkip,
