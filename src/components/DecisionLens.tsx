@@ -1804,7 +1804,7 @@ export default function DecisionLens() {
                           value={v.name}
                           onChange={(e) => updVar(v.id, { name: e.target.value })}
                           className="flex-1 h-9 bg-transparent text-sm font-medium"
-                          aria-label={"Variable name: " + v.name}
+                          aria-label={"Driver name: " + v.name}
                         />
                         {v.rationale && (
                           <HelpPopover title="Why this variable" body={v.rationale} />
