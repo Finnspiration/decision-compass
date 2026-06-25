@@ -1170,7 +1170,77 @@ export default function DecisionLens() {
                 </Panel>
               </div>
             )}
+
+            <div className="mb-5">
+              <Panel>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <SectionTag icon={Lightbulb} text="AI critique" />
+                    <HelpPopover
+                      title="AI critique"
+                      body="Looks for missing drivers, weak feedback loops, near-duplicate options, or a missing risk variable. Accept any suggestion to add it to your model."
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={runCritique}
+                    disabled={critiquing || variables.length === 0}
+                    className="gap-1.5"
+                  >
+                    {critiquing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {critique ? "Re-run critique" : "Critique my model"}
+                  </Button>
+                </div>
+                {critique && critique.length > 0 && (
+                  <ul className="mt-3 grid list-none gap-2 p-0">
+                    {critique.map((s, i) => (
+                      <li
+                        key={i}
+                        className="flex items-start gap-3 rounded-lg border border-border bg-muted/60 p-2.5 text-xs"
+                      >
+                        <Lightbulb size={13} className="mt-0.5 shrink-0 text-primary" />
+                        <div className="flex-1 leading-relaxed text-foreground">
+                          {s.message}
+                          {s.kind === "add_variable" && s.variable && (
+                            <div className="mt-1 text-dim">
+                              → add variable <b className="text-foreground">{s.variable.name}</b>{" "}
+                              ({s.variable.weight >= 0 ? "helps" : "hurts"} {Math.abs(s.variable.weight)})
+                            </div>
+                          )}
+                          {s.kind === "add_influence" && s.influence && (
+                            <div className="mt-1 text-dim">
+                              → link <b className="text-foreground">{variables.find((v) => v.id === s.influence!.from)?.name ?? s.influence.from}</b>
+                              {" → "}
+                              <b className="text-foreground">{variables.find((v) => v.id === s.influence!.to)?.name ?? s.influence.to}</b>
+                              {" "}({s.influence.strength >= 0 ? "+" : ""}{s.influence.strength})
+                            </div>
+                          )}
+                        </div>
+                        {(s.kind === "add_variable" || s.kind === "add_influence") && (
+                          <Button size="sm" variant="default" onClick={() => acceptSuggestion(s)} className="h-7 gap-1 px-2 text-[11px]">
+                            <Plus size={11} /> Accept
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {critique && critique.length === 0 && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    No critical gaps found — your model looks coherent.
+                  </p>
+                )}
+                {!critique && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Get 2–4 suggestions: missing drivers, weak feedback loops, duplicate options, or absent risks.
+                  </p>
+                )}
+              </Panel>
+            </div>
+
             <div className="dl-model">
+
 
               <Panel>
                 <div className="flex items-center justify-between">
