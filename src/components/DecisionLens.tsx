@@ -1232,7 +1232,7 @@ const TONE_TEXT: Record<Tone, string> = {
 };
 
 function SliderRow({
-  label, val, min, max, tone, onChange,
+  label, val, min, max, tone, onChange, help,
 }: {
   label: string;
   val: number;
@@ -1240,11 +1240,15 @@ function SliderRow({
   max: number;
   tone: Tone;
   onChange: (n: number) => void;
+  help?: { title: string; body: string };
 }) {
   return (
     <div>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{label}</span>
+        <span className="flex items-center gap-1">
+          {label}
+          {help && <HelpPopover title={help.title} body={help.body} />}
+        </span>
         <span className={TONE_TEXT[tone]}>{val}</span>
       </div>
       <Slider
