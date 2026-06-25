@@ -409,23 +409,29 @@ function validateDraftedModel(raw: any): Model | null {
     .map((v: any) => {
       const id = String(v?.id ?? "").trim();
       if (!id) return null;
+      const rationale = typeof v?.rationale === "string" ? v.rationale.slice(0, 300) : undefined;
       return {
         id,
         name: String(v?.name ?? id),
         value: clampN(v?.value, 0, 100),
         weight: clampN(v?.weight, -100, 100),
-      };
+        ...(rationale ? { rationale } : {}),
+      } as Variable;
     })
     .filter(Boolean) as Variable[];
   if (variables.length === 0) return null;
   const ids = new Set(variables.map((v) => v.id));
 
   const influences: Influence[] = (Array.isArray(raw.influences) ? raw.influences : [])
-    .map((i: any) => ({
-      from: String(i?.from ?? ""),
-      to: String(i?.to ?? ""),
-      strength: clampN(i?.strength, -100, 100),
-    }))
+    .map((i: any) => {
+      const rationale = typeof i?.rationale === "string" ? i.rationale.slice(0, 300) : undefined;
+      return {
+        from: String(i?.from ?? ""),
+        to: String(i?.to ?? ""),
+        strength: clampN(i?.strength, -100, 100),
+        ...(rationale ? { rationale } : {}),
+      } as Influence;
+    })
     .filter((i: Influence) => ids.has(i.from) && ids.has(i.to));
 
   const options: DecisionOption[] = (Array.isArray(raw.options) ? raw.options : [])
@@ -441,12 +447,24 @@ function validateDraftedModel(raw: any): Model | null {
     });
   if (options.length === 0) return null;
 
+  const summary = typeof raw.summary === "string" ? raw.summary.slice(0, 600) : undefined;
+  const sources: ModelSource[] | undefined = Array.isArray(raw.sources)
+    ? raw.sources
+        .map((s: any) => ({
+          name: String(s?.name ?? "").slice(0, 200),
+          type: s?.type === "url" ? "url" as const : "pdf" as const,
+        }))
+        .filter((s: ModelSource) => s.name)
+    : undefined;
+
   return {
     outcomeName: String(raw.outcomeName ?? "Outcome"),
     horizon: Math.round(clampN(raw.horizon, 4, 36)),
     variables,
     influences,
     options,
+    ...(summary ? { summary } : {}),
+    ...(sources && sources.length ? { sources } : {}),
   };
 }
 
@@ -461,6 +479,19 @@ async function autoDraftModel(decisionText: string): Promise<Model> {
     console.error("autoDraftModel failed", err);
     throw err;
   }
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || "");
+      const comma = s.indexOf(",");
+      resolve(comma >= 0 ? s.slice(comma + 1) : s);
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
 }
 
 /* ------------------------------- palette --------------------------------
