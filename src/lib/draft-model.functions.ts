@@ -5,6 +5,14 @@ const Input = z.object({
   decisionText: z.string().min(1).max(2000),
 });
 
+export type DraftedModel = {
+  outcomeName?: string;
+  horizon?: number;
+  variables?: Array<{ id?: string; name?: string; value?: number; weight?: number }>;
+  influences?: Array<{ from?: string; to?: string; strength?: number }>;
+  options?: Array<{ name?: string; pushes?: Record<string, number> }>;
+};
+
 const SYSTEM_PROMPT =
   "You are a systems analyst applying world-model thinking. Given a decision, model it as a compact dynamical system. Find 3–6 latent variables that actually drive the outcome (not surface facts); mark each as helping (+weight) or hurting (-weight) and where it stands today. Add 2–5 influences forming at least one feedback loop. Define 2–4 options that are genuinely different strategies; each option's pushes say how it nudges each variable per step. Return ONLY JSON.";
 
