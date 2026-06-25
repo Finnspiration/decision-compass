@@ -486,6 +486,73 @@ export default function DecisionLens() {
   const [focusOpt, setFocusOpt] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(false);
 
+  // Onboarding state
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [tourStep, setTourStep] = useState<number | null>(null);
+  const [dontShow, setDontShow] = useState(false);
+  const decisionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const templatesPanelRef = useRef<HTMLDivElement | null>(null);
+  const stepperRefs = useRef<Array<HTMLButtonElement | null>>([null, null, null, null]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (!window.localStorage.getItem(ONBOARD_KEY)) setWelcomeOpen(true);
+    } catch { /* noop */ }
+  }, []);
+
+  function closeWelcome(persist: boolean) {
+    setWelcomeOpen(false);
+    if (persist && typeof window !== "undefined") {
+      try { window.localStorage.setItem(ONBOARD_KEY, "1"); } catch { /* noop */ }
+    }
+  }
+
+  function openHelp() { setDontShow(false); setWelcomeOpen(true); }
+
+  function startFromDocs() {
+    closeWelcome(dontShow);
+    setStage("frame");
+    requestAnimationFrame(() => uploadInputRef.current?.click());
+  }
+  function startFromText() {
+    closeWelcome(dontShow);
+    setStage("frame");
+    requestAnimationFrame(() => {
+      decisionTextareaRef.current?.focus();
+      decisionTextareaRef.current?.select();
+    });
+  }
+  function startFromTemplate() {
+    closeWelcome(dontShow);
+    setStage("frame");
+    requestAnimationFrame(() => {
+      templatesPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+  function startTour() {
+    closeWelcome(dontShow);
+    setTourStep(0);
+    setStage(STAGES[0].id);
+  }
+
+  async function handleUpload(file: File | null) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const trimmed = text.trim().slice(0, 4000);
+      if (trimmed) {
+        setDecision(trimmed);
+        toast.success("Document loaded", { description: "Decision Lens · ready to auto-draft." });
+        decisionTextareaRef.current?.focus();
+      }
+    } catch {
+      toast.error("Couldn't read file", { description: "Decision Lens · try a .txt or .md file." });
+    }
+  }
+
+
   async function runAutoDraft(text: string) {
     setDrafting(true);
     try {
