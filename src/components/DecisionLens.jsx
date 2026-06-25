@@ -411,8 +411,9 @@ export default function DecisionLens() {
                         onChange={(e) => upd(setVariables, variables, v.id, { name: e.target.value })}
                         className="flex-1 rounded-md px-2 py-1 text-sm font-medium"
                         style={{ background: "transparent", border: "1px solid " + T.border, color: T.ink }}
+                        aria-label={"Variable name: " + v.name}
                       />
-                      <button onClick={() => removeVar(v.id)} aria-label={"Remove " + v.name} style={{ color: T.dim }}>
+                      <button onClick={() => removeVar(v.id)} aria-label={"Remove " + v.name} className="min-h-11 min-w-11 inline-flex items-center justify-center" style={{ color: T.dim }}>
                         <X size={15} />
                       </button>
                     </div>
