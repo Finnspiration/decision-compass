@@ -1198,6 +1198,28 @@ export default function DecisionLens() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <WelcomeDialog
+        open={welcomeOpen}
+        dontShow={dontShow}
+        setDontShow={setDontShow}
+        onClose={() => closeWelcome(dontShow)}
+        onDocs={startFromDocs}
+        onDescribe={startFromText}
+        onTemplate={startFromTemplate}
+        onTour={startTour}
+      />
+      <TourCoachmark
+        step={tourStep}
+        anchors={stepperRefs.current}
+        onNext={() => {
+          const next = (tourStep ?? 0) + 1;
+          if (next >= STAGES.length) { setTourStep(null); return; }
+          setTourStep(next);
+          setStage(STAGES[next].id);
+        }}
+        onSkip={() => setTourStep(null)}
+      />
     </div>
   );
 }
