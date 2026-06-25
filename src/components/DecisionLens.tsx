@@ -740,12 +740,13 @@ export default function DecisionLens() {
 
         <Tabs value={stage} onValueChange={(v) => setStage(v as Stage)} className="w-full">
           <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
-            {STAGES.map((s) => {
+            {STAGES.map((s, i) => {
               const Icon = s.icon;
               return (
                 <TabsTrigger
                   key={s.id}
                   value={s.id}
+                  ref={(el) => { stepperRefs.current[i] = el; }}
                   className="flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-2 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                 >
                   <Icon size={15} />
@@ -754,6 +755,7 @@ export default function DecisionLens() {
               );
             })}
           </TabsList>
+
 
           {/* ---------------------------- FRAME ---------------------------- */}
           <TabsContent value="frame" className="mt-0">
