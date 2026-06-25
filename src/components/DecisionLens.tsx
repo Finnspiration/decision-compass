@@ -2203,6 +2203,197 @@ export default function DecisionLens() {
 }
 
 /* ----------------------------- small parts ------------------------------- */
+const EFFORT_OPTS: DecisionAction["effort"][] = ["low", "med", "high"];
+const WHEN_OPTS: DecisionAction["when"][] = ["now", "soon", "ongoing"];
+
+function ActionPlanEditor({
+  option, variables, onChange, onSuggest, suggesting,
+}: {
+  option: DecisionOption;
+  variables: Variable[];
+  onChange: (actions: DecisionAction[]) => void;
+  onSuggest: () => void;
+  suggesting: boolean;
+}) {
+  const actions = option.actions ?? [];
+  const pushedIds = new Set(
+    Object.entries(option.pushes).filter(([, v]) => v !== 0).map(([k]) => k),
+  );
+
+  function setAction(idx: number, patch: Partial<DecisionAction>) {
+    const next = actions.map((a, i) => (i === idx ? { ...a, ...patch } : a));
+    onChange(next);
+  }
+  function removeAction(idx: number) {
+    onChange(actions.filter((_, i) => i !== idx));
+  }
+  function addAction() {
+    onChange([...actions, { text: "" }]);
+  }
+  function toggleTarget(idx: number, varId: string) {
+    const cur = actions[idx]?.targets ?? [];
+    const has = cur.includes(varId);
+    const next = has ? cur.filter((t) => t !== varId) : [...cur, varId];
+    setAction(idx, { targets: next.length ? next : undefined });
+  }
+
+  return (
+    <div className="mt-4 border-t border-border/60 pt-3">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Action plan
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onSuggest}
+          disabled={suggesting}
+          className="h-7 gap-1 text-xs"
+          aria-label={`Suggest actions for ${option.name}`}
+        >
+          {suggesting ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+          Suggest actions
+        </Button>
+      </div>
+
+      {actions.length === 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          No actions yet. Add a step the team would execute, or let AI suggest some.
+        </p>
+      )}
+
+      <div className="mt-2 grid gap-2">
+        {actions.map((a, i) => {
+          const targets = a.targets ?? [];
+          const inconsistent = targets.some((t) => !pushedIds.has(t));
+          return (
+            <div
+              key={i}
+              className="rounded-lg border border-border/60 bg-background/40 p-2"
+            >
+              <div className="flex items-start gap-2">
+                <Input
+                  value={a.text}
+                  onChange={(e) => setAction(i, { text: e.target.value })}
+                  placeholder="e.g. Ship MVP to 3 lighthouse customers within 30 days"
+                  className="h-8 flex-1 bg-transparent text-xs"
+                  aria-label={`Action ${i + 1} for ${option.name}`}
+                />
+                {inconsistent && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-amber-500"
+                        aria-label="Action targets a variable this option doesn't push"
+                      >
+                        <AlertTriangle size={14} />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" className="w-64 text-xs">
+                      This action targets a variable the option's sliders don't move. Either
+                      adjust the pushes above or remove the unrelated target.
+                    </PopoverContent>
+                  </Popover>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeAction(i)}
+                  className="h-8 w-8 text-muted-foreground"
+                  aria-label={`Remove action ${i + 1}`}
+                >
+                  <Trash2 size={13} />
+                </Button>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {variables.map((v) => {
+                  const on = targets.includes(v.id);
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => toggleTarget(i, v.id)}
+                      aria-pressed={on}
+                      aria-label={`Target ${v.name}`}
+                      className={
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors " +
+                        (on
+                          ? "border-primary/60 bg-primary/15 text-foreground"
+                          : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      {on && <Check size={10} />}
+                      {v.name}
+                    </button>
+                  );
+                })}
+
+                <span className="mx-1 h-3 w-px bg-border" aria-hidden />
+
+                {EFFORT_OPTS.map((e) => {
+                  const on = a.effort === e;
+                  return (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setAction(i, { effort: on ? undefined : e })}
+                      aria-pressed={on}
+                      aria-label={`Effort ${e}`}
+                      className={
+                        "rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors " +
+                        (on
+                          ? "border-foreground/40 bg-foreground/10 text-foreground"
+                          : "border-border bg-transparent text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      {e}
+                    </button>
+                  );
+                })}
+
+                <span className="mx-1 h-3 w-px bg-border" aria-hidden />
+
+                {WHEN_OPTS.map((w) => {
+                  const on = a.when === w;
+                  return (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => setAction(i, { when: on ? undefined : w })}
+                      aria-pressed={on}
+                      aria-label={`When ${w}`}
+                      className={
+                        "rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors " +
+                        (on
+                          ? "border-foreground/40 bg-foreground/10 text-foreground"
+                          : "border-border bg-transparent text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      {w}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={addAction}
+        className="mt-2 h-7 gap-1 text-xs text-muted-foreground"
+      >
+        <Plus size={12} /> Add action
+      </Button>
+    </div>
+  );
+}
+
 function SectionTag({ icon: Icon, text }: { icon: React.ComponentType<{ size?: number; className?: string }>; text: string }) {
   return (
     <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
