@@ -3,8 +3,10 @@ import { toast } from "sonner";
 import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
-  HelpCircle, Upload, FileText, Compass, MousePointerClick,
+  HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { explainDecision, critiqueModel, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -761,6 +763,86 @@ export default function DecisionLens() {
   );
   const best = ranked[0];
 
+  /* --------------------------- AI assistance --------------------------- */
+  const callExplain = useServerFn(explainDecision);
+  const callCritique = useServerFn(critiqueModel);
+  const [explaining, setExplaining] = useState(false);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [critiquing, setCritiquing] = useState(false);
+  const [critique, setCritique] = useState<CritiqueSuggestion[] | null>(null);
+
+  // Invalidate stale AI output when the model changes
+  useEffect(() => { setExplanation(null); }, [variables, influences, options, horizon]);
+  useEffect(() => { setCritique(null); }, [variables, influences, options]);
+
+  async function runExplain() {
+    if (!ranked.length) return;
+    setExplaining(true);
+    try {
+      const res = await callExplain({
+        data: {
+          model: { outcomeName, horizon, variables, influences, options },
+          ranked: ranked.map((r) => ({ name: r.option.name, score: r.score, winProb: r.winProb })),
+        },
+      });
+      setExplanation(res.explanation);
+    } catch (e) {
+      toast.error("Couldn't explain", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+    } finally {
+      setExplaining(false);
+    }
+  }
+
+  async function runCritique() {
+    setCritiquing(true);
+    try {
+      const res = await callCritique({
+        data: { model: { outcomeName, horizon, variables, influences, options } },
+      });
+      setCritique(res.suggestions);
+      if (!res.suggestions.length) {
+        toast.success("Looks solid", { description: "Decision Lens · no critical gaps found." });
+      }
+    } catch (e) {
+      toast.error("Critique failed", { description: "Decision Lens · " + (e instanceof Error ? e.message : "AI unavailable.") });
+    } finally {
+      setCritiquing(false);
+    }
+  }
+
+  function acceptSuggestion(s: CritiqueSuggestion) {
+    if (s.kind === "add_variable" && s.variable) {
+      const ids = new Set(variables.map((v) => v.id));
+      let id = s.variable.id || uid();
+      while (ids.has(id)) id = id + "_" + Math.random().toString(36).slice(2, 4);
+      setVariables([...variables, { ...s.variable, id }]);
+      toast.success("Variable added", { description: "Decision Lens · " + s.variable.name });
+    } else if (s.kind === "add_influence" && s.influence) {
+      setInfluences([...influences, s.influence]);
+      toast.success("Influence added", { description: "Decision Lens · linked drivers." });
+    }
+    setCritique((cur) => (cur ? cur.filter((x) => x !== s) : cur));
+  }
+
+  // Suggested probe: highest out-degree (ties → highest |weight|)
+  const suggestedProbe = useMemo(() => {
+    if (!variables.length) return null;
+    const outDeg = new Map<string, number>();
+    for (const v of variables) outDeg.set(v.id, 0);
+    for (const i of influences) outDeg.set(i.from, (outDeg.get(i.from) ?? 0) + 1);
+    let bestVar = variables[0];
+    let bestDeg = outDeg.get(bestVar.id) ?? 0;
+    for (const v of variables) {
+      const d = outDeg.get(v.id) ?? 0;
+      if (d > bestDeg || (d === bestDeg && Math.abs(v.weight) > Math.abs(bestVar.weight))) {
+        bestVar = v; bestDeg = d;
+      }
+    }
+    return { variable: bestVar, outDegree: bestDeg };
+  }, [variables, influences]);
+
+
+
 
   /* ---------------------------- mutators ------------------------------- */
   function updVar(id: string, patch: Partial<Variable>) {
@@ -1088,7 +1170,77 @@ export default function DecisionLens() {
                 </Panel>
               </div>
             )}
+
+            <div className="mb-5">
+              <Panel>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <SectionTag icon={Lightbulb} text="AI critique" />
+                    <HelpPopover
+                      title="AI critique"
+                      body="Looks for missing drivers, weak feedback loops, near-duplicate options, or a missing risk variable. Accept any suggestion to add it to your model."
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={runCritique}
+                    disabled={critiquing || variables.length === 0}
+                    className="gap-1.5"
+                  >
+                    {critiquing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {critique ? "Re-run critique" : "Critique my model"}
+                  </Button>
+                </div>
+                {critique && critique.length > 0 && (
+                  <ul className="mt-3 grid list-none gap-2 p-0">
+                    {critique.map((s, i) => (
+                      <li
+                        key={i}
+                        className="flex items-start gap-3 rounded-lg border border-border bg-muted/60 p-2.5 text-xs"
+                      >
+                        <Lightbulb size={13} className="mt-0.5 shrink-0 text-primary" />
+                        <div className="flex-1 leading-relaxed text-foreground">
+                          {s.message}
+                          {s.kind === "add_variable" && s.variable && (
+                            <div className="mt-1 text-dim">
+                              → add variable <b className="text-foreground">{s.variable.name}</b>{" "}
+                              ({s.variable.weight >= 0 ? "helps" : "hurts"} {Math.abs(s.variable.weight)})
+                            </div>
+                          )}
+                          {s.kind === "add_influence" && s.influence && (
+                            <div className="mt-1 text-dim">
+                              → link <b className="text-foreground">{variables.find((v) => v.id === s.influence!.from)?.name ?? s.influence.from}</b>
+                              {" → "}
+                              <b className="text-foreground">{variables.find((v) => v.id === s.influence!.to)?.name ?? s.influence.to}</b>
+                              {" "}({s.influence.strength >= 0 ? "+" : ""}{s.influence.strength})
+                            </div>
+                          )}
+                        </div>
+                        {(s.kind === "add_variable" || s.kind === "add_influence") && (
+                          <Button size="sm" variant="default" onClick={() => acceptSuggestion(s)} className="h-7 gap-1 px-2 text-[11px]">
+                            <Plus size={11} /> Accept
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {critique && critique.length === 0 && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    No critical gaps found — your model looks coherent.
+                  </p>
+                )}
+                {!critique && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Get 2–4 suggestions: missing drivers, weak feedback loops, duplicate options, or absent risks.
+                  </p>
+                )}
+              </Panel>
+            </div>
+
             <div className="dl-model">
+
 
               <Panel>
                 <div className="flex items-center justify-between">
@@ -1387,7 +1539,32 @@ export default function DecisionLens() {
                     ))}
 
                   </div>
+
+                  <div className="mt-4 border-t border-border pt-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Wand2 size={13} className="text-primary" />
+                        <span>Why does <b className="text-foreground">{best?.option.name ?? "this option"}</b> win?</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={runExplain}
+                        disabled={explaining || ranked.length === 0}
+                        className="gap-1.5"
+                      >
+                        {explaining ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                        {explanation ? "Re-explain" : "Explain"}
+                      </Button>
+                    </div>
+                    {explanation && (
+                      <p className="mt-2 rounded-lg border border-border bg-muted/60 p-3 text-xs leading-relaxed text-foreground">
+                        {explanation}
+                      </p>
+                    )}
+                  </div>
                 </Panel>
+
 
                 <Panel>
                   <SectionTag icon={Telescope} text="Respect the model error" />
@@ -1402,8 +1579,12 @@ export default function DecisionLens() {
                       steps. Re-run as reality comes in.
                     </li>
                     <li>
-                      <b className="text-foreground">Cheapest probe:</b> measure whichever upstream variable feeds
-                      the most arrows before committing.
+                      <b className="text-foreground">Cheapest probe:</b>{" "}
+                      {suggestedProbe ? (
+                        <>measure <b className="text-primary">{suggestedProbe.variable.name}</b> before committing — it feeds {suggestedProbe.outDegree} downstream {suggestedProbe.outDegree === 1 ? "link" : "links"}.</>
+                      ) : (
+                        <>measure whichever upstream variable feeds the most arrows before committing.</>
+                      )}
                     </li>
                   </ul>
                   <Button

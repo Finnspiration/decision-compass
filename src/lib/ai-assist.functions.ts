@@ -1,0 +1,172 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+/* -------------------------------- shared --------------------------------- */
+
+const VariableSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  value: z.number(),
+  weight: z.number(),
+});
+const InfluenceSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  strength: z.number(),
+});
+const OptionSchema = z.object({
+  id: z.string().optional(),
+  name: z.string(),
+  pushes: z.record(z.string(), z.number()).default({}),
+});
+const ModelSchema = z.object({
+  outcomeName: z.string(),
+  horizon: z.number(),
+  variables: z.array(VariableSchema),
+  influences: z.array(InfluenceSchema),
+  options: z.array(OptionSchema),
+});
+
+async function callGateway(apiKey: string, system: string, user: string, json = true): Promise<string> {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      ...(json ? { response_format: { type: "json_object" } } : {}),
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    if (res.status === 429) throw new Error("Decision Lens AI is rate-limited. Please try again shortly.");
+    if (res.status === 402) throw new Error("Decision Lens AI credits exhausted. Add credits in Settings → Plans & credits.");
+    throw new Error(`Decision Lens AI error ${res.status}: ${t.slice(0, 200)}`);
+  }
+  const j = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = j.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Decision Lens AI returned no content");
+  return content;
+}
+
+function parseJson<T>(content: string): T {
+  try { return JSON.parse(content) as T; } catch { /* fallthrough */ }
+  const m = content.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("Decision Lens AI returned non-JSON");
+  return JSON.parse(m[0]) as T;
+}
+
+/* --------------------------- explainDecision ----------------------------- */
+
+const RankedItem = z.object({
+  name: z.string(),
+  score: z.number(),
+  winProb: z.number(),
+  finalValues: z.record(z.string(), z.number()).optional(),
+});
+
+const ExplainInput = z.object({
+  model: ModelSchema,
+  ranked: z.array(RankedItem).min(1),
+});
+
+export const explainDecision = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => ExplainInput.parse(data))
+  .handler(async ({ data }): Promise<{ explanation: string }> => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+
+    const lead = data.ranked[0];
+    const runner = data.ranked[1];
+    const gap = runner ? lead.score - runner.score : null;
+    const winGap = runner ? lead.winProb - runner.winProb : null;
+
+    const sys =
+      "You are a decision analyst. Explain in 3-5 sentences WHY the leading option wins given the model: which variables it moves most, which feedback loop it leverages, and how thin or comfortable its lead is over #2. Ground every claim in the provided model and ranking. No headings, no bullet lists, no markdown — plain prose only.";
+
+    const payload = {
+      outcomeName: data.model.outcomeName,
+      horizon: data.model.horizon,
+      variables: data.model.variables.map((v) => ({ id: v.id, name: v.name, value: v.value, weight: v.weight })),
+      influences: data.model.influences,
+      options: data.model.options.map((o) => ({ name: o.name, pushes: o.pushes })),
+      ranked: data.ranked,
+      gap,
+      winGap,
+    };
+
+    const content = await callGateway(
+      apiKey,
+      sys,
+      "Model + ranking:\n" + JSON.stringify(payload),
+      false,
+    );
+    return { explanation: content.trim() };
+  });
+
+/* ----------------------------- critiqueModel ----------------------------- */
+
+const CritiqueInput = z.object({ model: ModelSchema });
+
+export type CritiqueSuggestion = {
+  kind: "add_variable" | "add_influence" | "note";
+  message: string;
+  variable?: { id: string; name: string; value: number; weight: number };
+  influence?: { from: string; to: string; strength: number };
+};
+
+export const critiqueModel = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => CritiqueInput.parse(data))
+  .handler(async ({ data }): Promise<{ suggestions: CritiqueSuggestion[] }> => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+
+    const sys =
+      "You are a systems-thinking reviewer. Critique the user's decision model and return 2–4 concrete suggestions. Look for: missing drivers, absent or weak feedback loops, near-duplicate options, or a missing risk (negative-weight) variable. Each suggestion has 'kind' = 'add_variable' | 'add_influence' | 'note', a short 'message' (one sentence). For add_variable, also include { id (lowercase slug), name, value 0-100, weight -100..100 }. For add_influence, include { from, to, strength -100..100 } where from/to are existing variable ids. Return ONLY JSON: { \"suggestions\": [...] }.";
+
+    const content = await callGateway(
+      apiKey,
+      sys,
+      "Model:\n" + JSON.stringify(data.model),
+      true,
+    );
+    const parsed = parseJson<{ suggestions?: CritiqueSuggestion[] }>(content);
+    const out: CritiqueSuggestion[] = [];
+    const ids = new Set(data.model.variables.map((v) => v.id));
+    for (const s of parsed.suggestions ?? []) {
+      if (!s || typeof s.message !== "string") continue;
+      if (s.kind === "add_variable" && s.variable) {
+        const v = s.variable;
+        if (!v.id || !v.name) continue;
+        out.push({
+          kind: "add_variable",
+          message: s.message.slice(0, 200),
+          variable: {
+            id: String(v.id).toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 24),
+            name: String(v.name).slice(0, 60),
+            value: Math.max(0, Math.min(100, Number(v.value) || 50)),
+            weight: Math.max(-100, Math.min(100, Number(v.weight) || 0)),
+          },
+        });
+      } else if (s.kind === "add_influence" && s.influence) {
+        const i = s.influence;
+        if (!ids.has(i.from) || !ids.has(i.to)) continue;
+        out.push({
+          kind: "add_influence",
+          message: s.message.slice(0, 200),
+          influence: {
+            from: i.from,
+            to: i.to,
+            strength: Math.max(-100, Math.min(100, Number(i.strength) || 0)),
+          },
+        });
+      } else {
+        out.push({ kind: "note", message: s.message.slice(0, 200) });
+      }
+      if (out.length >= 4) break;
+    }
+    return { suggestions: out };
+  });
