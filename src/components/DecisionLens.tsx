@@ -520,12 +520,22 @@ export default function DecisionLens() {
   const [focusOpt, setFocusOpt] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(false);
 
+  // Document ingest state
+  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
+  const [urls, setUrls] = useState<string[]>([]);
+  const [urlInput, setUrlInput] = useState("");
+  const [ingesting, setIngesting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | undefined>();
+  const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
+
   // Onboarding state
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [dontShow, setDontShow] = useState(false);
   const decisionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  const dropzoneRef = useRef<HTMLDivElement | null>(null);
   const templatesPanelRef = useRef<HTMLDivElement | null>(null);
   const stepperRefs = useRef<Array<HTMLButtonElement | null>>([null, null, null, null]);
 
@@ -548,7 +558,10 @@ export default function DecisionLens() {
   function startFromDocs() {
     closeWelcome(dontShow);
     setStage("frame");
-    requestAnimationFrame(() => uploadInputRef.current?.click());
+    requestAnimationFrame(() => {
+      dropzoneRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      pdfInputRef.current?.click();
+    });
   }
   function startFromText() {
     closeWelcome(dontShow);
@@ -571,21 +584,41 @@ export default function DecisionLens() {
     setStage(STAGES[0].id);
   }
 
-  async function handleUpload(file: File | null) {
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const trimmed = text.trim().slice(0, 4000);
-      if (trimmed) {
-        setDecision(trimmed);
-        toast.success("Document loaded", { description: "Decision Lens · ready to auto-draft." });
-        decisionTextareaRef.current?.focus();
+  function addPdfFiles(incoming: File[]) {
+    const errors: string[] = [];
+    const accepted: File[] = [];
+    for (const f of incoming) {
+      if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
+        errors.push(`${f.name}: not a PDF`); continue;
       }
-    } catch {
-      toast.error("Couldn't read file", { description: "Decision Lens · try a .txt or .md file." });
+      if (f.size > 10 * 1024 * 1024) { errors.push(`${f.name}: over 10 MB`); continue; }
+      accepted.push(f);
     }
+    setPdfFiles((prev) => {
+      const merged = [...prev];
+      for (const f of accepted) {
+        if (merged.length >= 5) { errors.push(`${f.name}: max 5 files`); continue; }
+        if (!merged.some((x) => x.name === f.name && x.size === f.size)) merged.push(f);
+      }
+      return merged;
+    });
+    if (errors.length) toast.error("Some files were skipped", { description: "Decision Lens · " + errors.join(" · ") });
   }
+  function removePdf(idx: number) { setPdfFiles((p) => p.filter((_, i) => i !== idx)); }
 
+  function tryAddUrl(raw: string) {
+    const v = raw.trim();
+    if (!v) return;
+    let u: URL | null = null;
+    try { u = new URL(v.includes("://") ? v : "https://" + v); } catch { /* */ }
+    if (!u || (u.protocol !== "http:" && u.protocol !== "https:")) {
+      toast.error("Invalid URL", { description: "Decision Lens · use http(s) URLs only." });
+      return;
+    }
+    setUrls((prev) => (prev.includes(u!.toString()) || prev.length >= 8 ? prev : [...prev, u!.toString()]));
+    setUrlInput("");
+  }
+  function removeUrl(idx: number) { setUrls((p) => p.filter((_, i) => i !== idx)); }
 
   async function runAutoDraft(text: string) {
     setDrafting(true);
@@ -603,6 +636,36 @@ export default function DecisionLens() {
     }
   }
 
+  async function runIngest() {
+    if (!decision.trim()) {
+      toast.error("Add your decision first", { description: "Decision Lens · we need a question to map." });
+      return;
+    }
+    if (pdfFiles.length === 0 && urls.length === 0) {
+      // No sources — fall back to plain draft
+      void runAutoDraft(decision);
+      return;
+    }
+    setIngesting(true);
+    try {
+      const filesPayload = await Promise.all(
+        pdfFiles.map(async (f) => ({ name: f.name, dataBase64: await fileToBase64(f) }))
+      );
+      const { ingestSources } = await import("@/lib/ingest-sources.functions");
+      const raw = await ingestSources({ data: { files: filesPayload, urls, decisionText: decision } });
+      const m = validateDraftedModel(raw);
+      if (!m) throw new Error("Invalid model JSON");
+      loadModel(m);
+      setStage("model");
+      toast.success("Decision mapped", { description: "Decision Lens · grounded in your sources." });
+    } catch (err) {
+      console.error("ingest failed", err);
+      toast.error("Couldn't map from sources", { description: "Decision Lens · check your files/URLs and try again." });
+    } finally {
+      setIngesting(false);
+    }
+  }
+
   function loadModel(m: Model) {
     setOutcomeName(m.outcomeName);
     setHorizon(m.horizon);
@@ -610,6 +673,8 @@ export default function DecisionLens() {
     setInfluences(m.influences);
     setOptions(m.options);
     setFocusOpt(null);
+    setAiSummary(m.summary);
+    setAiSources(m.sources);
   }
 
   const model: Model = useMemo(
