@@ -1758,12 +1758,12 @@ export default function DecisionLens() {
                 )}
                 {critique && critique.length === 0 && (
                   <p className="mt-3 text-xs text-muted-foreground">
-                    No critical gaps found — your model looks coherent.
+                    Nothing major stands out — your map looks coherent.
                   </p>
                 )}
                 {!critique && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Get 2–4 suggestions: missing drivers, weak feedback loops, duplicate options, or absent risks.
+                    Get a few suggestions: a factor you might be missing, a downside to weigh, or options that are too similar.
                   </p>
                 )}
               </Panel>
