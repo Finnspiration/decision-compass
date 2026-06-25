@@ -111,6 +111,8 @@ type DecisionOption = {
 };
 const EFFORTS = ["low", "med", "high"] as const;
 const WHENS = ["now", "soon", "ongoing"] as const;
+const HURT_WORDS = ["depletion", "burn", "risk", "cost", "churn", "saturation", "debt", "loss", "attrition", "drag"];
+const HELP_WORDS = ["growth", "advantage", "moat", "reach", "trust", "quality", "retention", "momentum"];
 function sanitizeActions(raw: unknown, validIds: Set<string>): DecisionAction[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const out: DecisionAction[] = [];
