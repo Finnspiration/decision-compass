@@ -293,12 +293,15 @@ function winProbabilities(
             e += (s / 100) * ((cur[i.from] - 50) / 50) * 6;
           });
           const rawPush = (o.pushes && o.pushes[v.id]) || 0;
-          const push = (rawPush * (optPushNoise[oi][v.id] ?? 1)) / 100 * 4;
+          const stepJ = 1 + MC_PUSH_STEP_SIG * gaussSample();
+          const push = (rawPush * (optPushNoise[oi][v.id] ?? 1) * stepJ) / 100 * 4;
           const decay = 0.08 * (cur[v.id] - base[v.id]);
-          next[v.id] = clamp(cur[v.id] + push + e - decay + shocks[t - 1][v.id]);
+          const exec = MC_EXEC_SIG * gaussSample();
+          next[v.id] = clamp(cur[v.id] + push + e - decay + shocks[t - 1][v.id] + exec);
         });
         Object.keys(next).forEach((k) => (cur[k] = next[k]));
       }
+
       const finalIdx = outcomeOf(vars, cur);
       if (finalIdx > bestVal) { bestVal = finalIdx; bestIdx = oi; }
     });
