@@ -392,7 +392,7 @@ export default function DecisionLens() {
                   onClick={() =>
                     setVariables([...variables, { id: uid(), name: "New driver", value: 50, weight: 40 }])
                   }
-                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
+                  className="min-h-11 min-w-11 inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
                   style={{ background: T.surface2, border: "1px solid " + T.border, color: T.ink }}
                 >
                   <Plus size={13} /> Add
@@ -411,8 +411,9 @@ export default function DecisionLens() {
                         onChange={(e) => upd(setVariables, variables, v.id, { name: e.target.value })}
                         className="flex-1 rounded-md px-2 py-1 text-sm font-medium"
                         style={{ background: "transparent", border: "1px solid " + T.border, color: T.ink }}
+                        aria-label={"Variable name: " + v.name}
                       />
-                      <button onClick={() => removeVar(v.id)} aria-label={"Remove " + v.name} style={{ color: T.dim }}>
+                      <button onClick={() => removeVar(v.id)} aria-label={"Remove " + v.name} className="min-h-11 min-w-11 inline-flex items-center justify-center" style={{ color: T.dim }}>
                         <X size={15} />
                       </button>
                     </div>
@@ -436,7 +437,7 @@ export default function DecisionLens() {
                 <SectionTag icon={GitBranch} text="Influences (the loops)" />
                 <button
                   onClick={addInfluence}
-                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
+                  className="min-h-11 min-w-11 inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
                   style={{ background: T.surface2, border: "1px solid " + T.border, color: T.ink }}
                 >
                   <Plus size={13} /> Add
@@ -459,7 +460,7 @@ export default function DecisionLens() {
                       className="flex-1" style={{ minWidth: 60 }}
                       aria-label="Influence strength"
                     />
-                    <button onClick={() => setInfluences(influences.filter((_, i) => i !== idx))} aria-label="Remove influence" style={{ color: T.dim }}>
+                    <button onClick={() => setInfluences(influences.filter((_, i) => i !== idx))} aria-label="Remove influence" className="min-h-11 min-w-11 inline-flex items-center justify-center" style={{ color: T.dim }}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -491,7 +492,7 @@ export default function DecisionLens() {
                   onClick={() =>
                     setOptions([...options, { id: uid(), name: "Option " + (options.length + 1), pushes: {} }])
                   }
-                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
+                  className="min-h-11 min-w-11 inline-flex items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium"
                   style={{ background: T.surface2, border: "1px solid " + T.border, color: T.ink }}
                 >
                   <Plus size={13} /> Add option
@@ -512,9 +513,10 @@ export default function DecisionLens() {
                         onChange={(e) => upd(setOptions, options, o.id, { name: e.target.value })}
                         className="flex-1 rounded-md px-2 py-1 text-sm font-medium"
                         style={{ background: "transparent", border: "1px solid " + T.border, color: T.ink }}
+                        aria-label={"Option name: " + o.name}
                       />
                       {options.length > 1 && (
-                        <button onClick={() => setOptions(options.filter((x) => x.id !== o.id))} aria-label={"Remove " + o.name} style={{ color: T.dim }}>
+                        <button onClick={() => setOptions(options.filter((x) => x.id !== o.id))} aria-label={"Remove " + o.name} className="min-h-11 min-w-11 inline-flex items-center justify-center" style={{ color: T.dim }}>
                           <X size={15} />
                         </button>
                       )}
@@ -763,6 +765,7 @@ function SystemMapImpl({ variables, influences }) {
           return (
             <path key={idx} d={`M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}`} fill="none"
               stroke={col} strokeWidth={1 + Math.abs(inf.strength) / 45} opacity="0.55"
+              strokeDasharray={inf.strength < 0 ? "4 3" : undefined}
               markerEnd={`url(#${inf.strength >= 0 ? "dl-g" : "dl-r"})`} />
           );
         })}
@@ -774,6 +777,9 @@ function SystemMapImpl({ variables, influences }) {
             <g key={v.id}>
               <circle cx={p.x} cy={p.y} r={r} fill={col + "22"} stroke={col} strokeWidth="2" />
               <circle cx={p.x} cy={p.y} r={(r - 6) * (v.value / 100)} fill={col + "44"} />
+              <text x={p.x} y={p.y + 4} fill="#ffffff" fontSize="11" textAnchor="middle" fontWeight="700">
+                {v.weight >= 0 ? "+" : "−"}
+              </text>
               <text x={p.x} y={p.y + r + 14} fill={T.ink2} fontSize="11" textAnchor="middle">
                 {v.name.length > 16 ? v.name.slice(0, 15) + "…" : v.name}
               </text>
