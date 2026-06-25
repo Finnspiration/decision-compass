@@ -1881,7 +1881,7 @@ export default function DecisionLens() {
                         variant="ghost"
                         size="icon"
                         onClick={() => setInfluences(influences.filter((_, i) => i !== idx))}
-                        aria-label="Remove influence"
+                        aria-label="Remove knock-on effect"
                         className="text-dim"
                       >
                         <Trash2 size={14} />
