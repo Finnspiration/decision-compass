@@ -369,6 +369,45 @@ const TEMPLATES = [
   },
 ];
 
+/* --------------------------- user templates (localStorage) --------------- */
+type TemplateSource = "ai" | "documents" | "manual";
+type UserTemplate = {
+  id: string;
+  name: string;
+  source: TemplateSource;
+  model: Model;
+  createdAt: number;
+};
+const USER_TEMPLATES_KEY = "dl_templates";
+
+function loadUserTemplatesFromStorage(): UserTemplate[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(USER_TEMPLATES_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(
+      (t: any) =>
+        t && typeof t.id === "string" && typeof t.name === "string" &&
+        t.model && Array.isArray(t.model.variables) && Array.isArray(t.model.options)
+    );
+  } catch { return []; }
+}
+function saveUserTemplatesToStorage(list: UserTemplate[]) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(list)); } catch { /* noop */ }
+}
+function templateFromBuiltin(tpl: (typeof TEMPLATES)[number]): Model {
+  return {
+    outcomeName: tpl.outcomeName,
+    horizon: tpl.horizon,
+    variables: tpl.variables.map((v) => ({ ...v })),
+    influences: tpl.influences.map((i) => ({ ...i })),
+    options: tpl.options.map((o) => ({ id: uid(), name: o.name, pushes: { ...o.pushes } })),
+  };
+}
+
 function blankStarter(): Model {
   return {
     outcomeName: "Outcome",
