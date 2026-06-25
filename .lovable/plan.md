@@ -1,78 +1,43 @@
 ## Goal
 
-Make Decision Lens easier to work with by replacing the dark, tab-switching layout with a calm light **dashboard shell**: a persistent left sidebar that always shows where you are in the 4-stage flow (Frame → Model → Options → Decide), a sticky top header with the decision name + primary action, and a panelized white workspace.
+Keep the current Model-tab layout (drivers left, map right rail) but let the user pop the Decision Map open into a large dialog when they want to read or work with it at full size.
 
-Engine, types, server functions, and Monte-Carlo logic are **unchanged**. This is a presentation-layer redesign only.
+## Changes (all in `src/components/DecisionLens.tsx`)
 
-## Design tokens (locked)
+1. **Add an "Expand" button to the Decision Map panel header**
+   - Small ghost icon button (`Maximize2` from lucide) next to the "DECISION MAP" title in the right-rail panel on the Model tab.
+   - `aria-label="Open larger decision map"`, `min-h-11 min-w-11` to stay accessibility-consistent with the rest of the app.
 
-Defined in `src/styles.css` under `@theme inline` + `:root`:
+2. **Add a shadcn `Dialog` that hosts a large `SystemMap`**
+   - Width/height: `max-w-[90vw] w-[90vw] h-[85vh]` with the SVG filling the body (`flex-1`, `min-h-0`).
+   - Reuse the existing memoized `SystemMap` component — pass the same `vars`/`edges` props, just render at the larger size. No engine or data changes.
+   - Header shows decision title + a one-line legend ("Green = helps your goal · Red = hurts · Arrows = knock-on effects") so the modal is self-explanatory.
+   - Dismiss: ESC, backdrop click, and an explicit "Close" button. Branded close toast is not needed (no state change).
 
-- `--background: #FFFFFF`
-- `--foreground: #3D6C87` (Primary blue — headings, structure, axes)
-- `--muted / surface: #99B0C0` at 5–20% tints (panels, secondary fills)
-- `--accent / destructive: #A52A20` (CTAs, highlights, key actions)
-- Borders: `#99B0C0` @ 20–30%
-- Fonts: Sora (headings via `--font-display`), Manrope (body via `--font-sans`), loaded via `<link>` in `src/routes/__root.tsx` head
-- Remove `className="dark"` from `<html>` — app is now light
+3. **Make `SystemMap` size-responsive**
+   - Currently the SVG uses fixed viewBox dimensions tuned for the small rail. Switch its outer wrapper to `w-full h-full` and let the SVG use `viewBox` with `preserveAspectRatio="xMidYMid meet"` so it scales cleanly into both the rail (small) and the dialog (large) without code-splitting two variants.
+   - No changes to node layout math, labels, or glyphs — only the container sizing.
 
-## Layout shell
-
-New file `src/components/DecisionShell.tsx` wraps `DecisionLens` with:
-
-```text
-┌──────────┬───────────────────────────────────────┐
-│          │  Decision title         Share | Export│  ← sticky header (h-16)
-│ sidebar  ├───────────────────────────────────────┤
-│ (#3D6C87)│                                       │
-│          │   active stage panel(s)               │
-│ • Frame  │   (rendered from existing DecisionLens│
-│ • Model  │    stage components — Frame / Model / │
-│ • Optns  │    Options / Decide)                  │
-│ • Decide │                                       │
-│          │                                       │
-│ [CTA]    │                                       │
-└──────────┴───────────────────────────────────────┘
-```
-
-- Sidebar `w-64`, `bg-[#3D6C87]`, white text. Logo block top, 4 stage links, primary CTA at bottom (`bg-[#A52A20]` — "Upload document" / context-aware label).
-- Active stage: `bg-white/10 border-l-4 border-[#A52A20]`. Inactive: `opacity-70` + hover `bg-white/10`.
-- Each item shows stage number + name + a small completion dot (filled when that stage has data).
-- Header: white, `border-b`, shows current decision goal + Share + Export plan buttons.
-- Workspace: `bg-[#FFFFFF]` with panel cards `bg-white border border-[#99B0C0]/30 rounded-lg shadow-sm` (replacing the current dark cards).
-
-## Stage routing
-
-Keep existing Tabs state inside `DecisionLens`, but **lift the active-stage value** so the sidebar drives it. Two options, decide during build:
-
-- (a) Sidebar buttons call a `setStage(...)` prop on `DecisionLens` — minimal invasive change.
-- (b) Switch to URL hash sub-route (`#stage=model`) — nice to have, optional.
-
-We go with (a) for this pass.
-
-## Component restyle pass (inside DecisionLens.tsx)
-
-Only swap classes / tokens — no logic changes:
-
-- All `Card` / `Panel` backgrounds → `bg-white`, border `border-[#99B0C0]/30`, text `text-[#3D6C87]`.
-- Section labels → uppercase Sora 12px `text-[#99B0C0] tracking-widest font-bold` (matches prototype).
-- Primary CTAs (Run, Suggest actions, Export plan, Share) → `bg-[#A52A20] text-white`.
-- Secondary buttons → outline `border-[#99B0C0] text-[#3D6C87]`.
-- Sliders / chips / driver pills → primary blue fills, accent red only for warnings/highlights.
-- AI Critique panel → left border `border-l-4 border-[#A52A20]` + soft red tint, matching prototype.
-- Trajectory chart axes & lines → `#3D6C87`; winning option line + p50 marker → `#A52A20`; confidence band → `#3D6C87`/10–20%.
-- Sanity / "worth a second look" panel → red-tinted accent style.
-- Onboarding `WelcomeDialog` + tour bubbles → light surface, Sora headings, accent CTA.
-
-## Files touched
-
-- `src/styles.css` — replace dark `--background`/`--foreground` etc. with FraimeWorks palette under `:root`, map via `@theme inline`. Remove dark-specific overrides.
-- `src/routes/__root.tsx` — remove `className="dark"` from `<html>`; add Sora + Manrope `<link>` in head.
-- `src/components/DecisionShell.tsx` — new shell (sidebar + header + main).
-- `src/routes/index.tsx` — render `<DecisionShell><DecisionLens .../></DecisionShell>`.
-- `src/components/DecisionLens.tsx` — accept optional `stage` + `onStageChange` props; replace color classes per the restyle pass above. No engine, no prompt, no type changes.
+4. **Tiny in-rail affordance**
+   - Make the small map in the rail clickable too (whole map opens the dialog), with `cursor-zoom-in` and the same `aria-label`. Keeps the discovery path obvious without adding chrome.
 
 ## Out of scope
 
-- No changes to server functions, prompts, simulation engine, types, share-URL codec, templates, or action-plan logic.
-- No new features. No mobile-specific redesign (mobile keeps the existing stacked layout via responsive breakpoints — sidebar collapses to a top bar under `md`).
+- No pan/zoom inside the dialog (can add later if needed).
+- No layout swap of the Model tab columns.
+- No changes to the Frame, Options, or Decide tabs.
+- No changes to simulation, types, share-URL codec, or AI prompts.
+
+## Technical notes
+
+- Uses existing shadcn `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogClose` — already in the project.
+- New icon: `Maximize2` from `lucide-react` (already a dependency).
+- Local `useState<boolean>` for open/close inside the Model tab section; no global state.
+- Keep the existing `React.memo` on `SystemMap`; the dialog mount/unmount handles re-render cost.
+
+## Acceptance
+
+- Clicking "Expand" (or the small map) opens a near-fullscreen dialog showing the same map, with all node labels readable.
+- Closing returns focus to the expand button.
+- Small map in the rail is unchanged in size/position.
+- Typecheck and build pass.
