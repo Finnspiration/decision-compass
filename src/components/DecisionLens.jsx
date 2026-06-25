@@ -831,3 +831,4 @@ function TrajectoryChartImpl({ runs, horizon, focusId, best }) {
     </div>
   );
 }
+const TrajectoryChart = React.memo(TrajectoryChartImpl);
