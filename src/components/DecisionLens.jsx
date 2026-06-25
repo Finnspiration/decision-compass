@@ -300,7 +300,7 @@ export default function DecisionLens() {
         </div>
 
         <div className="mb-6">
-          <Stepper />
+          <Stepper stage={stage} setStage={setStage} />
         </div>
 
         {/* ---------------------------- FRAME ---------------------------- */}
