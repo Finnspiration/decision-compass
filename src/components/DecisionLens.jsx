@@ -735,7 +735,7 @@ function NavBtn({ dir, onClick, children }) {
 }
 
 /* ----------------------- live system map (SVG) --------------------------- */
-function SystemMap({ variables, influences }) {
+function SystemMapImpl({ variables, influences }) {
   const W = 460, H = 320, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 56;
   const pos = {};
   const n = variables.length;
