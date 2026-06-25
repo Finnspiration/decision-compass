@@ -1460,7 +1460,7 @@ export default function DecisionLens() {
                               </li>
                             </ul>
                             <p className="mt-3 text-xs text-muted-foreground">
-                              Decision Lens will read your sources on the server and build the variables, feedback loops, and options — about 10–30 seconds.
+                              Decision Lens will read your sources and lay out the drivers, knock-on effects, and options for you — about 10–30 seconds.
                             </p>
                           </div>
                         ) : (
