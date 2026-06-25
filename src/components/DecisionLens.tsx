@@ -1841,10 +1841,10 @@ export default function DecisionLens() {
 
                 <div className="mt-5 flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <SectionTag icon={GitBranch} text="Influences (the loops)" />
+                    <SectionTag icon={GitBranch} text="Knock-on effects" />
                     <HelpPopover
-                      title="Influence (feedback loop)"
-                      body="A directed link saying one variable nudges another up or down each step. Chain a few together and you get a feedback loop — the engine of long-run behavior."
+                      title="Knock-on effects"
+                      body="How one driver affects another over time — for example, more trust lowers fear, or faster growth raises burn."
                     />
                   </div>
                   <Button
