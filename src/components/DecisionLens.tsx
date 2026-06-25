@@ -1018,6 +1018,17 @@ export default function DecisionLens() {
               <Share2 size={15} />
               Share
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={openSaveTemplate}
+              className="gap-2"
+              aria-label="Save current model as a template"
+            >
+              <BookmarkPlus size={15} />
+              Save as template
+            </Button>
           </div>
 
         </header>
