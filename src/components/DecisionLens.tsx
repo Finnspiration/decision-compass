@@ -774,6 +774,64 @@ export default function DecisionLens() {
     }
   }
 
+  function inferCurrentSource(): TemplateSource {
+    if (aiSources && aiSources.length > 0) return "documents";
+    if (aiSummary) return "ai";
+    return "manual";
+  }
+  function persistUserTemplates(next: UserTemplate[]) {
+    setUserTemplates(next);
+    saveUserTemplatesToStorage(next);
+  }
+  function openSaveTemplate() {
+    setSaveName(outcomeName || "My decision");
+    setSaveOpen(true);
+  }
+  function confirmSaveTemplate() {
+    const name = saveName.trim();
+    if (!name) return;
+    const entry: UserTemplate = {
+      id: uid(),
+      name,
+      source: inferCurrentSource(),
+      model: {
+        outcomeName, horizon,
+        variables: variables.map((v) => ({ ...v })),
+        influences: influences.map((i) => ({ ...i })),
+        options: options.map((o) => ({ ...o, pushes: { ...o.pushes } })),
+        summary: aiSummary,
+        sources: aiSources,
+      },
+      createdAt: Date.now(),
+    };
+    persistUserTemplates([entry, ...userTemplates]);
+    setSaveOpen(false);
+    toast.success("Template saved", { description: "Decision Lens · added to your gallery." });
+  }
+  function deleteUserTemplate(id: string) {
+    persistUserTemplates(userTemplates.filter((t) => t.id !== id));
+    toast.success("Template removed", { description: "Decision Lens · gallery updated." });
+  }
+  function renameUserTemplate(id: string) {
+    const t = userTemplates.find((x) => x.id === id);
+    if (!t) return;
+    const name = window.prompt("Rename template", t.name);
+    if (!name || !name.trim()) return;
+    persistUserTemplates(
+      userTemplates.map((x) => (x.id === id ? { ...x, name: name.trim() } : x))
+    );
+    toast.success("Template renamed", { description: "Decision Lens · gallery updated." });
+  }
+  function loadUserTemplate(t: UserTemplate) {
+    loadModel(t.model);
+    setStage("model");
+  }
+  function loadBuiltinTemplate(tpl: (typeof TEMPLATES)[number]) {
+    setDecision(tpl.decision);
+    loadModel(templateFromBuiltin(tpl));
+    setStage("model");
+  }
+
   const runs = useMemo(
     () =>
       options.map((o, i) => ({
