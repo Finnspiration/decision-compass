@@ -1061,7 +1061,35 @@ export default function DecisionLens() {
 
           {/* ---------------------------- MODEL ---------------------------- */}
           <TabsContent value="model" className="mt-0">
+            {(aiSummary || (aiSources && aiSources.length > 0)) && (
+              <div className="mb-5">
+                <Panel>
+                  <SectionTag icon={Sparkles} text="What the AI found" />
+                  {aiSummary && (
+                    <p className="mt-2 text-sm text-foreground">{aiSummary}</p>
+                  )}
+                  {aiSources && aiSources.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {aiSources.map((s, i) => (
+                        <span
+                          key={s.name + i}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"
+                        >
+                          {s.type === "pdf" ? <FileText size={11} className="text-primary" /> : <Upload size={11} className="text-primary" />}
+                          <span className="max-w-[220px] truncate">{s.name}</span>
+                          <span className="text-dim uppercase tracking-wider">{s.type}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-3 text-xs text-dim">
+                    Hover the <span className="inline-flex items-center"><HelpCircle size={11} className="mx-0.5" /></span> next to each variable to see why the AI included it.
+                  </p>
+                </Panel>
+              </div>
+            )}
             <div className="dl-model">
+
               <Panel>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
