@@ -202,7 +202,7 @@ async function callGateway(
 
 export const ingestSources = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => Input.parse(data))
-  .handler(async ({ data }): Promise<Record<string, unknown>> => {
+  .handler(async ({ data }): Promise<IngestResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
 
@@ -218,8 +218,18 @@ export const ingestSources = createServerFn({ method: "POST" })
     }
 
     const { labelled, sources } = budgetExcerpts(items, MAX_TOTAL_CHARS);
-    const parsed = (await callGateway(apiKey, data.decisionText, labelled, true)) as Record<string, unknown> | null;
-    const result: Record<string, unknown> = (parsed && typeof parsed === "object") ? { ...parsed } : {};
-    if (!Array.isArray(result.sources)) result.sources = sources;
+    const parsed = (await callGateway(apiKey, data.decisionText, labelled, true)) as IngestResult | null;
+    const result: IngestResult = (parsed && typeof parsed === "object") ? { ...parsed } : {};
+    if (!Array.isArray(result.sources) || result.sources.length === 0) result.sources = sources;
     return result;
   });
+
+export type IngestResult = {
+  outcomeName?: string;
+  horizon?: number;
+  summary?: string;
+  sources?: Array<{ name: string; type: "pdf" | "url" }>;
+  variables?: Array<{ id?: string; name?: string; value?: number; weight?: number; rationale?: string }>;
+  influences?: Array<{ from?: string; to?: string; strength?: number; rationale?: string }>;
+  options?: Array<{ name?: string; pushes?: Record<string, number> }>;
+};
