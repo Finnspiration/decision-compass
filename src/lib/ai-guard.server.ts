@@ -132,9 +132,10 @@ export function validateAndClampModel(raw: unknown): SafeModel {
       count++;
     }
     let actions: SafeAction[] | undefined;
-    if (Array.isArray((o as any).actions)) {
+    const actionsRaw = (o as Record<string, unknown>).actions;
+    if (Array.isArray(actionsRaw)) {
       const arr: SafeAction[] = [];
-      for (const a of (o as any).actions as unknown[]) {
+      for (const a of actionsRaw as unknown[]) {
         if (!a || typeof a !== "object") continue;
         const aa = a as Record<string, unknown>;
         const text = sstr(aa.text, 160).trim();
