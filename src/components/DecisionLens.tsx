@@ -2455,7 +2455,7 @@ function ActionPlanReadout({
     lines.push("");
     lines.push(`**Decision:** ${decision || "(unnamed decision)"}`);
     lines.push(`**Chosen strategy:** ${option.name}`);
-    lines.push(`**Win-probability (${outcomeName}):** ${winPct}%`);
+    lines.push(`**Comes out ahead in ~${Math.round(winPct/10)} of 10 likely futures** (${outcomeName})`);
     lines.push("");
     if (explanation) {
       lines.push(`## Why this strategy`);
