@@ -2023,69 +2023,39 @@ export default function DecisionLens() {
               <Panel>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <SectionTag icon={Lightbulb} text="Second opinion" />
+                    <SectionTag icon={Lightbulb} text="Ways to strengthen this model" />
                     <HelpPopover
-                      title="Second opinion"
-                      body="Spots things you may have missed — an important factor, a downside to consider, or two options that look too alike."
+                      title="Help me improve this"
+                      body="Spots things you may have missed — an important driver, a downside, or a knock-on effect that creates a loop."
                     />
                   </div>
                   <Button
                     size="sm"
-                    variant="secondary"
-                    onClick={runCritique}
-                    disabled={critiquing || variables.length === 0}
+                    variant="default"
+                    onClick={() => runImprove("model")}
+                    disabled={improvingModel || variables.length === 0}
                     className="gap-1.5"
+                    aria-label="Help me improve this model"
                   >
-                    {critiquing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                    {critique ? "Get another second opinion" : "Get a second opinion"}
+                    {improvingModel ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {modelSuggestions ? "Get more suggestions" : "✨ Help me improve this"}
                   </Button>
                 </div>
-                {critique && critique.length > 0 && (
-                  <ul className="mt-3 grid list-none gap-2 p-0">
-                    {critique.map((s, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-3 rounded-lg border border-border bg-muted/60 p-2.5 text-xs"
-                      >
-                        <Lightbulb size={13} className="mt-0.5 shrink-0 text-primary" />
-                        <div className="flex-1 leading-relaxed text-foreground">
-                          {s.message}
-                          {s.kind === "add_variable" && s.variable && (
-                            <div className="mt-1 text-dim">
-                              → add driver <b className="text-foreground">{s.variable.name}</b>{" "}
-                              ({s.variable.weight >= 0 ? "helps" : "hurts"} your goal · {Math.abs(s.variable.weight)})
-                            </div>
-                          )}
-                          {s.kind === "add_influence" && s.influence && (
-                            <div className="mt-1 text-dim">
-                              → knock-on: <b className="text-foreground">{variables.find((v) => v.id === s.influence!.from)?.name ?? s.influence.from}</b>
-                              {" → "}
-                              <b className="text-foreground">{variables.find((v) => v.id === s.influence!.to)?.name ?? s.influence.to}</b>
-                              {" "}({s.influence.strength >= 0 ? "+" : ""}{s.influence.strength})
-                            </div>
-                          )}
-                        </div>
-                        {(s.kind === "add_variable" || s.kind === "add_influence") && (
-                          <Button size="sm" variant="default" onClick={() => acceptSuggestion(s)} className="h-7 gap-1 px-2 text-[11px]">
-                            <Plus size={11} /> Accept
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {critique && critique.length === 0 && (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Nothing major stands out — your map looks coherent.
-                  </p>
-                )}
-                {!critique && (
+                {modelSuggestions === null && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Get a few suggestions: a factor you might be missing, a downside to weigh, or options that are too similar.
+                    Get a few suggestions: a driver you might be missing, a downside to weigh, or a knock-on effect that creates a loop.
                   </p>
                 )}
+                <SuggestionList
+                  suggestions={modelSuggestions}
+                  variables={variables}
+                  onAccept={(s) => acceptSuggestion(s, "model")}
+                  onDismiss={(s) => dismissSuggestion(s, "model")}
+                />
               </Panel>
             </div>
+
+
 
             <div className="dl-model">
 
