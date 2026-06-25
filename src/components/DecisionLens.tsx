@@ -1316,7 +1316,7 @@ export default function DecisionLens() {
                     Sources (optional)
                     <HelpPopover
                       title="Sources"
-                      body="Drop PDFs or paste URLs. We extract their text on the server and ground the AI model in their content."
+                      body="Drop PDFs or paste links. We'll read them and use them as the starting point for your decision map."
                     />
                   </div>
                   <input
