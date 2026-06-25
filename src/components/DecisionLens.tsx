@@ -36,15 +36,18 @@ const ONBOARD_KEY = "dl_onboarded";
 ============================================================================ */
 
 /* --------------------------- model types -------------------------------- */
-type Variable = { id: string; name: string; value: number; weight: number };
-type Influence = { from: string; to: string; strength: number };
+type Variable = { id: string; name: string; value: number; weight: number; rationale?: string };
+type Influence = { from: string; to: string; strength: number; rationale?: string };
 type DecisionOption = { id: string; name: string; pushes: Record<string, number> };
+type ModelSource = { name: string; type: "pdf" | "url" };
 type Model = {
   outcomeName: string;
   horizon: number;
   variables: Variable[];
   influences: Influence[];
   options: DecisionOption[];
+  summary?: string;
+  sources?: ModelSource[];
 };
 
 /* --------------------------- URL hash codec ----------------------------- */
