@@ -2448,6 +2448,55 @@ export default function DecisionLens() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={chartOpen} onOpenChange={setChartOpen}>
+        <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] flex flex-col gap-3">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Telescope size={16} className="text-primary" />
+              How each option plays out · {outcomeName}
+            </DialogTitle>
+            <DialogDescription>
+              Higher on the chart = better outlook. The shaded band shows the range of possible futures; the line is the middle case. Ranking is relative — best vs. the other options, not vs. today.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <TrajectoryChart
+              runs={runs}
+              horizon={horizon}
+              focusId={focusOpt}
+              best={best}
+              mcBands={mc.bands}
+              fill
+            />
+          </div>
+          <div className="shrink-0 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            {runs.map((r) => {
+              const d = deltas[r.option.id];
+              const delta = d ? Math.round(d.delta) : 0;
+              const tone = delta >= 2 ? "text-helps" : delta <= -2 ? "text-hurts" : "text-dim";
+              const glyph = delta >= 2 ? "▲" : delta <= -2 ? "▼" : "→";
+              const sign = delta > 0 ? "+" : "";
+              return (
+                <span key={r.option.id} className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded" style={{ background: r.color }} />
+                  <span>{r.option.name}</span>
+                  {d && <span className={"tabular-nums font-semibold " + tone}>{glyph} {sign}{delta}</span>}
+                </span>
+              );
+            })}
+            <span className="ml-auto text-dim">based on {MC_RUNS} possible futures</span>
+          </div>
+          {allTrendDown && (
+            <div className="shrink-0 flex items-start gap-2 rounded-lg border border-hurts/30 bg-hurts/5 p-3 text-xs text-muted-foreground">
+              <AlertTriangle size={13} className="mt-0.5 shrink-0 text-hurts" />
+              <span className="leading-relaxed">
+                All options trend downward in this model — "comes out ahead" means <b className="text-foreground">loses the least</b>.
+              </span>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={mapOpen} onOpenChange={setMapOpen}>
         <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] flex flex-col gap-3">
           <DialogHeader className="shrink-0">
