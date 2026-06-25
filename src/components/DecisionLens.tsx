@@ -1981,13 +1981,14 @@ export default function DecisionLens() {
                                   updOpt(o.id, { pushes: { ...o.pushes, [v.id]: val[0] } })
                                 }
                                 className="flex-1"
-                                aria-label={o.name + " effect on " + v.name}
+                                aria-label={o.name + (((o.pushes[v.id] || 0) > 0) ? " boosts " : ((o.pushes[v.id] || 0) < 0) ? " lowers " : " — no effect on ") + v.name}
                               />
                               <span
-                                className="text-xs text-dim text-right"
-                                style={{ width: 26 }}
+                                className={"text-[10px] font-semibold uppercase tracking-wide text-right " + ((o.pushes[v.id] || 0) > 0 ? "text-helps" : (o.pushes[v.id] || 0) < 0 ? "text-hurts" : "text-dim")}
+                                style={{ width: 48 }}
+                                title={(o.pushes[v.id] || 0) > 0 ? "This option boosts " + v.name : (o.pushes[v.id] || 0) < 0 ? "This option lowers " + v.name : "This option doesn't move " + v.name}
                               >
-                                {o.pushes[v.id] > 0 ? "+" : ""}{o.pushes[v.id] || 0}
+                                {(o.pushes[v.id] || 0) > 0 ? "▲ boosts" : (o.pushes[v.id] || 0) < 0 ? "▼ lowers" : "—"}
                               </span>
                             </div>
                           ))}
