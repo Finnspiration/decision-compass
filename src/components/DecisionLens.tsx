@@ -4,7 +4,7 @@ import {
   Plus, X, Sparkles, ArrowRight, ArrowLeft, Trash2, Share2, Loader2,
   Target, Network, GitBranch, Telescope, RotateCcw,
   HelpCircle, Upload, FileText, Compass, MousePointerClick, Lightbulb, Wand2,
-  BookmarkPlus, Pencil, Bookmark,
+  BookmarkPlus, Pencil, Bookmark, CheckCircle2, Circle, PlayCircle,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { explainDecision, critiqueModel, type CritiqueSuggestion } from "@/lib/ai-assist.functions";
