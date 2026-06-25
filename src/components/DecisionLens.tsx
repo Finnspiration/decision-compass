@@ -571,6 +571,11 @@ export default function DecisionLens() {
   const [aiSummary, setAiSummary] = useState<string | undefined>();
   const [aiSources, setAiSources] = useState<ModelSource[] | undefined>();
 
+  // User templates (gallery)
+  const [userTemplates, setUserTemplates] = useState<UserTemplate[]>(() => loadUserTemplatesFromStorage());
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+
   // Onboarding state
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
