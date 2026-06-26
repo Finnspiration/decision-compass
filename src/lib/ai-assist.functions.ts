@@ -8,6 +8,8 @@ const VariableSchema = z.object({
   name: z.string(),
   value: z.number(),
   weight: z.number(),
+  effortToChange: z.enum(["low", "med", "high"]).optional(),
+  timeToChange: z.enum(["now", "soon", "ongoing", "years"]).optional(),
 });
 const InfluenceSchema = z.object({
   from: z.string(),
