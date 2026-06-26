@@ -40,6 +40,7 @@ import {
   suggestActions,
   type ImproveSuggestion,
 } from "@/lib/ai-assist.functions";
+import { EstuarineMap } from "@/components/estuarine/EstuarineMap";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1697,6 +1698,36 @@ export default function DecisionLens() {
   const [modelSuggestions, setModelSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [optionSuggestions, setOptionSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [placingMap, setPlacingMap] = useState(false);
+
+  async function runPlaceOnMap() {
+    setPlacingMap(true);
+    try {
+      const { assessMalleability } = await import("@/lib/assess-malleability.functions");
+      const res = await assessMalleability({
+        data: {
+          model: {
+            outcomeName,
+            variables: variables.map((v) => ({ id: v.id, name: v.name, weight: v.weight })),
+          },
+        },
+      });
+      const byId = new Map(res.positions.map((p) => [p.id, p]));
+      setVariables((vs) =>
+        vs.map((v) => {
+          const p = byId.get(v.id);
+          if (!p) return v;
+          return { ...v, effortToChange: p.effortToChange, timeToChange: p.timeToChange };
+        }),
+      );
+      toast.success("Drivers placed on the map");
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't place drivers — try again");
+    } finally {
+      setPlacingMap(false);
+    }
+  }
 
   async function runSuggestActions(opt: DecisionOption) {
     setActionLoading((s) => ({ ...s, [opt.id]: true }));
@@ -3359,6 +3390,12 @@ export default function DecisionLens() {
                 </Panel>
 
                 <Panel>
+                  <Tabs defaultValue="ranking" className="w-full">
+                    <TabsList className="mb-3">
+                      <TabsTrigger value="ranking">Ranking</TabsTrigger>
+                      <TabsTrigger value="map">Map</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="ranking" className="mt-0 space-y-0">
                   <SectionTag icon={Target} text="Which option looks best" />
                   <div className="mt-3 grid gap-2">
                     {ranked.map((r, i) => (
@@ -3452,6 +3489,19 @@ export default function DecisionLens() {
                       </p>
                     )}
                   </div>
+                    </TabsContent>
+                    <TabsContent value="map" className="mt-0">
+                      <SectionTag icon={Target} text="Map of drivers" />
+                      <div className="mt-3">
+                        <EstuarineMap
+                          variables={variables}
+                          onUpdate={(id, patch) => updVar(id, patch)}
+                          onPlace={runPlaceOnMap}
+                          placing={placingMap}
+                        />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </Panel>
 
                 {best &&
