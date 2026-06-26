@@ -1699,6 +1699,11 @@ export default function DecisionLens() {
   const [optionSuggestions, setOptionSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [placingMap, setPlacingMap] = useState(false);
+  const [viewTab, setViewTab] = useState<"ranking" | "map">("ranking");
+  const [domainReading, setDomainReading] = useState<SenseDomain | null>(null);
+  const [loadingDomain, setLoadingDomain] = useState(false);
+  const autoLeadDoneRef = useRef(false);
+  const callSenseDomain = useServerFn(senseDomain);
 
   async function runPlaceOnMap() {
     setPlacingMap(true);
