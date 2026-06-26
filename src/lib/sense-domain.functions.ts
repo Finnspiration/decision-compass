@@ -170,8 +170,8 @@ export function senseDomainHeuristic(
     confidence = 0.55;
   }
 
-  const leadView: SenseDomain["leadView"] =
-    domain === "complex" || domain === "chaotic" ? "map" : "ranking";
+  const leadView: SenseDomain["leadView"] = domain === "complex" ? "map" : "ranking";
+
 
   return {
     domain,
