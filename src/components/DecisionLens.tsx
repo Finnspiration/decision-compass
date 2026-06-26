@@ -1707,7 +1707,12 @@ export default function DecisionLens() {
   const [domainReading, setDomainReading] = useState<SenseDomain | null>(null);
   const [loadingDomain, setLoadingDomain] = useState(false);
   const autoLeadDoneRef = useRef(false);
+  const userOverrodeViewRef = useRef(false);
   const callSenseDomain = useServerFn(senseDomain);
+  const handleViewChange = (v: "ranking" | "map" | "plan") => {
+    userOverrodeViewRef.current = true;
+    setViewTab(v);
+  };
 
   async function runPlaceOnMap() {
     setPlacingMap(true);
