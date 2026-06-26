@@ -4783,12 +4783,15 @@ function WelcomeDialog({
             </li>
             <li>
               <b className="text-primary">4. See how each plays out</b> — we look across many
-              possible futures to see which option comes out ahead.
+              possible futures to see which option comes out ahead, and place the drivers on a map
+              by how hard and slow each one is to shift.
             </li>
             <li>
-              <b className="text-primary">5. Get an action plan</b> — sequenced Now / Soon / Ongoing
-              steps you can copy as Markdown.
+              <b className="text-primary">5. Get a strategy that fits</b> — quick moves where you
+              have room, small safe experiments where it's uncertain, and a plan to work around the
+              fixed forces. We highlight which view to lead with for your situation.
             </li>
+
           </ol>
         </div>
 
@@ -4835,8 +4838,9 @@ const TOUR_COPY = [
   "Prefer to type? Describe the decision in your own words and let AI draft the map from scratch.",
   "Look over the drivers and knock-on effects. Click 'Get a second opinion' to have AI flag things you might be missing.",
   "Set how each option moves the drivers — then hit ✨ Suggest actions to turn it into concrete next steps.",
-  "Decide tab: we look across many possible futures to see which option comes out ahead, explain why, and hand you a Now / Soon / Ongoing action plan you can copy.",
+  "Decide tab: we read your situation and pick the lead view. Ranking shows which option wins across many futures; Map places drivers by how hard and slow each one is to shift; Plan turns that into quick moves, safe experiments, and things to work around. You can switch views anytime.",
 ];
+
 
 function TourCoachmark({
   step,
