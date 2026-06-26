@@ -8,7 +8,14 @@ const Input = z.object({
 export type DraftedModel = {
   outcomeName?: string;
   horizon?: number;
-  variables?: Array<{ id?: string; name?: string; value?: number; weight?: number }>;
+  variables?: Array<{
+    id?: string;
+    name?: string;
+    value?: number;
+    weight?: number;
+    effortToChange?: "low" | "med" | "high";
+    timeToChange?: "now" | "soon" | "ongoing" | "years";
+  }>;
   influences?: Array<{ from?: string; to?: string; strength?: number }>;
   options?: Array<{
     name?: string;
