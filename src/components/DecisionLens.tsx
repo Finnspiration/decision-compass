@@ -141,7 +141,15 @@ function pushSimilarity(
 ============================================================================ */
 
 /* --------------------------- model types -------------------------------- */
-type Variable = { id: string; name: string; value: number; weight: number; rationale?: string };
+type Variable = {
+  id: string;
+  name: string;
+  value: number;
+  weight: number;
+  rationale?: string;
+  effortToChange?: "low" | "med" | "high";
+  timeToChange?: "now" | "soon" | "ongoing" | "years";
+};
 type Influence = { from: string; to: string; strength: number; rationale?: string };
 type DecisionAction = {
   text: string;
