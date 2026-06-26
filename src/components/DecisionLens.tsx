@@ -1698,6 +1698,36 @@ export default function DecisionLens() {
   const [modelSuggestions, setModelSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [optionSuggestions, setOptionSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [placingMap, setPlacingMap] = useState(false);
+
+  async function runPlaceOnMap() {
+    setPlacingMap(true);
+    try {
+      const { assessMalleability } = await import("@/lib/assess-malleability.functions");
+      const res = await assessMalleability({
+        data: {
+          model: {
+            outcomeName,
+            variables: variables.map((v) => ({ id: v.id, name: v.name, weight: v.weight })),
+          },
+        },
+      });
+      const byId = new Map(res.positions.map((p) => [p.id, p]));
+      setVariables((vs) =>
+        vs.map((v) => {
+          const p = byId.get(v.id);
+          if (!p) return v;
+          return { ...v, effortToChange: p.effortToChange, timeToChange: p.timeToChange };
+        }),
+      );
+      toast.success("Drivers placed on the map");
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't place drivers — try again");
+    } finally {
+      setPlacingMap(false);
+    }
+  }
 
   async function runSuggestActions(opt: DecisionOption) {
     setActionLoading((s) => ({ ...s, [opt.id]: true }));
