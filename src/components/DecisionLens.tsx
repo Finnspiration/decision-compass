@@ -3450,7 +3450,7 @@ export default function DecisionLens() {
                   {domainReading && (
                     <DomainBanner
                       reading={domainReading}
-                      activeView={viewTab}
+                      activeView={viewTab === "plan" ? "ranking" : viewTab}
                       onSwitch={setViewTab}
                       loading={loadingDomain}
                     />
