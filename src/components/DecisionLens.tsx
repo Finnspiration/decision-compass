@@ -41,6 +41,7 @@ import {
   type ImproveSuggestion,
 } from "@/lib/ai-assist.functions";
 import { EstuarineMap } from "@/components/estuarine/EstuarineMap";
+import { EstuarinePlan } from "@/components/estuarine/EstuarinePlan";
 import { DomainBanner } from "@/components/estuarine/DomainBanner";
 import { senseDomain, type SenseDomain } from "@/lib/sense-domain.functions";
 
@@ -1701,7 +1702,7 @@ export default function DecisionLens() {
   const [optionSuggestions, setOptionSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [placingMap, setPlacingMap] = useState(false);
-  const [viewTab, setViewTab] = useState<"ranking" | "map">("ranking");
+  const [viewTab, setViewTab] = useState<"ranking" | "map" | "plan">("ranking");
   const [domainReading, setDomainReading] = useState<SenseDomain | null>(null);
   const [loadingDomain, setLoadingDomain] = useState(false);
   const autoLeadDoneRef = useRef(false);
@@ -3449,15 +3450,16 @@ export default function DecisionLens() {
                   {domainReading && (
                     <DomainBanner
                       reading={domainReading}
-                      activeView={viewTab}
+                      activeView={viewTab === "plan" ? "ranking" : viewTab}
                       onSwitch={setViewTab}
                       loading={loadingDomain}
                     />
                   )}
-                  <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as "ranking" | "map")} className="w-full">
+                  <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as "ranking" | "map" | "plan")} className="w-full">
                     <TabsList className="mb-3">
                       <TabsTrigger value="ranking">Ranking</TabsTrigger>
                       <TabsTrigger value="map">Map</TabsTrigger>
+                      <TabsTrigger value="plan">Plan</TabsTrigger>
                     </TabsList>
                     <TabsContent value="ranking" className="mt-0 space-y-0">
                   <SectionTag icon={Target} text="Which option looks best" />
@@ -3562,6 +3564,17 @@ export default function DecisionLens() {
                           onUpdate={(id, patch) => updVar(id, patch)}
                           onPlace={runPlaceOnMap}
                           placing={placingMap}
+                        />
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="plan" className="mt-0">
+                      <SectionTag icon={Target} text="Action strategy from the map" />
+                      <div className="mt-3">
+                        <EstuarinePlan
+                          decision={decision}
+                          outcomeName={outcomeName}
+                          variables={variables}
+                          options={options}
                         />
                       </div>
                     </TabsContent>
