@@ -70,7 +70,15 @@ export type SafeModel = {
   horizon: number;
   summary?: string;
   sources?: Array<{ name: string; type: "pdf" | "url" }>;
-  variables: Array<{ id: string; name: string; value: number; weight: number; rationale?: string }>;
+  variables: Array<{
+    id: string;
+    name: string;
+    value: number;
+    weight: number;
+    rationale?: string;
+    effortToChange?: "low" | "med" | "high";
+    timeToChange?: "now" | "soon" | "ongoing" | "years";
+  }>;
   influences: Array<{ from: string; to: string; strength: number; rationale?: string }>;
   options: Array<{ name: string; pushes: Record<string, number>; actions?: SafeAction[] }>;
 };
