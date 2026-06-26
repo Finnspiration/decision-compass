@@ -90,6 +90,8 @@ export function validateAndClampModel(raw: unknown): SafeModel {
 
   const variablesIn = Array.isArray(r.variables) ? r.variables.slice(0, 8) : [];
   const seenIds = new Set<string>();
+  const EFFORT_TO_CHANGE = new Set(["low", "med", "high"]);
+  const TIME_TO_CHANGE = new Set(["now", "soon", "ongoing", "years"]);
   const variables = variablesIn.map((v, i) => {
     const o = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
     let id = slug(o.id ?? o.name ?? `v${i + 1}`);
@@ -98,16 +100,22 @@ export function validateAndClampModel(raw: unknown): SafeModel {
       k = 2;
     while (seenIds.has(uniq)) uniq = `${id}_${k++}`;
     seenIds.add(uniq);
+    const effortToChange = EFFORT_TO_CHANGE.has(o.effortToChange as string)
+      ? (o.effortToChange as "low" | "med" | "high")
+      : undefined;
+    const timeToChange = TIME_TO_CHANGE.has(o.timeToChange as string)
+      ? (o.timeToChange as "now" | "soon" | "ongoing" | "years")
+      : undefined;
     return {
       id: uniq,
       name: sstr(o.name ?? uniq, 80) || uniq,
       value: clamp(o.value, 0, 100, 50),
       weight: clamp(o.weight, -100, 100, 0),
       rationale: sstr(o.rationale, 300) || undefined,
+      ...(effortToChange ? { effortToChange } : {}),
+      ...(timeToChange ? { timeToChange } : {}),
     };
   });
-  // Need at least one variable for influences/options to be meaningful
-  const ids = new Set(variables.map((v) => v.id));
 
   const influencesIn = Array.isArray(r.influences) ? r.influences.slice(0, 16) : [];
   const influences = influencesIn
