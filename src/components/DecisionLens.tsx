@@ -41,6 +41,7 @@ import {
   type ImproveSuggestion,
 } from "@/lib/ai-assist.functions";
 import { EstuarineMap } from "@/components/estuarine/EstuarineMap";
+import { EstuarinePlan } from "@/components/estuarine/EstuarinePlan";
 import { DomainBanner } from "@/components/estuarine/DomainBanner";
 import { senseDomain, type SenseDomain } from "@/lib/sense-domain.functions";
 
