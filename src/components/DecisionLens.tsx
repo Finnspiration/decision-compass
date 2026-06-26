@@ -3567,6 +3567,17 @@ export default function DecisionLens() {
                         />
                       </div>
                     </TabsContent>
+                    <TabsContent value="plan" className="mt-0">
+                      <SectionTag icon={Target} text="Action strategy from the map" />
+                      <div className="mt-3">
+                        <EstuarinePlan
+                          decision={decision}
+                          outcomeName={outcomeName}
+                          variables={variables}
+                          options={options}
+                        />
+                      </div>
+                    </TabsContent>
                   </Tabs>
                 </Panel>
 
