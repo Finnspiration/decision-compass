@@ -3446,7 +3446,15 @@ export default function DecisionLens() {
                 </Panel>
 
                 <Panel>
-                  <Tabs defaultValue="ranking" className="w-full">
+                  {domainReading && (
+                    <DomainBanner
+                      reading={domainReading}
+                      activeView={viewTab}
+                      onSwitch={setViewTab}
+                      loading={loadingDomain}
+                    />
+                  )}
+                  <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as "ranking" | "map")} className="w-full">
                     <TabsList className="mb-3">
                       <TabsTrigger value="ranking">Ranking</TabsTrigger>
                       <TabsTrigger value="map">Map</TabsTrigger>
