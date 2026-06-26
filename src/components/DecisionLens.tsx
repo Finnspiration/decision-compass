@@ -3455,10 +3455,11 @@ export default function DecisionLens() {
                       loading={loadingDomain}
                     />
                   )}
-                  <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as "ranking" | "map")} className="w-full">
+                  <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as "ranking" | "map" | "plan")} className="w-full">
                     <TabsList className="mb-3">
                       <TabsTrigger value="ranking">Ranking</TabsTrigger>
                       <TabsTrigger value="map">Map</TabsTrigger>
+                      <TabsTrigger value="plan">Plan</TabsTrigger>
                     </TabsList>
                     <TabsContent value="ranking" className="mt-0 space-y-0">
                   <SectionTag icon={Target} text="Which option looks best" />
