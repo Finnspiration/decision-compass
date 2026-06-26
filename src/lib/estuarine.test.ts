@@ -1,3 +1,4 @@
+// @ts-expect-error - bun:test types are not in tsconfig (avoid polluting global fetch types)
 import { describe, expect, it } from "bun:test";
 import { classifyZone, effortEfficiency, isMonster } from "./estuarine";
 
