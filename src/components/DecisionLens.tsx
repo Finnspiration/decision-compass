@@ -1776,7 +1776,9 @@ export default function DecisionLens() {
       .then((r) => {
         if (cancelled) return;
         setDomainReading(r);
-        if (!autoLeadDoneRef.current) {
+        if (!autoLeadDoneRef.current && !userOverrodeViewRef.current) {
+          // For tangled situations, lead with the action map (the plan tab sits
+          // alongside it). Otherwise, lead with the ranking.
           setViewTab(r.leadView);
           autoLeadDoneRef.current = true;
         }
