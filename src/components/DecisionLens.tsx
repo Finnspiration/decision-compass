@@ -3458,18 +3458,19 @@ export default function DecisionLens() {
                   {domainReading && (
                     <DomainBanner
                       reading={domainReading}
-                      activeView={viewTab === "plan" ? "ranking" : viewTab}
-                      onSwitch={setViewTab}
+                      activeView={viewTab === "plan" ? "map" : viewTab}
+                      onSwitch={handleViewChange}
                       loading={loadingDomain}
                     />
                   )}
-                  <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as "ranking" | "map" | "plan")} className="w-full">
+                  <Tabs value={viewTab} onValueChange={(v) => handleViewChange(v as "ranking" | "map" | "plan")} className="w-full">
                     <TabsList className="mb-3">
                       <TabsTrigger value="ranking">Ranking</TabsTrigger>
                       <TabsTrigger value="map">Map</TabsTrigger>
                       <TabsTrigger value="plan">Plan</TabsTrigger>
                     </TabsList>
                     <TabsContent value="ranking" className="mt-0 space-y-0">
+
                   <SectionTag icon={Target} text="Which option looks best" />
                   <div className="mt-3 grid gap-2">
                     {ranked.map((r, i) => (
