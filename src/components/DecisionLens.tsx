@@ -41,6 +41,8 @@ import {
   type ImproveSuggestion,
 } from "@/lib/ai-assist.functions";
 import { EstuarineMap } from "@/components/estuarine/EstuarineMap";
+import { DomainBanner } from "@/components/estuarine/DomainBanner";
+import { senseDomain, type SenseDomain } from "@/lib/sense-domain.functions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1699,6 +1701,11 @@ export default function DecisionLens() {
   const [optionSuggestions, setOptionSuggestions] = useState<ImproveSuggestion[] | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [placingMap, setPlacingMap] = useState(false);
+  const [viewTab, setViewTab] = useState<"ranking" | "map">("ranking");
+  const [domainReading, setDomainReading] = useState<SenseDomain | null>(null);
+  const [loadingDomain, setLoadingDomain] = useState(false);
+  const autoLeadDoneRef = useRef(false);
+  const callSenseDomain = useServerFn(senseDomain);
 
   async function runPlaceOnMap() {
     setPlacingMap(true);
@@ -1728,6 +1735,55 @@ export default function DecisionLens() {
       setPlacingMap(false);
     }
   }
+
+  // Sense the situation when reaching Decide. Heuristic-first with one AI call.
+  useEffect(() => {
+    if (stage !== "decide") {
+      autoLeadDoneRef.current = false;
+      return;
+    }
+    if (ranked.length < 2) {
+      setDomainReading(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDomain(true);
+    const topGap = (ranked[0].winProb - (ranked[1]?.winProb ?? 0)) * 100;
+    callSenseDomain({
+      data: {
+        model: {
+          outcomeName,
+          variables: variables.map((v) => ({
+            id: v.id,
+            name: v.name,
+            weight: v.weight,
+            effortToChange: v.effortToChange,
+            timeToChange: v.timeToChange,
+          })),
+          influences: influences.map((i) => ({ from: i.from, to: i.to })),
+          options: options.map((o) => ({ id: o.id, name: o.name })),
+        },
+        topGap,
+      },
+    })
+      .then((r) => {
+        if (cancelled) return;
+        setDomainReading(r);
+        if (!autoLeadDoneRef.current) {
+          setViewTab(r.leadView);
+          autoLeadDoneRef.current = true;
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingDomain(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, ranked.length, variables, influences, options, outcomeName]);
+
 
   async function runSuggestActions(opt: DecisionOption) {
     setActionLoading((s) => ({ ...s, [opt.id]: true }));
@@ -3390,7 +3446,15 @@ export default function DecisionLens() {
                 </Panel>
 
                 <Panel>
-                  <Tabs defaultValue="ranking" className="w-full">
+                  {domainReading && (
+                    <DomainBanner
+                      reading={domainReading}
+                      activeView={viewTab}
+                      onSwitch={setViewTab}
+                      loading={loadingDomain}
+                    />
+                  )}
+                  <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as "ranking" | "map")} className="w-full">
                     <TabsList className="mb-3">
                       <TabsTrigger value="ranking">Ranking</TabsTrigger>
                       <TabsTrigger value="map">Map</TabsTrigger>
