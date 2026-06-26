@@ -44,6 +44,7 @@ import { EstuarineMap } from "@/components/estuarine/EstuarineMap";
 import { EstuarinePlan } from "@/components/estuarine/EstuarinePlan";
 import { DomainBanner } from "@/components/estuarine/DomainBanner";
 import { senseDomain, type SenseDomain } from "@/lib/sense-domain.functions";
+import { effortEfficiency } from "@/lib/estuarine";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
