@@ -1736,6 +1736,55 @@ export default function DecisionLens() {
     }
   }
 
+  // Sense the situation when reaching Decide. Heuristic-first with one AI call.
+  useEffect(() => {
+    if (stage !== "decide") {
+      autoLeadDoneRef.current = false;
+      return;
+    }
+    if (ranked.length < 2) {
+      setDomainReading(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDomain(true);
+    const topGap = (ranked[0].winProb - (ranked[1]?.winProb ?? 0)) * 100;
+    callSenseDomain({
+      data: {
+        model: {
+          outcomeName,
+          variables: variables.map((v) => ({
+            id: v.id,
+            name: v.name,
+            weight: v.weight,
+            effortToChange: v.effortToChange,
+            timeToChange: v.timeToChange,
+          })),
+          influences: influences.map((i) => ({ from: i.from, to: i.to })),
+          options: options.map((o) => ({ id: o.id, name: o.name })),
+        },
+        topGap,
+      },
+    })
+      .then((r) => {
+        if (cancelled) return;
+        setDomainReading(r);
+        if (!autoLeadDoneRef.current) {
+          setViewTab(r.leadView);
+          autoLeadDoneRef.current = true;
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingDomain(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, ranked.length, variables, influences, options, outcomeName]);
+
+
   async function runSuggestActions(opt: DecisionOption) {
     setActionLoading((s) => ({ ...s, [opt.id]: true }));
     try {
