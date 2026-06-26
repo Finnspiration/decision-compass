@@ -40,6 +40,7 @@ import {
   suggestActions,
   type ImproveSuggestion,
 } from "@/lib/ai-assist.functions";
+import { EstuarineMap } from "@/components/estuarine/EstuarineMap";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
