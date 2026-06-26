@@ -4783,12 +4783,15 @@ function WelcomeDialog({
             </li>
             <li>
               <b className="text-primary">4. See how each plays out</b> — we look across many
-              possible futures to see which option comes out ahead.
+              possible futures to see which option comes out ahead, and place the drivers on a map
+              by how hard and slow each one is to shift.
             </li>
             <li>
-              <b className="text-primary">5. Get an action plan</b> — sequenced Now / Soon / Ongoing
-              steps you can copy as Markdown.
+              <b className="text-primary">5. Get a strategy that fits</b> — quick moves where you
+              have room, small safe experiments where it's uncertain, and a plan to work around the
+              fixed forces. We highlight which view to lead with for your situation.
             </li>
+
           </ol>
         </div>
 
