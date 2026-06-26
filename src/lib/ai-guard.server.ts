@@ -116,6 +116,9 @@ export function validateAndClampModel(raw: unknown): SafeModel {
       ...(timeToChange ? { timeToChange } : {}),
     };
   });
+  const ids = new Set(variables.map((v) => v.id));
+
+
 
   const influencesIn = Array.isArray(r.influences) ? r.influences.slice(0, 16) : [];
   const influences = influencesIn
