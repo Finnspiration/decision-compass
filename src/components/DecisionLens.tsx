@@ -44,6 +44,7 @@ import { EstuarineMap } from "@/components/estuarine/EstuarineMap";
 import { EstuarinePlan } from "@/components/estuarine/EstuarinePlan";
 import { DomainBanner } from "@/components/estuarine/DomainBanner";
 import { senseDomain, type SenseDomain } from "@/lib/sense-domain.functions";
+import { effortEfficiency } from "@/lib/estuarine";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1706,7 +1707,12 @@ export default function DecisionLens() {
   const [domainReading, setDomainReading] = useState<SenseDomain | null>(null);
   const [loadingDomain, setLoadingDomain] = useState(false);
   const autoLeadDoneRef = useRef(false);
+  const userOverrodeViewRef = useRef(false);
   const callSenseDomain = useServerFn(senseDomain);
+  const handleViewChange = (v: "ranking" | "map" | "plan") => {
+    userOverrodeViewRef.current = true;
+    setViewTab(v);
+  };
 
   async function runPlaceOnMap() {
     setPlacingMap(true);
@@ -1770,7 +1776,9 @@ export default function DecisionLens() {
       .then((r) => {
         if (cancelled) return;
         setDomainReading(r);
-        if (!autoLeadDoneRef.current) {
+        if (!autoLeadDoneRef.current && !userOverrodeViewRef.current) {
+          // For tangled situations, lead with the action map (the plan tab sits
+          // alongside it). Otherwise, lead with the ranking.
           setViewTab(r.leadView);
           autoLeadDoneRef.current = true;
         }
@@ -3450,21 +3458,29 @@ export default function DecisionLens() {
                   {domainReading && (
                     <DomainBanner
                       reading={domainReading}
-                      activeView={viewTab === "plan" ? "ranking" : viewTab}
-                      onSwitch={setViewTab}
+                      activeView={viewTab === "plan" ? "map" : viewTab}
+                      onSwitch={handleViewChange}
                       loading={loadingDomain}
                     />
                   )}
-                  <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as "ranking" | "map" | "plan")} className="w-full">
+                  <Tabs value={viewTab} onValueChange={(v) => handleViewChange(v as "ranking" | "map" | "plan")} className="w-full">
                     <TabsList className="mb-3">
                       <TabsTrigger value="ranking">Ranking</TabsTrigger>
                       <TabsTrigger value="map">Map</TabsTrigger>
                       <TabsTrigger value="plan">Plan</TabsTrigger>
                     </TabsList>
                     <TabsContent value="ranking" className="mt-0 space-y-0">
+
                   <SectionTag icon={Target} text="Which option looks best" />
                   <div className="mt-3 grid gap-2">
-                    {ranked.map((r, i) => (
+                    {ranked.map((r, i) => {
+                      const eff = effortEfficiency(
+                        { pushes: r.option.pushes ?? {} },
+                        variables,
+                      );
+                      const showEff = eff.wasted > 0 && eff.ratio < 0.4;
+                      const effPct = Math.round(eff.ratio * 100);
+                      return (
                       <button
                         key={r.option.id}
                         onMouseEnter={() => setFocusOpt(r.option.id)}
@@ -3476,7 +3492,7 @@ export default function DecisionLens() {
                         }
                         aria-pressed={focusOpt === r.option.id}
                         className={
-                          "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                          "flex flex-wrap items-center gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                           (i === 0
                             ? "border-helps/40 bg-helps/10"
                             : "border-border bg-muted hover:bg-muted/70 hover:border-primary/30")
@@ -3487,7 +3503,16 @@ export default function DecisionLens() {
                           className="inline-block h-2.5 w-2.5 rounded"
                           style={{ background: r.color }}
                         />
-                        <span className="flex-1 text-sm">{r.option.name}</span>
+                        <span className="flex-1 min-w-0 text-sm">{r.option.name}</span>
+                        {showEff && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900"
+                            title={`Only ${effPct}% of this option's effort lands on things that can actually move. The rest pushes on fixed forces.`}
+                          >
+                            <AlertTriangle size={10} aria-hidden />
+                            mostly pushes fixed forces
+                          </span>
+                        )}
                         <span className="flex flex-col items-end leading-tight">
                           <span className="text-sm font-semibold tabular-nums text-foreground">
                             ~{Math.round(r.winProb * 10)} of 10
@@ -3497,12 +3522,13 @@ export default function DecisionLens() {
                           </span>
                         </span>
                         {i === 0 && (
-                          <span className="text-xs font-semibold text-helps">
+                          <span className="w-full text-xs font-semibold text-helps sm:w-auto">
                             comes out ahead in ~{Math.round(r.winProb * 10)} of 10 likely futures
                           </span>
                         )}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {allTrendDown && (
