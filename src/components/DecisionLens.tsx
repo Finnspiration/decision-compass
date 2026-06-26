@@ -3489,6 +3489,19 @@ export default function DecisionLens() {
                       </p>
                     )}
                   </div>
+                    </TabsContent>
+                    <TabsContent value="map" className="mt-0">
+                      <SectionTag icon={Target} text="Map of drivers" />
+                      <div className="mt-3">
+                        <EstuarineMap
+                          variables={variables}
+                          onUpdate={(id, patch) => updVar(id, patch)}
+                          onPlace={runPlaceOnMap}
+                          placing={placingMap}
+                        />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </Panel>
 
                 {best &&
